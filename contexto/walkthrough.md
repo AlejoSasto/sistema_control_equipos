@@ -1,11 +1,11 @@
 # Walkthrough: Implementación Completa de los Planes 01, 02, 03, 04 y 05
 
 Se ha completado la ejecución paso a paso de los documentos rectores del **Sistema de Control de Salida de Equipos de Cómputo** para la **Universidad de Cundinamarca**:
-1. [01-modelo-negocio-roles-permisos.md](file:///c:/Users/FA-BI/OneDrive/Documentos/Universidad%20de%20Cundinamarca/2026-II/sistema%20de%20control/01-modelo-negocio-roles-permisos.md) (Reglas de negocio y filosofía de salida)
-2. [02-modelo-datos-diccionario.md](file:///c:/Users/FA-BI/OneDrive/Documentos/Universidad%20de%20Cundinamarca/2026-II/sistema%20de%20control/02-modelo-datos-diccionario.md) (Diccionario de datos e integridad referencial en PostgreSQL)
-3. [03-plan-implementacion-paso-a-paso.md](file:///c:/Users/FA-BI/OneDrive/Documentos/Universidad%20de%20Cundinamarca/2026-II/sistema%20de%20control/03-plan-implementacion-paso-a-paso.md) (Ruta de construcción modular por fases)
-4. [04-diseno-ux-ui.md](file:///c:/Users/FA-BI/OneDrive/Documentos/Universidad%20de%20Cundinamarca/2026-II/sistema%20de%20control/04-diseno-ux-ui.md) (Conceptos de pantallas y accesibilidad)
-5. [05-sistema-diseno-v2.md](file:///c:/Users/FA-BI/OneDrive/Documentos/Universidad%20de%20Cundinamarca/2026-II/sistema%20de%20control/05-sistema-diseno-v2.md) (Sistema de diseño definitivo: sin amarillo, Inter + escala de espaciado Bootstrap, superficies neutras)
+1. [01-modelo-negocio-roles-permisos.md](01-modelo-negocio-roles-permisos.md) (Reglas de negocio y filosofía de salida)
+2. [02-modelo-datos-diccionario.md](02-modelo-datos-diccionario.md) (Diccionario de datos e integridad referencial en PostgreSQL)
+3. [03-plan-implementacion-paso-a-paso.md](03-plan-implementacion-paso-a-paso.md) (Ruta de construcción modular por fases)
+4. [04-diseno-ux-ui.md](04-diseno-ux-ui.md) (Conceptos de pantallas y accesibilidad)
+5. [05-sistema-diseno-v2.md](05-sistema-diseno-v2.md) (Sistema de diseño definitivo: sin amarillo, Inter + escala de espaciado Bootstrap, superficies neutras)
 
 ---
 
