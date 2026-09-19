@@ -145,7 +145,8 @@ La interfaz incluye navegación offcanvas en móvil (≤1023px), grids adaptativ
 | Documento | Contenido |
 |-----------|-----------|
 | [contexto/README.md](contexto/README.md) | Índice y estado de todos los planes |
-| `00`–`08` | Arquitectura, negocio, datos, UX, registro, panel, lógica |
+| [`09-guia-diseno-ux-ui.md`](contexto/09-guia-diseno-ux-ui.md) | Guía completa de diseño: colores, tipografía, layout, responsive |
+| `00`–`08` | Arquitectura, negocio, datos, UX histórico, registro, panel, lógica |
 | `walkthrough.md` | Resumen de implementación |
 | `planes/` | Planes de ejecución (responsive, etc.) |
 

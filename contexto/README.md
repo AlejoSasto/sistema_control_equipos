@@ -4,7 +4,7 @@ Carpeta canónica de **documentación y planes** del Sistema de Control de Salid
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-19
+**Última actualización:** 2026-09-19 (guía UX/UI completa `09`)
 
 ---
 
@@ -27,11 +27,12 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/`, marcar todos
 | [01-modelo-negocio-roles-permisos.md](01-modelo-negocio-roles-permisos.md) | Modelo de negocio, roles y permisos | Vigente |
 | [02-modelo-datos-diccionario.md](02-modelo-datos-diccionario.md) | Diccionario de datos | Vigente (org. evolucionó a Facultad + Área) |
 | [03-plan-implementacion-paso-a-paso.md](03-plan-implementacion-paso-a-paso.md) | Plan de implementación por fases | Completado (MVP) |
-| [04-diseno-ux-ui.md](04-diseno-ux-ui.md) | Diseño UX/UI inicial | Histórico / superado por `05` |
-| [05-sistema-diseno-v2.md](05-sistema-diseno-v2.md) | Sistema de diseño v2 (Inter, verde institucional) | Vigente |
+| [04-diseno-ux-ui.md](04-diseno-ux-ui.md) | Diseño UX/UI inicial | Histórico / superado por `05` y `09` |
+| [05-sistema-diseno-v2.md](05-sistema-diseno-v2.md) | Sistema de diseño v2 (Inter, verde institucional) | Vigente (tokens; detalle en `09`) |
 | [06-registro-externo-roles-permisos.md](06-registro-externo-roles-permisos.md) | Registro externo y TipoVinculo | Implementado (fixture 2.3 desfasado vs seed canónico) |
 | [07-panel-administracion-interno.md](07-panel-administracion-interno.md) | Panel de administración interno | Implementado |
 | [08-logica-completa-aplicacion.md](08-logica-completa-aplicacion.md) | Lógica completa de la aplicación | Vigente |
+| [09-guia-diseno-ux-ui.md](09-guia-diseno-ux-ui.md) | Guía completa UX/UI: colores, tipografía, layout, responsive, componentes | **Vigente (referencia visual)** |
 | [walkthrough.md](walkthrough.md) | Walkthrough de implementación | Completado |
 
 ---
@@ -40,7 +41,9 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/`, marcar todos
 
 | Plan | Estado | Resumen |
 |------|--------|---------|
-| [planes/sistema-responsive-completo.md](planes/sistema-responsive-completo.md) | **Completado** | Sidebar offcanvas, utilidades de grid, templates responsive |
+| [planes/sistema-responsive-completo.md](planes/sistema-responsive-completo.md) | **Completado** | Offcanvas + grids; desktop-first (look web intacto) |
+| [planes/desktop-intacto-responsive.md](planes/desktop-intacto-responsive.md) | **Completado** | Restaura topbar/filtros/cards en escritorio |
+| [planes/normalizar-qr-pistola-zebra.md](planes/normalizar-qr-pistola-zebra.md) | **Completado** | Normaliza UUID con apóstrofos de Zebra DS22 (layout US→ES) |
 
 ---
 

@@ -152,3 +152,50 @@ class ControlSalidaTestCase(TestCase):
         mov = Movimiento.objects.filter(token_escaneado=token_falso).first()
         self.assertIsNotNone(mov)
         self.assertEqual(mov.resultado, Movimiento.RESULTADO_NO_ENCONTRADO)
+
+    def test_salida_ok_uuid_con_apostrofos_layout_teclado(self):
+        """Zebra DS22 US→ES: guiones del UUID llegan como apóstrofos -> ok."""
+        self.client.login(username="celador_test", password="testpassword123")
+        codigo_pistola = str(self.equipo_ok.token_qr).replace("-", "'")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": codigo_pistola},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "LNV-OK-TEST-01")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+
+    def test_salida_ok_uuid_hex_sin_separadores(self):
+        """UUID de 32 hex sin guiones -> ok."""
+        self.client.login(username="celador_test", password="testpassword123")
+        codigo_hex = self.equipo_ok.token_qr.hex
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": codigo_hex},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "LNV-OK-TEST-01")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+
+    def test_salida_ok_por_serial(self):
+        """Fallback por serial físico intacto (demos / ingreso manual)."""
+        self.client.login(username="celador_test", password="testpassword123")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": "LNV-OK-TEST-01"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "Juan Camilo Rodríguez")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)

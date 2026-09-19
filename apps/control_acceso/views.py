@@ -7,6 +7,7 @@ from django.db.models import Q
 from accounts.decorators import requiere_permiso
 from equipos.models import Equipo
 from .models import Movimiento
+from .utils import normalizar_codigo_escaneado
 
 
 @login_required
@@ -54,7 +55,7 @@ def escanear_qr_salida(request):
        - Si coincide y activos -> resultado 'ok', registrar Movimiento.
     4. Muestra en pantalla el resultado gigante y actualiza la tabla del turno vía HTMX OOB.
     """
-    codigo_recibido = request.POST.get("codigo", "").strip()
+    codigo_recibido = normalizar_codigo_escaneado(request.POST.get("codigo", ""))
 
     if not codigo_recibido:
         return render(
