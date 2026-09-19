@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}{% if area %}Editar Área{% else %}Nueva Área{% endif %}{% endblock %}
+{% block page_title %}{% if area %}Editar Área / Dependencia{% else %}Nueva Área / Dependencia{% endif %}{% endblock %}
+{% block content %}
+<div class="card card-white" style="max-width: 560px; margin: 0 auto;">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group"><label class="form-label">Código *</label>
+      <input name="codigo" class="form-control" value="{{ data.codigo }}" required style="font-family:var(--font-mono);" placeholder="CGCA, ISU, CTeI"></div>
+    <div class="form-group"><label class="form-label">Nombre *</label>
+      <input name="nombre" class="form-control" value="{{ data.nombre }}" required placeholder="Biblioteca, Interacción Social Universitaria"></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:var(--space-2) 0;">
+      <input type="checkbox" name="activo" {% if data.activo %}checked{% endif %}> Activa
+    </label>
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-3);">
+      <a href="{% url 'panel:organizacion_list' %}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

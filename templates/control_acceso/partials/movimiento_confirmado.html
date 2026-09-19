@@ -1,0 +1,42 @@
+<!-- Confirmación del movimiento -->
+<div class="feedback-box feedback-success" style="padding: 1.75rem; text-align: center;">
+  <div style="width: 52px; height: 52px; border-radius: 50%; background: var(--color-success); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);">
+    <svg style="width: 32px; height: 32px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+    </svg>
+  </div>
+
+  <h3 style="font-size: 1.35rem; font-weight: 800; color: #34d399;">
+    ¡{{ movimiento_confirmado.get_tipo_movimiento_display|upper }} REGISTRADA!
+  </h3>
+
+  <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.35rem;">
+    Equipo: <strong style="color: var(--text-primary);">{{ equipo.marca }} {{ equipo.modelo }}</strong>
+    (Serial: <code style="font-family: var(--font-mono); color: #38bdf8;">{{ equipo.serial }}</code>)
+  </p>
+
+  <p style="font-size: 0.825rem; color: var(--text-muted); margin-top: 0.2rem;">
+    Titular: {{ equipo.persona.nombre_completo }} | Hora: {{ movimiento_confirmado.fecha_hora|date:"H:i:s" }}
+  </p>
+
+  <div style="margin-top: 1.5rem;">
+    <button type="button" class="btn btn-outline" onclick="document.getElementById('scanner-input').focus(); document.getElementById('resultado-escaneo').innerHTML = document.getElementById('placeholder-escaneo').innerHTML;">
+      Escanear Siguiente Equipo
+    </button>
+  </div>
+</div>
+
+<div id="placeholder-escaneo" style="display: none;">
+  <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); border: 2px dashed rgba(255, 255, 255, 0.08); border-radius: var(--radius-lg);">
+    <svg style="width: 48px; height: 48px; margin: 0 auto 0.75rem; opacity: 0.4;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M3 14h18m-9-4v8m-7 4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    </svg>
+    <p style="font-weight: 500;">Listo para escanear</p>
+    <p style="font-size: 0.78rem; margin-top: 0.25rem;">Los datos del equipo y del portador aparecerán aquí instantáneamente.</p>
+  </div>
+</div>
+
+<!-- HTMX Out-of-band Swap: actualiza la lista de movimientos recientes en la columna derecha -->
+<div id="lista-movimientos" hx-swap-oob="true" style="flex: 1; overflow-y: auto; max-height: 580px;">
+  {% include 'control_acceso/partials/tabla_movimientos_turno.html' with movimientos=movimientos_hoy %}
+</div>

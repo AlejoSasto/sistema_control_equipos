@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Permisos de {{ rol.nombre }} — Panel{% endblock %}
+{% block page_title %}Matriz de Permisos: {{ rol.nombre }}{% endblock %}
+
+{% block content %}
+{% if usuarios_activos %}
+<div class="feedback-box feedback-warning" style="margin-bottom: var(--space-4);">
+  Este rol tiene <strong>{{ usuarios_activos }} usuario(s) activo(s)</strong> asignado(s).
+  Los cambios en permisos afectarán inmediatamente sus capacidades en el sistema.
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+
+  {% if requiere_confirmacion %}
+  <div class="feedback-box feedback-danger" style="margin-bottom: var(--space-4);">
+    <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+      <input type="checkbox" name="confirmar_cambios" value="1" style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+      <span>Confirmo que deseo aplicar estos cambios de permisos sabiendo que afectan a usuarios activos.</span>
+    </label>
+  </div>
+  {% endif %}
+
+  {% for modulo, permisos in grupos.items %}
+  <div class="card card-white" style="margin-bottom: var(--space-3);">
+    <div class="card-header">
+      <h3 class="card-title">{{ modulo }}</h3>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: var(--space-1);">
+      {% for p in permisos %}
+      <label style="display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); cursor: pointer; border-bottom: 1px solid var(--color-border);">
+        <input type="checkbox" name="permisos" value="{{ p.id }}"
+               {% if p.id in permisos_asignados %}checked{% endif %}
+               style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+        <div>
+          <code style="font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-primary); font-weight: 600;">{{ p.codigo }}</code>
+          <div style="color: var(--color-text-secondary); font-size: 0.8125rem;">{{ p.descripcion }}</div>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3);">
+    <a href="{% url 'panel:roles_list' %}" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary btn-lg">Guardar Cambios</button>
+  </div>
+</form>
+{% endblock %}

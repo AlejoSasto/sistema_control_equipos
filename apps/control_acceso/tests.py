@@ -1,0 +1,154 @@
+import uuid
+from django.test import TestCase, Client
+from django.urls import reverse
+from accounts.models import Usuario, Rol, Permiso, RolPermiso, UsuarioRol
+from organizacion.models import Sede, Decanatura, Programa
+from personas.models import Persona, TipoVinculo
+from equipos.models import Equipo
+from control_acceso.models import Movimiento
+
+
+class ControlSalidaTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.sede = Sede.objects.create(codigo="UBATE", nombre="Seccional Ubaté", ciudad="Ubaté")
+
+        # Tipos de Vínculo
+        self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(codigo="docente", defaults={"nombre": "Docente"})
+        self.vinculo_graduado, _ = TipoVinculo.objects.get_or_create(codigo="graduado", defaults={"nombre": "Graduado"})
+
+        # Permisos y Rol Celador
+        self.perm_escanear = Permiso.objects.create(
+            codigo="control.escanear", descripcion="Acceder a la pantalla de control de salida"
+        )
+        self.perm_alertas = Permiso.objects.create(
+            codigo="control.ver_alertas", descripcion="Ver histórico de alertas"
+        )
+        self.rol_celador = Rol.objects.create(nombre="celador", descripcion="Celador de Portería")
+        RolPermiso.objects.create(rol=self.rol_celador, permiso=self.perm_escanear)
+        RolPermiso.objects.create(rol=self.rol_celador, permiso=self.perm_alertas)
+
+        # Usuario Celador
+        self.celador = Usuario.objects.create_user(
+            username="celador_test",
+            password="testpassword123",
+        )
+        UsuarioRol.objects.create(usuario=self.celador, rol=self.rol_celador)
+
+        # Persona Activa
+        self.persona_activa = Persona.objects.create(
+            tipo_documento="CC",
+            numero_documento="1070123456",
+            nombres="Juan Camilo",
+            apellidos="Rodríguez",
+            tipo_vinculo=self.vinculo_docente,
+            sede=self.sede,
+            activo=True,
+        )
+
+        # Persona Inactiva (Regla 7)
+        self.persona_inactiva = Persona.objects.create(
+            tipo_documento="CC",
+            numero_documento="1070999999",
+            nombres="Pedro",
+            apellidos="Desvinculado",
+            tipo_vinculo=self.vinculo_graduado,
+            sede=self.sede,
+            activo=False,
+        )
+
+        # Equipo Activo Autorizado
+        self.equipo_ok = Equipo.objects.create(
+            persona=self.persona_activa,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="Lenovo",
+            modelo="ThinkPad T14",
+            serial="LNV-OK-TEST-01",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+            activo=True,
+        )
+
+        # Equipo Inactivo / Dado de baja (Regla 6)
+        self.equipo_baja = Equipo.objects.create(
+            persona=self.persona_activa,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="HP",
+            modelo="EliteBook",
+            serial="HP-BAJA-TEST-02",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+            activo=False,
+        )
+
+        # Equipo con Persona Inactiva (Regla 7)
+        self.equipo_persona_inactiva = Equipo.objects.create(
+            persona=self.persona_inactiva,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="Dell",
+            modelo="Latitude",
+            serial="DELL-INACT-TEST-03",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+            activo=True,
+        )
+
+    def test_salida_autorizada_ok(self):
+        """Prueba salida normal: persona activa y equipo activo -> resultado 'ok'."""
+        self.client.login(username="celador_test", password="testpassword123")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": str(self.equipo_ok.token_qr)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "Juan Camilo Rodríguez")
+        self.assertContains(response, "LNV-OK-TEST-01")
+
+        # Regla 5: Cada escaneo genera registro en Movimiento
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+        self.assertEqual(mov.usuario_control, self.celador)
+
+    def test_salida_alerta_equipo_inactivo(self):
+        """Regla 6: Equipo dado de baja (activo=False) -> resultado 'alerta'."""
+        self.client.login(username="celador_test", password="testpassword123")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": str(self.equipo_baja.token_qr)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SALIDA NO AUTORIZADA")
+        self.assertContains(response, "Equipo dado de baja o inactivo")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_baja).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_ALERTA)
+
+    def test_salida_alerta_persona_inactiva(self):
+        """Regla 7: Persona inactiva -> resultado 'alerta'."""
+        self.client.login(username="celador_test", password="testpassword123")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": str(self.equipo_persona_inactiva.token_qr)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "SALIDA NO AUTORIZADA")
+        self.assertContains(response, "Persona inactiva")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_persona_inactiva).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_ALERTA)
+
+    def test_codigo_no_encontrado(self):
+        """Código inexistente -> resultado 'no_encontrado' registrado en auditoría."""
+        token_falso = str(uuid.uuid4())
+        self.client.login(username="celador_test", password="testpassword123")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": token_falso},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "CÓDIGO NO REGISTRADO")
+
+        mov = Movimiento.objects.filter(token_escaneado=token_falso).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_NO_ENCONTRADO)

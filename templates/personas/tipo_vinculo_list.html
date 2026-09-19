@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Tipos de Vínculo Institucional{% endblock %}
+{% block page_title %}Catálogo Dinámico de Tipos de Vínculo{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'personas:tipo_vinculo_create' %}" class="btn btn-primary">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+  </svg>
+  <span>Nuevo Tipo de Vínculo</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Tarjeta Informativa de Arquitectura (Documento 06) -->
+<div class="feedback-box feedback-info" style="margin-bottom: var(--space-4);">
+  <div>
+    <strong>Catálogo Dinámico de Afiliación (Documento 06):</strong>
+    Define los perfiles de la comunidad académica, cuáles admiten autorregistro público externo, la validación de dominio de correo (ej. <code>@ucundinamarca.edu.co</code>) y el rol de permisos asignado automáticamente.
+  </div>
+</div>
+
+<!-- Tabla de Tipos de Vínculo -->
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Perfiles Institucionales Configurados</h3>
+      <p class="card-subtitle">Administración de reglas de vinculación, dominios y asignación de roles</p>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre del Perfil</th>
+          <th>Autorregistro</th>
+          <th>Dominio Requerido</th>
+          <th>Rol Asignado</th>
+          <th>Personas</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tv in tipos %}
+        <tr>
+          <td>
+            <code style="font-family: var(--font-mono); font-weight: 600; color: var(--color-primary);">
+              {{ tv.codigo }}
+            </code>
+          </td>
+          <td style="font-weight: 600; color: var(--color-text);">
+            {{ tv.nombre }}
+          </td>
+          <td>
+            {% if tv.permite_autoregistro %}
+            <span class="badge badge-success">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Habilitado</span>
+            </span>
+            {% else %}
+            <span class="badge badge-subtle">Solo Administrador</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if tv.dominio_correo_requerido %}
+            <code style="font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-info);">
+              {{ tv.dominio_correo_requerido }}
+            </code>
+            {% else %}
+            <span style="color: var(--color-text-secondary); font-size: 0.8125rem;">Sin restricción</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if tv.rol_asignado %}
+            <span class="badge badge-info">{{ tv.rol_asignado.nombre }}</span>
+            {% else %}
+            <span style="color: var(--color-text-secondary); font-size: 0.8125rem;">Sin rol automático</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge badge-subtle">{{ tv.personas.count }}</span>
+          </td>
+          <td>
+            {% if tv.activo %}
+            <span class="badge badge-success">Activo</span>
+            {% else %}
+            <span class="badge badge-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: var(--space-1);">
+              <a href="{% url 'personas:tipo_vinculo_edit' tv.pk %}" class="btn btn-secondary btn-sm" style="padding: 0 8px; height: 32px;" title="Editar">
+                Editar
+              </a>
+              <form method="post" action="{% url 'personas:tipo_vinculo_toggle' tv.pk %}" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-secondary btn-sm"
+                        style="padding: 0 8px; height: 32px;"
+                        title="{% if tv.activo %}Desactivar{% else %}Activar{% endif %}"
+                        onclick="return confirm('¿Está seguro de cambiar el estado de este tipo de vínculo?');">
+                  {% if tv.activo %}Desactivar{% else %}Activar{% endif %}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 48px var(--space-4); color: var(--color-text-secondary);">
+            No hay tipos de vínculo registrados en el sistema.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

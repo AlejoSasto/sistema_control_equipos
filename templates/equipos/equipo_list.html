@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inventario de Equipos{% endblock %}
+{% block page_title %}Inventario de Equipos de Cómputo{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'equipos:equipo_create' %}" class="btn btn-primary">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m8-8H4"/>
+  </svg>
+  <span>Registrar Equipo</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <form method="get" class="filters-grid">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_q">Buscar por Serial, Marca o Titular:</label>
+      <input type="text" name="q" id="filter_q" value="{{ query }}" class="form-control" placeholder="Ej: Lenovo, ThinkPad, 1070123456">
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_tipo">Tipo de Dispositivo:</label>
+      <select name="tipo" id="filter_tipo" class="form-select">
+        <option value="">-- Todos --</option>
+        {% for t_cod, t_nom in tipos_equipo %}
+        <option value="{{ t_cod }}" {% if tipo_filtro == t_cod %}selected{% endif %}>{{ t_nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_prop">Propiedad:</label>
+      <select name="propiedad" id="filter_prop" class="form-select">
+        <option value="">-- Todas --</option>
+        {% for p_cod, p_nom in propiedades %}
+        <option value="{{ p_cod }}" {% if propiedad_filtro == p_cod %}selected{% endif %}>{{ p_nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_dep">Dependencia:</label>
+      <select name="dependencia" id="filter_dep" class="form-select">
+        <option value="">-- Todas --</option>
+        {% for a in areas %}
+        <option value="{{ a.id }}" {% if dependencia_filtro == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_act">Estado:</label>
+      <select name="activo" id="filter_act" class="form-select">
+        <option value="">-- Todos --</option>
+        <option value="1" {% if activo_filtro == '1' %}selected{% endif %}>Activos</option>
+        <option value="0" {% if activo_filtro == '0' %}selected{% endif %}>Inactivos (Baja)</option>
+      </select>
+    </div>
+
+    <div style="display: flex; gap: var(--space-2);">
+      <button type="submit" class="btn btn-primary">
+        Filtrar
+      </button>
+      {% if query or tipo_filtro or propiedad_filtro or dependencia_filtro or activo_filtro %}
+      <a href="{% url 'equipos:equipos_list' %}" class="btn btn-secondary">
+        Limpiar
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Tabla de Equipos -->
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Equipos Registrados en el Sistema</h3>
+      <p class="card-subtitle">Listado con códigos QR dinámicos y propiedad institucional / personal</p>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>QR</th>
+          <th>Equipo / Marca</th>
+          <th>Serial</th>
+          <th>Tipo</th>
+          <th>Propiedad</th>
+          <th>Dependencia</th>
+          <th>Titular</th>
+          <th>Sede</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in equipos %}
+        <tr>
+          <td style="width: 50px;">
+            <a href="{% url 'equipos:equipo_detail' e.id %}">
+              <img src="{{ e.generar_qr_base64 }}" alt="QR" width="38" height="38" style="border-radius: 4px; border: 1px solid var(--color-border);">
+            </a>
+          </td>
+          <td>
+            <a href="{% url 'equipos:equipo_detail' e.id %}" style="color: var(--color-text); text-decoration: none; font-weight: 600;">
+              {{ e.marca }} {{ e.modelo }}
+            </a>
+          </td>
+          <td>
+            <code style="font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-primary); font-weight: 600; background: var(--color-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-border);">
+              {{ e.serial }}
+            </code>
+          </td>
+          <td style="font-size: 0.875rem; color: var(--color-text);">
+            {{ e.get_tipo_display }}
+          </td>
+          <td>
+            <span class="badge {% if e.propiedad == 'institucional' %}badge-info{% else %}badge-subtle{% endif %}">
+              {{ e.get_propiedad_display }}
+            </span>
+          </td>
+          <td>
+            {% if e.dependencia %}<span class="badge badge-subtle">{{ e.dependencia.codigo }}</span>{% else %}—{% endif %}
+          </td>
+          <td>
+            <div style="font-weight: 600; color: var(--color-text);">{{ e.persona.nombre_completo }}</div>
+            <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
+              Doc: {{ e.persona.numero_documento }} ({{ e.persona.get_tipo_vinculo_display }})
+            </div>
+          </td>
+          <td>
+            <span class="badge badge-subtle">{{ e.persona.sede.codigo }}</span>
+          </td>
+          <td>
+            {% if e.activo %}
+            <span class="badge badge-success">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Activo</span>
+            </span>
+            {% else %}
+            <span class="badge badge-danger">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              <span>Inactivo</span>
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: var(--space-1);">
+              <a href="{% url 'equipos:equipo_detail' e.id %}" class="btn btn-secondary btn-sm" style="padding: 0 8px; height: 32px;">
+                Ficha
+              </a>
+              <a href="{% url 'equipos:mostrar_qr_pantalla' e.token_qr %}" target="_blank" class="btn btn-secondary btn-sm" style="padding: 0 8px; height: 32px;" title="Mostrar QR Celular">
+                QR
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 48px var(--space-4); color: var(--color-text-secondary);">
+            No se encontraron equipos registrados con los filtros seleccionados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

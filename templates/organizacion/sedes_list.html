@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sedes y Estructura Universitaria{% endblock %}
+{% block page_title %}Estructura Multi-Sede Institucional{% endblock %}
+
+{% block content %}
+<!-- Grid de Sedes -->
+<div style="margin-bottom: var(--space-5);">
+  <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: var(--space-3); color: var(--color-text);">
+    Sedes y Seccionales de la Universidad de Cundinamarca
+  </h2>
+
+  <div class="cards-grid" style="gap: var(--space-3);">
+    {% for s in sedes %}
+    <div class="card card-white">
+      <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+        <div>
+          <span class="badge badge-subtle" style="margin-bottom: var(--space-1);">{{ s.codigo }}</span>
+          <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--color-text);">{{ s.nombre }}</h3>
+        </div>
+        <div style="width: 38px; height: 38px; border-radius: var(--radius-sm); background-color: var(--color-surface); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center; color: var(--color-primary);">
+          <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+        </div>
+      </div>
+
+      <div style="margin-top: var(--space-3); font-size: 0.875rem; color: var(--color-text); display: flex; flex-direction: column; gap: var(--space-1);">
+        <div>📍 {{ s.direccion|default:"Dirección no registrada" }}</div>
+        <div>🏙️ {{ s.ciudad }}</div>
+        <div>📞 {{ s.telefono|default:"N/A" }}</div>
+      </div>
+
+      <div style="margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--color-text-secondary); font-weight: 500;">
+        <span>{{ s.programas.count }} Programas</span>
+        <span>{{ s.personas.count }} Personas vinculadas</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Decanaturas y Programas -->
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Catálogo de Facultades y Programas Académicos</h3>
+      <p class="card-subtitle">Estructura curricular articulada por sede</p>
+    </div>
+  </div>
+
+  <div class="cards-grid" style="margin-top: var(--space-3);">
+    {% for d in decanaturas %}
+    <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-3);">
+      <div style="font-size: 0.75rem; color: var(--color-primary); font-weight: 600; text-transform: uppercase;">
+        {{ d.codigo }}
+      </div>
+      <h4 style="font-size: 1rem; font-weight: 600; margin-top: 2px; color: var(--color-text);">
+        {{ d.nombre }}
+      </h4>
+
+      <div style="margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1);">
+        {% for p in d.programas.all %}
+        <div style="background-color: #FFFFFF; border: 1px solid var(--color-border); padding: 8px var(--space-3); border-radius: var(--radius-sm); font-size: 0.8125rem; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 500; color: var(--color-text);">{{ p.nombre }}</span>
+          <span class="badge badge-subtle" style="font-size: 0.6875rem;">{{ p.sede.codigo }}</span>
+        </div>
+        {% empty %}
+        <div style="color: var(--color-text-secondary); font-size: 0.75rem;">Sin programas asignados.</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

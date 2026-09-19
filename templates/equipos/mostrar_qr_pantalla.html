@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pase QR de Salida - {{ equipo.serial }}{% endblock %}
+{% block page_title %}Pase de Salida del Campus{% endblock %}
+
+{% block content %}
+<div class="qr-display-container">
+  <span class="badge badge-success" style="margin-bottom: var(--space-2);">
+    PASE OFICIAL DE CONTROL
+  </span>
+  <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text);">
+    UNIVERSIDAD DE CUNDINAMARCA
+  </h2>
+  <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">
+    Presenta esta pantalla ante el celador en el puesto de portería
+  </p>
+
+  <!-- Contenedor QR en Contraste Puro (Sin decoraciones invasivas) -->
+  <div class="qr-code-box">
+    <img src="{{ qr_base64 }}" alt="Código QR de Salida" width="260" height="260">
+  </div>
+
+  <!-- Ficha de Datos sin interferencias visuales -->
+  <div class="qr-info-box">
+    <div>
+      <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">EQUIPO:</span>
+      <div style="font-weight: 600; font-size: 1.05rem; color: var(--color-text);">
+        {{ equipo.marca }} {{ equipo.modelo }}
+      </div>
+      <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+        Tipo: {{ equipo.get_tipo_display }} | {{ equipo.get_propiedad_display }}
+      </div>
+    </div>
+
+    <div>
+      <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">SERIAL:</span>
+      <div style="font-family: var(--font-mono); font-weight: 700; font-size: 1rem; color: var(--color-primary);">
+        {{ equipo.serial }}
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-2);">
+      <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">TITULAR REGISTRADO:</span>
+      <div style="font-weight: 600; font-size: 0.9375rem; color: var(--color-text);">
+        {{ persona.nombre_completo }}
+      </div>
+      <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+        {{ persona.tipo_documento }}: {{ persona.numero_documento }} ({{ persona.get_tipo_vinculo_display }})
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: var(--space-4);">
+    <a href="{% url 'equipos:mis_equipos' %}" class="btn btn-secondary" style="width: 100%;">
+      ← Volver a Mis Equipos
+    </a>
+  </div>
+</div>
+{% endblock %}

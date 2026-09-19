@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Usuarios — Panel de Administración{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'panel:usuario_create' %}" class="btn btn-primary">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+  </svg>
+  <span>Nuevo Usuario</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <form method="get" class="filters-grid">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_q">Buscar</label>
+      <input type="text" name="q" id="filter_q" value="{{ query }}" class="form-control" placeholder="Usuario, correo o documento">
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_rol">Rol</label>
+      <select name="rol" id="filter_rol" class="form-select">
+        <option value="">Todos</option>
+        {% for r in roles %}
+        <option value="{{ r.nombre }}" {% if rol_filtro == r.nombre %}selected{% endif %}>{{ r.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_estado">Estado</label>
+      <select name="estado" id="filter_estado" class="form-select">
+        <option value="">Todos</option>
+        <option value="activo" {% if estado_filtro == 'activo' %}selected{% endif %}>Activo</option>
+        <option value="inactivo" {% if estado_filtro == 'inactivo' %}selected{% endif %}>Inactivo</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_persona">Persona</label>
+      <select name="persona" id="filter_persona" class="form-select">
+        <option value="">Todos</option>
+        <option value="con" {% if persona_filtro == 'con' %}selected{% endif %}>Con persona</option>
+        <option value="sin" {% if persona_filtro == 'sin' %}selected{% endif %}>Sin persona</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </form>
+</div>
+
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Cuentas de Usuario</h3>
+      <p class="card-subtitle">Gestión de accesos, roles y contraseñas</p>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Correo</th>
+          <th>Persona Asociada</th>
+          <th>Roles</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td style="font-weight: 600;">{{ u.username }}</td>
+          <td>{{ u.email|default:"—" }}</td>
+          <td>
+            {% if u.persona %}
+            {{ u.persona.nombre_completo }}
+            <br><small style="color: var(--color-text-secondary);">{{ u.persona.numero_documento }}</small>
+            {% else %}
+            <span style="color: var(--color-text-secondary);">Sin persona</span>
+            {% endif %}
+          </td>
+          <td>
+            {% for r in u.roles.all %}
+            <span class="badge badge-info">{{ r.nombre }}</span>
+            {% empty %}
+            <span class="badge badge-subtle">Sin rol</span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if u.activo and u.is_active %}<span class="badge badge-success">Activo</span>
+            {% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'panel:usuario_detail' u.pk %}" class="btn btn-secondary btn-sm">Gestionar</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 48px; color: var(--color-text-secondary);">
+            No se encontraron usuarios.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

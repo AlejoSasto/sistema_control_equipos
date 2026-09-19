@@ -1,0 +1,81 @@
+{% if movimientos %}
+<div class="table-responsive">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Hora</th>
+        <th>Estado</th>
+        <th>Equipo / Serial</th>
+        <th>Persona</th>
+        <th>Celador</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in movimientos %}
+      <tr>
+        <td style="font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; color: var(--color-text);">
+          {{ m.timestamp|date:"H:i:s" }}
+        </td>
+        <td>
+          {% if m.resultado == 'ok' %}
+          <span class="badge badge-success">
+            <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span>OK</span>
+          </span>
+          {% elif m.resultado == 'alerta' %}
+          <span class="badge badge-danger">
+            <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>Alerta</span>
+          </span>
+          {% else %}
+          <span class="badge badge-neutral">
+            <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>No Registrado</span>
+          </span>
+          {% endif %}
+        </td>
+        <td>
+          {% if m.equipo %}
+          <div style="font-weight: 600; font-size: 0.875rem; color: var(--color-text);">
+            {{ m.equipo.marca }} {{ m.equipo.modelo }}
+          </div>
+          <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-primary); font-weight: 600;">
+            {{ m.equipo.serial }}
+          </div>
+          {% else %}
+          <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-danger); font-weight: 600;">
+            {{ m.token_escaneado }}
+          </div>
+          {% endif %}
+        </td>
+        <td>
+          {% if m.equipo %}
+          <div style="font-weight: 600; font-size: 0.875rem; color: var(--color-text);">
+            {{ m.equipo.persona.nombre_completo }}
+          </div>
+          <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
+            {{ m.equipo.persona.get_tipo_vinculo_display }}
+          </div>
+          {% else %}
+          <span style="color: var(--color-text-secondary); font-size: 0.8125rem;">Desconocido</span>
+          {% endif %}
+        </td>
+        <td style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+          {{ m.usuario_control.get_full_name|default:m.usuario_control.username }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div style="text-align: center; padding: 48px var(--space-3); color: var(--color-text-secondary); font-size: 0.875rem;">
+  No hay salidas registradas en este turno aún.
+</div>
+{% endif %}

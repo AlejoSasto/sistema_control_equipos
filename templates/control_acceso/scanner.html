@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Control de Salida (Kiosco) - Puesto de Vigilancia{% endblock %}
+{% block page_title %}Puesto de Control de Salida (Portería){% endblock %}
+
+{% block topbar_actions %}
+<!-- Botón secundario pequeño en esquina: Ver historial del día -->
+<a href="{% url 'control_acceso:movimientos_list' %}" class="btn btn-secondary btn-sm">
+  <svg style="width: 14px; height: 14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+  </svg>
+  <span>Ver Historial del Día</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<div>
+  <!-- Estadísticas del Turno de Salida -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div>
+        <div class="stat-value" style="color: var(--color-primary);">{{ total_ok }}</div>
+        <div class="stat-label">Salidas Autorizadas (OK)</div>
+      </div>
+      <div class="stat-icon-wrapper" style="color: var(--color-primary);">
+        <svg style="width: 22px; height: 22px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div>
+        <div class="stat-value" style="color: {% if total_alertas > 0 %}var(--color-danger){% else %}var(--color-text-secondary){% endif %};">
+          {{ total_alertas }}
+        </div>
+        <div class="stat-label">Alertas / Retenciones</div>
+      </div>
+      <div class="stat-icon-wrapper" style="color: {% if total_alertas > 0 %}var(--color-danger){% else %}var(--color-text-secondary){% endif %};">
+        <svg style="width: 22px; height: 22px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div>
+        <div class="stat-value" style="color: var(--color-info);">{{ total_hoy }}</div>
+        <div class="stat-label">Total Escaneos Hoy</div>
+      </div>
+      <div class="stat-icon-wrapper" style="color: var(--color-info);">
+        <svg style="width: 22px; height: 22px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grid de Kiosco: Lector a la izquierda, Historial a la derecha -->
+  <div class="kiosk-grid">
+    <!-- Columna Izquierda: Escáner y Pantalla de Kiosco -->
+    <div>
+      <div class="kiosk-scanner-panel">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2);">
+          <div>
+            <span class="badge badge-success" style="margin-bottom: var(--space-1);">Lector Activo</span>
+            <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--color-text);">
+              Puesto de Control de Salida
+            </h2>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">
+              Apunta el lector óptico a la pantalla del celular del titular
+            </p>
+          </div>
+
+          <!-- Accesos rápidos para demostración -->
+          <div style="display: flex; flex-wrap: wrap; gap: var(--space-1);">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="copiarDemo('LNV-UBATE-2026-01')">
+              Demo: Salida OK
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" style="color: var(--color-danger) !important; border-color: var(--color-danger);" onclick="copiarDemo('HP-BAJA-ALERT-00')">
+              Demo: Equipo Baja (R6)
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" style="color: var(--color-danger) !important; border-color: var(--color-danger);" onclick="copiarDemo('ASUS-INACT-ALERT-77')">
+              Demo: Persona Inactiva (R7)
+            </button>
+          </div>
+        </div>
+
+        <!-- Formulario HTMX con autofocus continuo -->
+        <form hx-post="{% url 'control_acceso:verificar_codigo' %}"
+              hx-target="#resultado-escaneo"
+              hx-indicator="#cargando-indicador"
+              class="kiosk-input-wrapper">
+          <svg class="kiosk-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+          </svg>
+          <input type="text"
+                 name="codigo"
+                 id="scanner-input"
+                 class="kiosk-input"
+                 placeholder="Esperando lectura de QR..."
+                 autocomplete="off"
+                 autofocus>
+          <button type="submit" class="btn btn-primary" style="position: absolute; right: 5px; top: 5px; bottom: 5px; height: 42px;">
+            Verificar
+          </button>
+        </form>
+
+        <div id="cargando-indicador" class="htmx-indicator" style="text-align: center; padding: var(--space-2); color: var(--color-primary); font-size: 0.875rem; font-weight: 500;">
+          Verificando equipo y titular en base de datos...
+        </div>
+
+        <!-- Contenedor del Resultado Kiosco (34-40px Inter) -->
+        <div id="resultado-escaneo">
+          <!-- Estado Inicial: Superficie sólida, mensaje "Esperando escaneo…" -->
+          <div style="text-align: center; padding: 48px var(--space-4); background-color: var(--color-bg); border: 1px dashed var(--color-border); border-radius: var(--radius-sm);">
+            <svg style="width: 48px; height: 48px; margin: 0 auto var(--space-3); color: var(--color-text-secondary); opacity: 0.5;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+            </svg>
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--color-text);">
+              Esperando escaneo…
+            </h3>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">
+              Presenta el código QR ante el lector óptico de portería.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna Derecha: Historial del Turno Actual -->
+    <div>
+      <div class="card card-white" style="height: 100%; display: flex; flex-direction: column;">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Historial del Turno</h3>
+            <p class="card-subtitle">Auditoría en tiempo real de salidas en portería</p>
+          </div>
+          <a href="{% url 'control_acceso:movimientos_list' %}" class="btn btn-secondary btn-sm">
+            Ver Todos
+          </a>
+        </div>
+
+        <div id="lista-movimientos" style="flex: 1; overflow-y: auto; max-height: 600px;">
+          {% include 'control_acceso/partials/tabla_movimientos_turno.html' with movimientos=movimientos_hoy %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function copiarDemo(valor) {
+    const input = document.getElementById('scanner-input');
+    input.value = valor;
+    input.focus();
+    htmx.trigger(input.form, 'submit');
+  }
+
+  // Mantener autofocus permanente en el lector de portería tras cada escaneo
+  document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+    const input = document.getElementById('scanner-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+  });
+</script>
+{% endblock %}

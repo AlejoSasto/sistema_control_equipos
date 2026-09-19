@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if tipo %}Editar Tipo de Vínculo{% else %}Nuevo Tipo de Vínculo{% endif %}{% endblock %}
+{% block page_title %}{% if tipo %}Editar Tipo de Vínculo: {{ tipo.nombre }}{% else %}Crear Nuevo Tipo de Vínculo{% endif %}{% endblock %}
+
+{% block content %}
+<div style="max-width: 680px; margin: 0 auto;">
+  <div class="card card-white">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">{% if tipo %}Modificar Perfil Institucional{% else %}Nuevo Perfil Institucional{% endif %}</h2>
+        <p class="card-subtitle">Configuración del catálogo dinámico según Documento 06</p>
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-grid-1-2">
+        <div class="form-group">
+          <label class="form-label" for="id_codigo">Código Único: *</label>
+          <input type="text"
+                 name="codigo"
+                 id="id_codigo"
+                 class="form-control"
+                 placeholder="ej. estudiante"
+                 value="{{ data.codigo }}"
+                 required
+                 style="font-family: var(--font-mono);">
+          <small style="color: var(--color-text-secondary); font-size: 0.75rem;">Identificador interno en minúsculas</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_nombre">Nombre Legible: *</label>
+          <input type="text"
+                 name="nombre"
+                 id="id_nombre"
+                 class="form-control"
+                 placeholder="ej. Estudiante de Pregrado"
+                 value="{{ data.nombre }}"
+                 required>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="id_dominio">Dominio de Correo Requerido:</label>
+          <input type="text"
+                 name="dominio_correo_requerido"
+                 id="id_dominio"
+                 class="form-control"
+                 placeholder="@ucundinamarca.edu.co"
+                 value="{{ data.dominio_correo_requerido }}"
+                 style="font-family: var(--font-mono);">
+          <small style="color: var(--color-text-secondary); font-size: 0.75rem;">Dejar vacío si no se exige dominio específico</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_rol">Rol Asignado Automáticamente:</label>
+          <select name="rol_asignado" id="id_rol" class="form-select">
+            <option value="">-- Sin Rol Automático --</option>
+            {% for r in roles %}
+            <option value="{{ r.id }}"
+                    {% if data.rol_asignado == r.id|stringformat:'s' %}selected{% endif %}>
+              {{ r.nombre }} ({% for p in r.permisos.all %}{{ p.codigo }}{% if not forloop.last %}, {% endif %}{% endfor %})
+            </option>
+            {% endfor %}
+          </select>
+          <small style="color: var(--color-text-secondary); font-size: 0.75rem;">Rol asignado al autorregistrarse</small>
+        </div>
+      </div>
+
+      <!-- Toggles / Checkboxes -->
+      <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-3); margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3);">
+        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+          <input type="checkbox"
+                 name="permite_autoregistro"
+                 {% if data.permite_autoregistro %}checked{% endif %}
+                 style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+          <div>
+            <span style="font-weight: 600; color: var(--color-text); font-size: 0.875rem;">Permitir Autorregistro Público</span>
+            <div style="color: var(--color-text-secondary); font-size: 0.75rem;">
+              Permite a los usuarios externos seleccionar este tipo al crear su cuenta en el portal público.
+            </div>
+          </div>
+        </label>
+
+        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+          <input type="checkbox"
+                 name="activo"
+                 {% if data.activo %}checked{% endif %}
+                 style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+          <div>
+            <span style="font-weight: 600; color: var(--color-text); font-size: 0.875rem;">Tipo de Vínculo Activo</span>
+            <div style="color: var(--color-text-secondary); font-size: 0.75rem;">
+              Habilitado para asignación y operaciones del sistema.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+        <a href="{% url 'personas:tipo_vinculo_list' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">
+          {% if tipo %}Actualizar Tipo de Vínculo{% else %}Guardar Tipo de Vínculo{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

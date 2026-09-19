@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Histórico de Movimientos de Salida{% endblock %}
+{% block page_title %}Historial y Auditoría de Salidas{% endblock %}
+
+{% block topbar_actions %}
+{% if user.es_celador %}
+<a href="{% url 'control_acceso:escanear' %}" class="btn btn-primary">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+  </svg>
+  <span>Ir al Puesto de Control</span>
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Filtros de Búsqueda -->
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <form method="get" class="filters-grid">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_q">Buscar por Serial, Documento o Persona:</label>
+      <input type="text" name="q" id="filter_q" value="{{ query }}" class="form-control" placeholder="Ej: LNV-UBATE o 1070123456">
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_res">Resultado de Verificación:</label>
+      <select name="resultado" id="filter_res" class="form-select">
+        <option value="">-- Todos los Resultados --</option>
+        {% for r_cod, r_nom in opciones_resultado %}
+        <option value="{{ r_cod }}" {% if resultado_filtro == r_cod %}selected{% endif %}>{{ r_nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_fecha">Fecha:</label>
+      <input type="date" name="fecha" id="filter_fecha" value="{{ fecha_filtro }}" class="form-control">
+    </div>
+
+    <div style="display: flex; gap: var(--space-2);">
+      <button type="submit" class="btn btn-primary">
+        Filtrar
+      </button>
+      {% if query or resultado_filtro or fecha_filtro %}
+      <a href="{% url 'control_acceso:movimientos_list' %}" class="btn btn-secondary">
+        Limpiar
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Tabla de Auditoría General -->
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Bitácora General de Movimientos</h3>
+      <p class="card-subtitle">Registro cronológico inmutable de los escaneos en portería</p>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Fecha y Hora</th>
+          <th>Resultado</th>
+          <th>Equipo</th>
+          <th>Serial</th>
+          <th>Titular</th>
+          <th>Vínculo</th>
+          <th>Celador</th>
+          <th>Observación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movimientos %}
+        <tr>
+          <td style="font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; color: var(--color-text);">
+            {{ m.timestamp|date:"Y-m-d H:i:s" }}
+          </td>
+          <td>
+            {% if m.resultado == 'ok' %}
+            <span class="badge badge-success">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>OK</span>
+            </span>
+            {% elif m.resultado == 'alerta' %}
+            <span class="badge badge-danger">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <span>Alerta</span>
+            </span>
+            {% else %}
+            <span class="badge badge-neutral">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <span>No Registrado</span>
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.equipo %}
+            <strong style="color: var(--color-text);">{{ m.equipo.marca }} {{ m.equipo.modelo }}</strong>
+            {% else %}
+            <span style="color: var(--color-text-secondary);">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.equipo %}
+            <code style="color: var(--color-primary); font-family: var(--font-mono); font-weight: 600; background: var(--color-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-border);">{{ m.equipo.serial }}</code>
+            {% else %}
+            <code style="color: var(--color-danger); font-family: var(--font-mono); font-weight: 600; background: #FDE8E8; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(198,40,40,0.2);">{{ m.token_escaneado }}</code>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.equipo %}
+            <div style="font-weight: 600; color: var(--color-text);">{{ m.equipo.persona.nombre_completo }}</div>
+            <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
+              Doc: {{ m.equipo.persona.numero_documento }}
+            </div>
+            {% else %}
+            <span style="color: var(--color-text-secondary);">Desconocido</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if m.equipo %}
+            <span class="badge badge-info">{{ m.equipo.persona.get_tipo_vinculo_display }}</span>
+            {% else %}
+            -
+            {% endif %}
+          </td>
+          <td style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+            {{ m.usuario_control.get_full_name|default:m.usuario_control.username }}
+          </td>
+          <td style="font-size: 0.8125rem; color: var(--color-text-secondary);">
+            {{ m.observacion|default:"-" }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 48px var(--space-4); color: var(--color-text-secondary);">
+            No se encontraron movimientos registrados con los filtros aplicados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

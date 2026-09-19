@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if persona %}Editar Persona{% else %}Nueva Persona{% endif %} — Panel{% endblock %}
+{% block page_title %}{% if persona %}Editar: {{ persona.nombre_completo }}{% else %}Registrar Nueva Persona{% endif %}{% endblock %}
+
+{% block content %}
+<div {% if persona %}class="detail-grid"{% endif %}>
+  <div class="card card-white">
+    <div class="card-header">
+      <h3 class="card-title">Datos de la Persona</h3>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid-1-2">
+        <div class="form-group">
+          <label class="form-label" for="tipo_documento">Tipo Doc. *</label>
+          <select name="tipo_documento" id="tipo_documento" class="form-select" required>
+            <option value="CC" {% if data.tipo_documento == 'CC' %}selected{% endif %}>Cédula (CC)</option>
+            <option value="TI" {% if data.tipo_documento == 'TI' %}selected{% endif %}>Tarjeta (TI)</option>
+            <option value="CE" {% if data.tipo_documento == 'CE' %}selected{% endif %}>Extranjería (CE)</option>
+            <option value="PAS" {% if data.tipo_documento == 'PAS' %}selected{% endif %}>Pasaporte (PAS)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="numero_documento">Número de Documento *</label>
+          <input type="text" name="numero_documento" id="numero_documento" class="form-control"
+                 value="{{ data.numero_documento }}" required style="font-family: var(--font-mono);">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="nombres">Nombres *</label>
+          <input type="text" name="nombres" id="nombres" class="form-control" value="{{ data.nombres }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="apellidos">Apellidos *</label>
+          <input type="text" name="apellidos" id="apellidos" class="form-control" value="{{ data.apellidos }}" required>
+        </div>
+      </div>
+      <div class="form-grid-3">
+        <div class="form-group">
+          <label class="form-label" for="tipo_vinculo">Tipo de Vínculo *</label>
+          <select name="tipo_vinculo" id="tipo_vinculo" class="form-select" required>
+            <option value="">-- Seleccionar --</option>
+            {% for tv in tipos_vinculo %}
+            <option value="{{ tv.id }}" data-codigo="{{ tv.codigo }}" {% if data.tipo_vinculo == tv.id|stringformat:'s' %}selected{% endif %}>{{ tv.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sede">Sede *</label>
+          <select name="sede" id="sede" class="form-select" required>
+            <option value="">-- Seleccionar --</option>
+            {% for s in sedes %}
+            <option value="{{ s.id }}" {% if data.sede == s.id|stringformat:'s' %}selected{% endif %}>{{ s.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" id="grupo-programa">
+          <label class="form-label" for="programa">Programa</label>
+          <select name="programa" id="programa" class="form-select">
+            <option value="">-- Opcional --</option>
+            {% for p in programas %}
+            <option value="{{ p.id }}" data-sede="{{ p.sede_id }}" {% if data.programa == p.id|stringformat:'s' %}selected{% endif %}>{{ p.nombre }} ({{ p.sede.codigo }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" id="grupo-area" style="display:none;">
+          <label class="form-label" for="area">Área / Dependencia *</label>
+          <select name="area" id="area" class="form-select">
+            <option value="">-- Seleccionar --</option>
+            {% for a in areas %}
+            <option value="{{ a.id }}" {% if data.area == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }} — {{ a.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {% if persona %}
+      <label style="display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); cursor: pointer;">
+        <input type="checkbox" name="activo" {% if data.activo %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+        <span style="font-weight: 600; font-size: 0.875rem;">Persona activa en el sistema</span>
+      </label>
+      {% endif %}
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+        <a href="{% url 'panel:personas_list' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Guardar</button>
+      </div>
+    </form>
+    {% if persona %}
+    <form method="post" action="{% url 'panel:persona_toggle' persona.pk %}" style="margin-top: var(--space-3);">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('¿Cambiar estado de esta persona?');">
+        {% if persona.activo %}Inactivar persona{% else %}Activar persona{% endif %}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  {% if persona %}
+  <div class="card card-white">
+    <div class="card-header">
+      <h3 class="card-title">Equipos Asociados</h3>
+      <span class="badge badge-subtle">{{ equipos.count }}</span>
+    </div>
+    {% for e in equipos %}
+    <div style="padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: 0.875rem;">
+      <strong>{{ e.marca }} {{ e.modelo }}</strong>
+      <div style="font-family: var(--font-mono); color: var(--color-primary); font-size: 0.75rem;">{{ e.serial }}</div>
+    </div>
+    {% empty %}
+    <p style="color: var(--color-text-secondary); font-size: 0.875rem; padding: var(--space-3) 0;">Sin equipos registrados.</p>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+<script>
+(function() {
+  const codigoAdmin = "{{ codigo_vinculo_admin }}";
+  const tipoVinculo = document.getElementById("tipo_vinculo");
+  const sede = document.getElementById("sede");
+  const programa = document.getElementById("programa");
+  const area = document.getElementById("area");
+  const grupoPrograma = document.getElementById("grupo-programa");
+  const grupoArea = document.getElementById("grupo-area");
+
+  function filtrarProgramasPorSede() {
+    const sedeId = sede.value;
+    Array.from(programa.options).forEach(opt => {
+      if (!opt.value) return;
+      opt.hidden = sedeId && opt.dataset.sede !== sedeId;
+    });
+    if (programa.selectedOptions[0]?.hidden) programa.value = "";
+  }
+
+  function toggleVinculo() {
+    const opt = tipoVinculo.selectedOptions[0];
+    const esAdmin = opt && opt.dataset.codigo === codigoAdmin;
+    grupoPrograma.style.display = esAdmin ? "none" : "";
+    grupoArea.style.display = esAdmin ? "" : "none";
+    area.required = esAdmin;
+    if (esAdmin) programa.value = "";
+    else area.value = "";
+  }
+
+  tipoVinculo.addEventListener("change", toggleVinculo);
+  sede.addEventListener("change", filtrarProgramasPorSede);
+  toggleVinculo();
+  filtrarProgramasPorSede();
+})();
+</script>
+{% endblock %}

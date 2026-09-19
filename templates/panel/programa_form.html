@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}{% if programa %}Editar Programa{% else %}Nuevo Programa{% endif %}{% endblock %}
+{% block page_title %}{% if programa %}Editar Programa{% else %}Nuevo Programa{% endif %}{% endblock %}
+{% block content %}
+<div class="card card-white" style="max-width: 560px; margin: 0 auto;">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group"><label class="form-label">Código *</label>
+      <input name="codigo" class="form-control" value="{{ data.codigo }}" required style="font-family:var(--font-mono);"></div>
+    <div class="form-group"><label class="form-label">Nombre *</label>
+      <input name="nombre" class="form-control" value="{{ data.nombre }}" required></div>
+    <div class="form-group"><label class="form-label">Sede *</label>
+      <select name="sede" class="form-select" required>
+        <option value="">-- Seleccionar --</option>
+        {% for s in sedes %}
+        <option value="{{ s.id }}" {% if data.sede == s.id|stringformat:'s' %}selected{% endif %}>{{ s.nombre }} ({{ s.codigo }})</option>
+        {% endfor %}
+      </select></div>
+    <div class="form-group"><label class="form-label">Facultad *</label>
+      <select name="facultad" class="form-select" required>
+        <option value="">-- Seleccionar --</option>
+        {% for f in facultades %}
+        <option value="{{ f.id }}" {% if data.facultad == f.id|stringformat:'s' %}selected{% endif %}>{{ f.nombre }} ({{ f.codigo }})</option>
+        {% endfor %}
+      </select></div>
+    <div class="form-group"><label class="form-label">Nivel</label>
+      <select name="nivel" class="form-select">
+        {% for val, label in niveles %}
+        <option value="{{ val }}" {% if data.nivel == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select></div>
+    <label style="display:flex;gap:8px;align-items:center;margin:var(--space-2) 0;">
+      <input type="checkbox" name="activo" {% if data.activo %}checked{% endif %}> Activo
+    </label>
+    <div style="display:flex;gap:var(--space-2);justify-content:flex-end;margin-top:var(--space-3);">
+      <a href="{% url 'panel:organizacion_list' %}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

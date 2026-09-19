@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Pase de Control - {{ equipo.serial }} | UDEC</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { background: #f1f5f9; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .print-actions { margin-bottom: 20px; }
+    .btn { background: #056839; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .badge-card {
+      width: 380px;
+      background: white;
+      border: 3px solid #056839;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      text-align: center;
+      color: #1e293b;
+    }
+    .header { border-bottom: 2px solid #056839; padding-bottom: 12px; margin-bottom: 15px; }
+    .univ-name { font-size: 13px; font-weight: 800; color: #056839; letter-spacing: 0.5px; }
+    .system-name { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 2px; }
+    .qr-container { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; display: inline-block; margin: 10px 0; }
+    .qr-img { width: 180px; height: 180px; display: block; }
+    .serial-box { background: #0f172a; color: #38bdf8; font-family: monospace; font-size: 14px; font-weight: bold; padding: 6px 12px; border-radius: 6px; display: inline-block; margin: 8px 0; }
+    .info-table { width: 100%; margin-top: 12px; font-size: 11px; text-align: left; border-collapse: collapse; }
+    .info-table td { padding: 4px 6px; border-bottom: 1px solid #f1f5f9; }
+    .info-table .label { color: #64748b; font-weight: bold; width: 35%; }
+    .footer { margin-top: 12px; font-size: 9px; color: #94a3b8; }
+    @media print {
+      body { background: white; padding: 0; }
+      .print-actions { display: none; }
+      .badge-card { box-shadow: none; border: 2px solid black; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-actions">
+    <button class="btn" onclick="window.print()">🖨️ Imprimir Pase de Control</button>
+  </div>
+
+  <div class="badge-card">
+    <div class="header">
+      <div class="univ-name">UNIVERSIDAD DE CUNDINAMARCA</div>
+      <div class="system-name">Control de Acceso de Equipos de Cómputo</div>
+    </div>
+
+    <div class="qr-container">
+      {% if equipo.qr_imagen %}
+      <img src="{{ equipo.qr_imagen.url }}" alt="QR" class="qr-img">
+      {% endif %}
+    </div>
+
+    <div>
+      <div class="serial-box">{{ equipo.serial }}</div>
+    </div>
+
+    <table class="info-table">
+      <tr>
+        <td class="label">Equipo:</td>
+        <td><strong>{{ equipo.marca }} {{ equipo.modelo }}</strong></td>
+      </tr>
+      <tr>
+        <td class="label">Titular:</td>
+        <td>{{ equipo.persona.nombre_completo }}</td>
+      </tr>
+      <tr>
+        <td class="label">Documento:</td>
+        <td>{{ equipo.persona.tipo_documento }} {{ equipo.persona.numero_documento }}</td>
+      </tr>
+      <tr>
+        <td class="label">Rol / Sede:</td>
+        <td>{{ equipo.persona.tipo_persona.nombre }} — {{ equipo.persona.sede.nombre }}</td>
+      </tr>
+    </table>
+
+    <div class="footer">
+      Este código QR es de uso personal e intransferible. Debe ser presentado ante el personal de seguridad en portería al ingresar o retirar el equipo.
+    </div>
+  </div>
+</body>
+</html>

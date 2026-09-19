@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if rol %}Editar Rol{% else %}Nuevo Rol{% endif %} — Panel{% endblock %}
+{% block page_title %}{% if rol %}Editar Rol: {{ rol.nombre }}{% else %}Crear Nuevo Rol{% endif %}{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="max-width: 640px; margin: 0 auto;">
+  <div class="card-header">
+    <h3 class="card-title">{% if rol %}Modificar Rol{% else %}Nuevo Rol{% endif %}</h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="form-label" for="nombre">Nombre del Rol *</label>
+      <input type="text" name="nombre" id="nombre" class="form-control" value="{{ data.nombre }}" required
+             placeholder="ej. miembro_comunidad">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="descripcion">Descripción</label>
+      <input type="text" name="descripcion" id="descripcion" class="form-control" value="{{ data.descripcion }}"
+             placeholder="Descripción legible del rol">
+    </div>
+    <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer; margin-top: var(--space-2);">
+      <input type="checkbox" name="activo" {% if data.activo %}checked{% endif %}
+             style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+      <span style="font-weight: 600; font-size: 0.875rem;">Rol activo</span>
+    </label>
+    <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+      <a href="{% url 'panel:roles_list' %}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary btn-lg">Guardar</button>
+    </div>
+  </form>
+  {% if rol %}
+  <div style="margin-top: var(--space-3);">
+    <a href="{% url 'panel:rol_permisos' rol.pk %}" class="btn btn-secondary btn-sm">Configurar permisos →</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

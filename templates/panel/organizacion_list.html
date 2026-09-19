@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Organización — Panel{% endblock %}
+{% block page_title %}Sedes, Facultades, Programas y Áreas{% endblock %}
+
+{% block topbar_actions %}
+<div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+  <a href="{% url 'panel:sede_create' %}" class="btn btn-primary btn-sm">+ Sede</a>
+  <a href="{% url 'panel:decanatura_create' %}" class="btn btn-primary btn-sm">+ Facultad</a>
+  <a href="{% url 'panel:programa_create' %}" class="btn btn-primary btn-sm">+ Programa</a>
+  <a href="{% url 'panel:area_create' %}" class="btn btn-primary btn-sm">+ Área</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <div class="card-header"><h3 class="card-title">Sedes</h3></div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Ciudad</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        {% for s in sedes %}
+        <tr>
+          <td><code>{{ s.codigo }}</code></td>
+          <td>{{ s.nombre }}</td>
+          <td>{{ s.ciudad }}</td>
+          <td>{% if s.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}</td>
+          <td>
+            <a href="{% url 'panel:sede_edit' s.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+            <form method="post" action="{% url 'panel:sede_toggle' s.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">{% if s.activo %}Inactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <div class="card-header"><h3 class="card-title">Facultades</h3></div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        {% for f in facultades %}
+        <tr>
+          <td><code>{{ f.codigo }}</code></td>
+          <td>{{ f.nombre }}</td>
+          <td>{% if f.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}</td>
+          <td>
+            <a href="{% url 'panel:decanatura_edit' f.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+            <form method="post" action="{% url 'panel:decanatura_toggle' f.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">{% if f.activo %}Inactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <div class="card-header"><h3 class="card-title">Programas Académicos</h3></div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Sede</th><th>Facultad</th><th>Nivel</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        {% for p in programas %}
+        <tr>
+          <td><code>{{ p.codigo }}</code></td>
+          <td>{{ p.nombre }}</td>
+          <td>{{ p.sede.codigo }}</td>
+          <td>{{ p.facultad.nombre }}</td>
+          <td>{{ p.get_nivel_display }}</td>
+          <td>{% if p.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}</td>
+          <td>
+            <a href="{% url 'panel:programa_edit' p.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+            <form method="post" action="{% url 'panel:programa_toggle' p.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">{% if p.activo %}Inactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card card-white">
+  <div class="card-header"><h3 class="card-title">Áreas / Dependencias</h3></div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead><tr><th>Código</th><th>Nombre</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        {% for a in areas %}
+        <tr>
+          <td><code>{{ a.codigo }}</code></td>
+          <td>{{ a.nombre }}</td>
+          <td>{% if a.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}</td>
+          <td>
+            <a href="{% url 'panel:area_edit' a.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+            <form method="post" action="{% url 'panel:area_toggle' a.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">{% if a.activo %}Inactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

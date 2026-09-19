@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Personas — Panel de Administración{% endblock %}
+{% block page_title %}Gestión de Personas{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'panel:persona_create' %}" class="btn btn-primary">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+  </svg>
+  <span>Nueva Persona</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <form method="get" class="filters-grid">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_q">Buscar</label>
+      <input type="text" name="q" id="filter_q" value="{{ query }}" class="form-control" placeholder="Documento o nombre">
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_vinc">Tipo de Vínculo</label>
+      <select name="vinculo" id="filter_vinc" class="form-select">
+        <option value="">Todos</option>
+        {% for tv in tipos_vinculo %}
+        <option value="{{ tv.codigo }}" {% if vinculo_filtro == tv.codigo %}selected{% endif %}>{{ tv.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_sede">Sede</label>
+      <select name="sede" id="filter_sede" class="form-select">
+        <option value="">Todas</option>
+        {% for s in sedes %}
+        <option value="{{ s.codigo }}" {% if sede_filtro == s.codigo %}selected{% endif %}>{{ s.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_programa">Programa</label>
+      <select name="programa" id="filter_programa" class="form-select">
+        <option value="">Todos</option>
+        {% for p in programas %}
+        <option value="{{ p.id }}" {% if programa_filtro == p.id|stringformat:'s' %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_estado">Estado</label>
+      <select name="estado" id="filter_estado" class="form-select">
+        <option value="">Todos</option>
+        <option value="activo" {% if estado_filtro == 'activo' %}selected{% endif %}>Activo</option>
+        <option value="inactivo" {% if estado_filtro == 'inactivo' %}selected{% endif %}>Inactivo</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </form>
+</div>
+
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Directorio de Personas</h3>
+      <p class="card-subtitle">Crear, editar e inactivar integrantes de la comunidad académica</p>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Documento</th>
+          <th>Nombre</th>
+          <th>Vínculo</th>
+          <th>Sede / Programa</th>
+          <th>Equipos</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in personas %}
+        <tr>
+          <td><code style="font-family: var(--font-mono);">{{ p.tipo_documento }} {{ p.numero_documento }}</code></td>
+          <td style="font-weight: 600;">{{ p.nombre_completo }}</td>
+          <td><span class="badge badge-info">{{ p.tipo_vinculo.nombre }}</span></td>
+          <td>
+            {{ p.sede.nombre }}
+            {% if p.programa %}<br><small style="color: var(--color-text-secondary);">{{ p.programa.nombre }}</small>{% endif %}
+          </td>
+          <td><span class="badge badge-subtle">{{ p.equipos_count }}</span></td>
+          <td>
+            {% if p.activo %}<span class="badge badge-success">Activo</span>
+            {% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}
+          </td>
+          <td>
+            <a href="{% url 'panel:persona_edit' p.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 48px; color: var(--color-text-secondary);">
+            No se encontraron personas con los filtros aplicados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Roles — Panel de Administración{% endblock %}
+{% block page_title %}Gestión de Roles{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'panel:rol_create' %}" class="btn btn-primary">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+  </svg>
+  <span>Nuevo Rol</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Roles del Sistema</h3>
+      <p class="card-subtitle">Definición de perfiles y asignación de permisos</p>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Usuarios</th>
+          <th>Permisos</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in roles %}
+        <tr>
+          <td style="font-weight: 600;">{{ r.nombre }}</td>
+          <td style="color: var(--color-text-secondary); font-size: 0.875rem;">{{ r.descripcion|default:"—" }}</td>
+          <td><span class="badge badge-subtle">{{ r.usuarios_count }}</span></td>
+          <td><span class="badge badge-info">{{ r.permisos_count }}</span></td>
+          <td>
+            {% if r.activo %}<span class="badge badge-success">Activo</span>
+            {% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: var(--space-1);">
+              <a href="{% url 'panel:rol_edit' r.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+              <a href="{% url 'panel:rol_permisos' r.pk %}" class="btn btn-primary btn-sm">Permisos</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 48px; color: var(--color-text-secondary);">
+            No hay roles registrados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

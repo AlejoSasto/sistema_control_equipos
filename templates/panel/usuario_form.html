@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Nuevo Usuario — Panel{% endblock %}
+{% block page_title %}Crear Nueva Cuenta de Usuario{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="max-width: 720px; margin: 0 auto;">
+  <div class="card-header">
+    <h3 class="card-title">Formulario de Creación</h3>
+    <p class="card-subtitle">Asociar a una persona existente o crear usuario standalone (celador/soporte)</p>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+
+    <label style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); cursor: pointer; padding: var(--space-3); background: var(--color-surface); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+      <input type="checkbox" name="sin_persona" id="sin_persona" {% if data.sin_persona %}checked{% endif %}
+             onchange="togglePersonaSelect()" style="width: 18px; height: 18px; accent-color: var(--color-primary);">
+      <div>
+        <span style="font-weight: 600; font-size: 0.875rem;">Usuario sin persona asociada</span>
+        <div style="color: var(--color-text-secondary); font-size: 0.75rem;">Para celadores o personal de soporte del sistema</div>
+      </div>
+    </label>
+
+    <div class="form-group" id="persona-select-group">
+      <label class="form-label" for="persona">Persona Existente</label>
+      <select name="persona" id="persona" class="form-select">
+        <option value="">-- Seleccionar persona --</option>
+        {% for p in personas_disponibles %}
+        <option value="{{ p.id }}" {% if data.persona == p.id|stringformat:'s' %}selected{% endif %}>
+          {{ p.nombre_completo }} — {{ p.numero_documento }} ({{ p.tipo_vinculo.nombre }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="username">Nombre de Usuario *</label>
+        <input type="text" name="username" id="username" class="form-control" value="{{ data.username }}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="email">Correo Electrónico</label>
+        <input type="email" name="email" id="email" class="form-control" value="{{ data.email }}">
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="first_name">Nombres</label>
+        <input type="text" name="first_name" id="first_name" class="form-control" value="{{ data.first_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="last_name">Apellidos</label>
+        <input type="text" name="last_name" id="last_name" class="form-control" value="{{ data.last_name }}">
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="password">Contraseña Temporal *</label>
+        <input type="password" name="password" id="password" class="form-control" minlength="8" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password_confirm">Confirmar Contraseña *</label>
+        <input type="password" name="password_confirm" id="password_confirm" class="form-control" minlength="8" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Roles a Asignar</label>
+      <div style="display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); background: var(--color-surface); border-radius: var(--radius-sm); border: 1px solid var(--color-border);">
+        {% for r in roles %}
+        <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+          <input type="checkbox" name="roles" value="{{ r.id }}"
+                 {% if r.id|stringformat:'s' in data.roles %}checked{% endif %}
+                 style="width: 16px; height: 16px; accent-color: var(--color-primary);">
+          <span style="font-size: 0.875rem; font-weight: 500;">{{ r.nombre }}</span>
+          {% if r.descripcion %}<span style="color: var(--color-text-secondary); font-size: 0.75rem;">— {{ r.descripcion }}</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+      <a href="{% url 'panel:usuarios_list' %}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary btn-lg">Crear Usuario</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function togglePersonaSelect() {
+    const sinPersona = document.getElementById('sin_persona').checked;
+    const group = document.getElementById('persona-select-group');
+    group.style.display = sinPersona ? 'none' : 'block';
+  }
+  document.addEventListener('DOMContentLoaded', togglePersonaSelect);
+</script>
+{% endblock %}

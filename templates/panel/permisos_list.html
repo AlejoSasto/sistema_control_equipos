@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Permisos — Panel de Administración{% endblock %}
+{% block page_title %}Catálogo de Permisos{% endblock %}
+
+{% block content %}
+<div class="feedback-box feedback-info" style="margin-bottom: var(--space-4);">
+  <strong>Solo lectura:</strong> Los permisos se crean junto con el desarrollo de cada funcionalidad.
+  Desde aquí puede consultar el catálogo y ver a qué roles está asignado cada permiso.
+</div>
+
+{% for modulo, permisos in grupos.items %}
+<div class="card card-white" style="margin-bottom: var(--space-3);">
+  <div class="card-header">
+    <h3 class="card-title">{{ modulo }}</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Roles que lo usan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in permisos %}
+        <tr>
+          <td><code style="font-family: var(--font-mono); font-weight: 600; color: var(--color-primary);">{{ p.codigo }}</code></td>
+          <td>{{ p.descripcion }}</td>
+          <td>
+            {% for r in p.roles.all %}
+            <span class="badge badge-info">{{ r.nombre }}</span>
+            {% empty %}
+            <span style="color: var(--color-text-secondary); font-size: 0.8125rem;">Sin asignar</span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

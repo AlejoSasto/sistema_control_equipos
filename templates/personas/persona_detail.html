@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ persona.nombre_completo }} - Perfil Institucional{% endblock %}
+{% block page_title %}Ficha de Comunidad Académica{% endblock %}
+
+{% block content %}
+<div class="detail-grid-split">
+  <!-- Perfil Persona -->
+  <div class="card card-white">
+    <div class="card-header">
+      <h3 class="card-title">Datos Personales</h3>
+      <span class="badge badge-info">{{ persona.get_tipo_vinculo_display }}</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: var(--space-3); font-size: 0.875rem;">
+      <div>
+        <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600;">NOMBRES Y APELLIDOS:</span>
+        <div style="font-size: 1.25rem; font-weight: 700; color: var(--color-text); margin-top: 2px;">
+          {{ persona.nombre_completo }}
+        </div>
+      </div>
+
+      <div class="field-grid-2">
+        <div>
+          <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600;">DOCUMENTO:</span>
+          <div style="font-family: var(--font-mono); font-weight: 600; color: var(--color-text); margin-top: 2px;">
+            {{ persona.tipo_documento }} {{ persona.numero_documento }}
+          </div>
+        </div>
+
+        <div>
+          <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600;">ESTADO INSTITUCIONAL:</span>
+          <div style="margin-top: 2px;">
+            {% if persona.activo %}
+            <span class="badge badge-success">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+              <span>Activo</span>
+            </span>
+            {% else %}
+            <span class="badge badge-danger">
+              <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+              <span>Inactivo</span>
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-3);">
+        <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600;">AFILIACIÓN UNIVERSITARIA:</span>
+        <div style="font-weight: 600; color: var(--color-text); margin-top: 2px;">{{ persona.sede.nombre }}</div>
+        {% if persona.programa %}
+        <div style="color: var(--color-text-secondary); font-size: 0.8125rem; margin-top: 2px;">
+          {{ persona.programa.nombre }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipos Registrados por esta Persona -->
+  <div class="card card-white">
+    <div class="card-header">
+      <div>
+        <h3 class="card-title">Equipos de Cómputo Registrados</h3>
+        <p class="card-subtitle">Dispositivos autorizados para salida con pase QR</p>
+      </div>
+      <span class="badge badge-success">{{ equipos.count }} Dispositivo(s)</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+      {% for e in equipos %}
+      <div style="background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-3); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: var(--space-3);">
+          <img src="{{ e.generar_qr_base64 }}" alt="QR" width="44" height="44" style="border-radius: 4px; border: 1px solid var(--color-border); background: #FFFFFF;">
+          <div>
+            <div style="font-weight: 600; font-size: 0.9375rem; color: var(--color-text);">{{ e.marca }} {{ e.modelo }}</div>
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-primary); font-weight: 600;">Serial: {{ e.serial }}</div>
+            <div style="font-size: 0.75rem; color: var(--color-text-secondary);">{{ e.get_tipo_display }} | {{ e.get_propiedad_display }}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1);">
+          <span class="badge {% if e.activo %}badge-success{% else %}badge-danger{% endif %}">
+            {% if e.activo %}
+            <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span>Activo</span>
+            {% else %}
+            <svg class="badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span>Inactivo</span>
+            {% endif %}
+          </span>
+          <a href="{% url 'equipos:equipo_detail' e.id %}" class="btn btn-secondary btn-sm" style="padding: 0 8px; height: 30px;">
+            Ficha & QR
+          </a>
+        </div>
+      </div>
+      {% empty %}
+      <div style="text-align: center; padding: 48px var(--space-3); color: var(--color-text-secondary); font-size: 0.875rem;">
+        Esta persona no tiene equipos registrados en el sistema.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registro de Usuario - Control de Equipos{% endblock %}
+
+{% block auth_content %}
+<div style="width: 100%; max-width: 620px;">
+  <div class="card card-white" style="padding: 32px var(--space-4);">
+    <!-- Imagotipo & Encabezado Institucional -->
+    <div style="text-align: center; margin-bottom: var(--space-4);">
+      <div class="brand-icon" style="margin: 0 auto var(--space-3); width: 56px; height: 56px; font-size: 1.5rem;">
+        UC
+      </div>
+      <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em;">
+        Registro de Usuario
+      </h2>
+      <p style="font-size: 0.8125rem; color: var(--color-primary); font-weight: 600; margin-top: var(--space-1); letter-spacing: 0.04em; text-transform: uppercase;">
+        Universidad de Cundinamarca
+      </p>
+      <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-2);">
+        Cree su cuenta institucional para registrar equipos y generar pases de salida QR
+      </p>
+    </div>
+
+    <form method="post" action="{% url 'accounts:registro' %}">
+      {% csrf_token %}
+
+      <!-- Nombres y Apellidos -->
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="id_nombres">Nombres: *</label>
+          <input type="text"
+                 name="nombres"
+                 id="id_nombres"
+                 class="form-control"
+                 placeholder="Ej: Laura Sofía"
+                 value="{{ form_data.nombres|default:'' }}"
+                 required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_apellidos">Apellidos: *</label>
+          <input type="text"
+                 name="apellidos"
+                 id="id_apellidos"
+                 class="form-control"
+                 placeholder="Ej: Gómez Martínez"
+                 value="{{ form_data.apellidos|default:'' }}"
+                 required>
+        </div>
+      </div>
+
+      <!-- Documento -->
+      <div class="form-grid-1-2">
+        <div class="form-group">
+          <label class="form-label" for="id_tipo_documento">Tipo Doc: *</label>
+          <select name="tipo_documento" id="id_tipo_documento" class="form-select" required>
+            <option value="CC" {% if form_data.tipo_documento == 'CC' %}selected{% endif %}>Cédula (CC)</option>
+            <option value="TI" {% if form_data.tipo_documento == 'TI' %}selected{% endif %}>Tarjeta (TI)</option>
+            <option value="CE" {% if form_data.tipo_documento == 'CE' %}selected{% endif %}>Extranjería (CE)</option>
+            <option value="PAS" {% if form_data.tipo_documento == 'PAS' %}selected{% endif %}>Pasaporte (PAS)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_numero_documento">Número de Documento: *</label>
+          <input type="text"
+                 name="numero_documento"
+                 id="id_numero_documento"
+                 class="form-control"
+                 placeholder="Ej: 1070123456"
+                 value="{{ form_data.numero_documento|default:'' }}"
+                 required
+                 style="font-family: var(--font-mono);">
+        </div>
+      </div>
+
+      <!-- Tipo de Vínculo y Correo -->
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="id_tipo_vinculo">Tipo de Vínculo: *</label>
+          <select name="tipo_vinculo" id="id_tipo_vinculo" class="form-select" required onchange="actualizarAyudaCorreo()">
+            <option value="">-- Seleccionar --</option>
+            {% for tv in tipos_vinculo %}
+            <option value="{{ tv.id }}"
+                    data-dominio="{{ tv.dominio_correo_requerido|default:'' }}"
+                    {% if form_data.tipo_vinculo == tv.id|stringformat:'s' %}selected{% endif %}>
+              {{ tv.nombre }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_correo">Correo Institucional: *</label>
+          <input type="email"
+                 name="correo"
+                 id="id_correo"
+                 class="form-control"
+                 placeholder="usuario@ucundinamarca.edu.co"
+                 value="{{ form_data.correo|default:'' }}"
+                 required>
+          <div id="correo-help" style="font-size: 0.75rem; color: var(--color-primary); font-weight: 500; margin-top: 4px; min-height: 16px;"></div>
+        </div>
+      </div>
+
+      <!-- Sede y Programa -->
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="id_sede">Sede Asignada: *</label>
+          <select name="sede" id="id_sede" class="form-select" required>
+            <option value="">-- Seleccionar Sede --</option>
+            {% for s in sedes %}
+            <option value="{{ s.id }}" {% if form_data.sede == s.id|stringformat:'s' %}selected{% endif %}>
+              {{ s.nombre }} ({{ s.codigo }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_programa">Programa Académico:</label>
+          <select name="programa" id="id_programa" class="form-select">
+            <option value="">-- Opcional (N/A) --</option>
+            {% for p in programas %}
+            <option value="{{ p.id }}" data-sede="{{ p.sede_id }}" {% if form_data.programa == p.id|stringformat:'s' %}selected{% endif %}>
+              {{ p.nombre }} ({{ p.sede.codigo }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- Contraseñas -->
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="id_password">Contraseña: *</label>
+          <input type="password"
+                 name="password"
+                 id="id_password"
+                 class="form-control"
+                 placeholder="Mínimo 8 caracteres"
+                 minlength="8"
+                 required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="id_password_confirm">Confirmar Contraseña: *</label>
+          <input type="password"
+                 name="password_confirm"
+                 id="id_password_confirm"
+                 class="form-control"
+                 placeholder="Repita la contraseña"
+                 minlength="8"
+                 required>
+        </div>
+      </div>
+
+      <div style="margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);">
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
+          <span>Crear Mi Cuenta</span>
+          <svg style="width: 18px; height: 18px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+          </svg>
+        </button>
+
+        <a href="{% url 'accounts:login' %}" class="btn btn-secondary" style="width: 100%; text-align: center;">
+          ¿Ya tiene cuenta institucional? Iniciar Sesión
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function actualizarAyudaCorreo() {
+    const select = document.getElementById('id_tipo_vinculo');
+    const helpDiv = document.getElementById('correo-help');
+    if (!select || !helpDiv) return;
+    const selectedOption = select.options[select.selectedIndex];
+    const dominio = selectedOption.getAttribute('data-dominio');
+    if (dominio) {
+      helpDiv.textContent = 'Requiere dominio institucional: ' + dominio;
+    } else {
+      helpDiv.textContent = '';
+    }
+  }
+  function filtrarProgramasPorSede() {
+    const sede = document.getElementById('id_sede');
+    const programa = document.getElementById('id_programa');
+    if (!sede || !programa) return;
+    const sedeId = sede.value;
+    Array.from(programa.options).forEach(opt => {
+      if (!opt.value) return;
+      opt.hidden = sedeId && opt.dataset.sede !== sedeId;
+    });
+    if (programa.selectedOptions[0]?.hidden) programa.value = '';
+  }
+  document.getElementById('id_sede')?.addEventListener('change', filtrarProgramasPorSede);
+  document.addEventListener('DOMContentLoaded', function() {
+    actualizarAyudaCorreo();
+    filtrarProgramasPorSede();
+  });
+</script>
+{% endblock %}

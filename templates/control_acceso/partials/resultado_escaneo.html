@@ -1,0 +1,185 @@
+{% if resultado == 'no_encontrado' %}
+<!-- RESULTADO: NO ENCONTRADO (FONDO GRIS SÓLIDO #5B615D, 34-40PX, ÍCONO VECTORIAL) -->
+<div class="kiosk-result kiosk-state-notfound">
+  <div style="display: flex; align-items: flex-start; gap: var(--space-4);">
+    <div style="width: 56px; height: 56px; border-radius: 50%; background-color: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg style="width: 32px; height: 32px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <div style="flex: 1;">
+      <span class="kiosk-badge-tag">Auditoría en Portería</span>
+      <h2 class="kiosk-headline">
+        QR NO RECONOCIDO
+      </h2>
+      <div style="font-size: 1.125rem; font-weight: 600; margin-top: var(--space-1);">
+        CÓDIGO NO REGISTRADO EN EL CAMPUS
+      </div>
+      <p class="kiosk-subheadline">
+        El código <code style="font-family: var(--font-mono); background: rgba(0,0,0,0.25); padding: 2px 8px; border-radius: 4px;">{{ codigo_buscado }}</code> no coincide con ningún equipo registrado en la universidad.
+      </p>
+      <div style="margin-top: var(--space-3); font-size: 0.875rem; opacity: 0.9;">
+        Intento auditado con ID de movimiento #{{ movimiento.id }}.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% elif resultado == 'alerta' %}
+<!-- RESULTADO: ALERTA (FONDO ROJO SÓLIDO #C62828, 34-40PX, ÍCONO VECTORIAL) -->
+<div class="kiosk-result kiosk-state-alert">
+  <div style="display: flex; align-items: flex-start; gap: var(--space-4);">
+    <div style="width: 56px; height: 56px; border-radius: 50%; background-color: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg style="width: 32px; height: 32px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+    </div>
+    <div style="flex: 1;">
+      <span class="kiosk-badge-tag">Alerta de Seguridad</span>
+      <h2 class="kiosk-headline">
+        ALERTA — RETENER EQUIPO
+      </h2>
+      <div style="font-size: 1.125rem; font-weight: 700; margin-top: var(--space-1);">
+        SALIDA NO AUTORIZADA
+      </div>
+
+      <div style="margin-top: var(--space-3); background-color: rgba(0,0,0,0.2); border-left: 4px solid #FFFFFF; padding: var(--space-2) var(--space-3); border-radius: 4px;">
+        <span style="font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: block; opacity: 0.9;">
+          Causa de la Retención:
+        </span>
+        <div style="font-size: 1.15rem; font-weight: 700; margin-top: 2px;">
+          {{ motivo_alerta }}
+        </div>
+      </div>
+
+      <!-- Ficha de Comparación Visual -->
+      <div class="kiosk-card-details">
+        <div>
+          <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; opacity: 0.85; display: block;">
+            EQUIPO REPORTADO
+          </span>
+          <div style="font-size: 1.125rem; font-weight: 700; margin-top: 2px;">
+            {{ equipo.marca }} {{ equipo.modelo }}
+          </div>
+          <div style="font-family: var(--font-mono); font-size: 0.9375rem; font-weight: 600; margin-top: 2px;">
+            Serial: {{ equipo.serial }}
+          </div>
+        </div>
+
+        <div>
+          <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; opacity: 0.85; display: block;">
+            TITULAR ASOCIADO
+          </span>
+          <div style="font-size: 1.125rem; font-weight: 700; margin-top: 2px;">
+            {{ persona.nombre_completo }}
+          </div>
+          <div style="font-size: 0.875rem; margin-top: 2px;">
+            {{ persona.tipo_documento }}: {{ persona.numero_documento }} ({{ persona.get_tipo_vinculo_display }})
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: var(--space-3); font-size: 0.8125rem; opacity: 0.95; font-weight: 500;">
+        Registro auditado con ID #{{ movimiento.id }}. Proceder según protocolo de seguridad de portería.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% elif resultado == 'ok' %}
+<!-- RESULTADO: COINCIDE (FONDO VERDE SÓLIDO #007B3E, 34-40PX, ÍCONO VECTORIAL) -->
+<div class="kiosk-result kiosk-state-ok">
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.25); padding-bottom: var(--space-3); margin-bottom: var(--space-4);">
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background-color: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg style="width: 32px; height: 32px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      <div>
+        <span class="kiosk-badge-tag">Verificación Exitosa</span>
+        <h2 class="kiosk-headline">
+          COINCIDE — SALIDA AUTORIZADA
+        </h2>
+      </div>
+    </div>
+
+    <div style="text-align: right; font-size: 0.875rem;">
+      <div style="opacity: 0.85;">Movimiento #{{ movimiento.id }}</div>
+      <div style="font-family: var(--font-mono); font-size: 1.125rem; font-weight: 700;">
+        {{ movimiento.timestamp|date:"H:i:s" }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Ficha de Alto Contraste para Vista a Distancia -->
+  <div class="detail-grid-scan">
+    <!-- Titular / Persona -->
+    <div style="background-color: rgba(255, 255, 255, 0.12); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); display: flex; align-items: center; gap: var(--space-3);">
+      <div class="kiosk-avatar">
+        {{ persona.nombres|slice:":1" }}{{ persona.apellidos|slice:":1" }}
+      </div>
+      <div>
+        <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; opacity: 0.9; letter-spacing: 0.04em;">
+          TITULAR AUTORIZADO
+        </span>
+        <div style="font-size: 1.25rem; font-weight: 700; line-height: 1.2; margin-top: 2px;">
+          {{ persona.nombre_completo }}
+        </div>
+        <div style="font-size: 0.875rem; opacity: 0.95; margin-top: 4px;">
+          {{ persona.tipo_documento }}: <span style="font-family: var(--font-mono); font-weight: 600;">{{ persona.numero_documento }}</span>
+        </div>
+        <div style="margin-top: var(--space-2); display: flex; gap: var(--space-1); flex-wrap: wrap;">
+          <span style="background-color: rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 500;">
+            {{ persona.get_tipo_vinculo_display }}
+          </span>
+          <span style="background-color: rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 500;">
+            {{ persona.sede.codigo }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Equipo de Cómputo -->
+    <div style="background-color: rgba(255, 255, 255, 0.12); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; justify-content: center;">
+      <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; opacity: 0.9; letter-spacing: 0.04em;">
+        EQUIPO VERIFICADO
+      </span>
+      <div style="font-size: 1.25rem; font-weight: 700; line-height: 1.2; margin-top: 2px;">
+        {{ equipo.marca }} {{ equipo.modelo }}
+      </div>
+      <div style="font-size: 0.9375rem; margin-top: 4px;">
+        Serial: <span style="font-family: var(--font-mono); font-weight: 700; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">{{ equipo.serial }}</span>
+      </div>
+      <div style="margin-top: var(--space-2); display: flex; gap: var(--space-1);">
+        <span style="background-color: rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 500;">
+          {{ equipo.get_tipo_display }}
+        </span>
+        <span style="background-color: rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 500;">
+          {{ equipo.get_propiedad_display }}
+        </span>
+        {% if equipo.dependencia %}
+        <span style="background-color: rgba(0, 0, 0, 0.2); padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 500;">
+          {{ equipo.dependencia.codigo }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: var(--space-3); text-align: center; font-size: 0.875rem; font-weight: 500;">
+    Salida autorizada y registrada en la bitácora institucional de portería.
+  </div>
+</div>
+
+{% elif error_mensaje %}
+<div class="feedback-box feedback-warning">
+  <h4 style="font-weight: 600;">Advertencia de Lectura</h4>
+  <p style="font-size: 0.875rem; margin-top: 2px;">{{ error_mensaje }}</p>
+</div>
+{% endif %}
+
+<!-- HTMX Out-of-Band Swap: Actualiza la bitácora del turno en tiempo real -->
+<div id="lista-movimientos" hx-swap-oob="true" style="flex: 1; overflow-y: auto; max-height: 600px;">
+  {% include 'control_acceso/partials/tabla_movimientos_turno.html' with movimientos=movimientos_hoy %}
+</div>

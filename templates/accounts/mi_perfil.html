@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Mi Perfil{% endblock %}
+{% block page_title %}Mi Información Personal{% endblock %}
+
+{% block content %}
+{% if not persona %}
+<div class="feedback-box feedback-warning">
+  Su cuenta de usuario no tiene una ficha de persona asociada. Contacte al administrador del sistema.
+</div>
+{% else %}
+
+<!-- Métricas -->
+<div class="stats-grid-4">
+  <div class="card card-white" style="padding: var(--space-3); text-align: center;">
+    <div style="font-size: 1.75rem; font-weight: 700; color: var(--color-primary);">{{ metricas.total_equipos }}</div>
+    <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">Equipos registrados</div>
+  </div>
+  <div class="card card-white" style="padding: var(--space-3); text-align: center;">
+    <div style="font-size: 1.75rem; font-weight: 700; color: var(--color-primary);">{{ metricas.equipos_activos }}</div>
+    <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">Equipos activos</div>
+  </div>
+  <div class="card card-white" style="padding: var(--space-3); text-align: center;">
+    <div style="font-size: 1.75rem; font-weight: 700; color: var(--color-success, #007B3E);">{{ metricas.salidas_ok }}</div>
+    <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">Salidas autorizadas</div>
+  </div>
+  <div class="card card-white" style="padding: var(--space-3); text-align: center;">
+    <div style="font-size: 1.75rem; font-weight: 700; color: var(--color-danger, #C62828);">{{ metricas.alertas }}</div>
+    <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">Alertas registradas</div>
+  </div>
+</div>
+
+<div class="detail-grid">
+  <!-- Datos Persona -->
+  <div class="card card-white">
+    <div class="card-header">
+      <h3 class="card-title">Datos Institucionales</h3>
+      <span class="badge badge-info">{{ persona.get_tipo_vinculo_display }}</span>
+    </div>
+    <div style="font-size: 0.875rem; display: flex; flex-direction: column; gap: var(--space-2);">
+      <div><strong>{{ persona.nombre_completo }}</strong></div>
+      <div>{{ persona.tipo_documento }} {{ persona.numero_documento }}</div>
+      <div>{{ persona.sede.nombre }}{% if persona.programa %} — {{ persona.programa.nombre }}{% elif persona.area %} — {{ persona.area.codigo }} ({{ persona.area.nombre }}){% endif %}</div>
+      <div>
+        {% if persona.activo %}<span class="badge badge-success">Activo</span>
+        {% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Datos Usuario -->
+  <div class="card card-white">
+    <div class="card-header"><h3 class="card-title">Cuenta de Acceso</h3></div>
+    <div style="font-size: 0.875rem; display: flex; flex-direction: column; gap: var(--space-2);">
+      <div><span style="color: var(--color-text-secondary);">Usuario:</span> <strong>{{ user.username }}</strong></div>
+      <div><span style="color: var(--color-text-secondary);">Correo:</span> {{ user.email|default:"—" }}</div>
+      <div><span style="color: var(--color-text-secondary);">Rol de acceso:</span>
+        {% for r in user.roles.all %}<span class="badge badge-subtle">{{ r.nombre }}</span>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Equipos propios -->
+<div class="card card-white" style="margin-top: var(--space-4);">
+  <div class="card-header">
+    <h3 class="card-title">Mis Equipos</h3>
+    <a href="{% url 'equipos:mis_equipos' %}" class="btn btn-secondary btn-sm">Ver todos y QR</a>
+  </div>
+  {% for e in equipos %}
+  <div style="padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); font-size: 0.875rem; display: flex; justify-content: space-between;">
+    <span><strong>{{ e.marca }} {{ e.modelo }}</strong> — <code>{{ e.serial }}</code></span>
+    <a href="{% url 'equipos:equipo_detail' e.pk %}" class="btn btn-secondary btn-sm">Ver</a>
+  </div>
+  {% empty %}
+  <p style="color: var(--color-text-secondary); padding: var(--space-3) 0;">No tiene equipos registrados.
+    <a href="{% url 'equipos:equipo_create' %}">Registrar uno</a></p>
+  {% endfor %}
+</div>
+
+<!-- Historial reciente -->
+{% if movimientos %}
+<div class="card card-white" style="margin-top: var(--space-4);">
+  <div class="card-header"><h3 class="card-title">Últimas Salidas de mis Equipos</h3></div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead><tr><th>Fecha</th><th>Equipo</th><th>Resultado</th></tr></thead>
+      <tbody>
+        {% for m in movimientos %}
+        <tr>
+          <td>{{ m.timestamp|date:"d/m/Y H:i" }}</td>
+          <td>{{ m.equipo.marca }} {{ m.equipo.modelo }}</td>
+          <td>
+            {% if m.resultado == 'ok' %}<span class="badge badge-success">OK</span>
+            {% elif m.resultado == 'alerta' %}<span class="badge badge-danger">Alerta</span>
+            {% else %}<span class="badge badge-subtle">{{ m.get_resultado_display }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

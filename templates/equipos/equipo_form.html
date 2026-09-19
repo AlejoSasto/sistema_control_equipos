@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registrar Equipo{% endblock %}
+{% block page_title %}Registro de Equipo de Cómputo{% endblock %}
+
+{% block content %}
+<div style="max-width: 760px; margin: 0 auto;">
+  <div class="card card-white">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Formulario de Registro de Equipo</h2>
+        <p class="card-subtitle">
+          {% if es_admin %}
+          Registro administrativo de equipo para un miembro de la comunidad universitaria
+          {% else %}
+          Registra tu equipo para generar el pase QR institucional de salida
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <form method="post" action="{% url 'equipos:equipo_create' %}">
+      {% csrf_token %}
+
+      {% if es_admin %}
+      <div class="form-group">
+        <label class="form-label" for="persona">Titular Responsable: *</label>
+        <select name="persona" id="persona" class="form-select" required>
+          <option value="">-- Seleccione una persona --</option>
+          {% for p in personas %}
+          <option value="{{ p.id }}">
+            {{ p.nombre_completo }} — Doc: {{ p.numero_documento }} ({{ p.get_tipo_vinculo_display }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <div class="feedback-box feedback-success" style="margin-bottom: var(--space-3); font-size: 0.875rem;">
+        Registrando equipo a nombre de: <strong>{{ persona_usuario.nombre_completo }}</strong> (Doc: {{ persona_usuario.numero_documento }} - {{ persona_usuario.get_tipo_vinculo_display }})
+      </div>
+      {% endif %}
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="tipo">Tipo de Dispositivo: *</label>
+          <select name="tipo" id="tipo" class="form-select" required>
+            {% for t_cod, t_nom in tipos_equipo %}
+            <option value="{{ t_cod }}">{{ t_nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="propiedad">Tipo de Propiedad: *</label>
+          <select name="propiedad" id="propiedad" class="form-select" required>
+            {% for p_cod, p_nom in propiedades %}
+            <option value="{{ p_cod }}">{{ p_nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" id="grupo-dependencia" style="display:none;">
+        <label class="form-label" for="dependencia">Dependencia que asigna el equipo: *</label>
+        <select name="dependencia" id="dependencia" class="form-select">
+          <option value="">-- Seleccionar área --</option>
+          {% for a in areas %}
+          <option value="{{ a.id }}">{{ a.codigo }} — {{ a.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="marca">Marca del Fabricante: *</label>
+          <input type="text" name="marca" id="marca" class="form-control" placeholder="Ej: Lenovo, Dell, HP, Apple" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="modelo">Modelo: *</label>
+          <input type="text" name="modelo" id="modelo" class="form-control" placeholder="Ej: ThinkPad T14, Latitude 5420" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="serial">Serial Físico del Equipo: *</label>
+        <input type="text" name="serial" id="serial" class="form-control" placeholder="Ej: SN-12345678 o 5CD2341XYZ" required style="font-family: var(--font-mono);">
+        <small style="color: var(--color-text-secondary); font-size: 0.8125rem; margin-top: var(--space-1); display: block;">
+          Debe ser el serial único que figura en la etiqueta del fabricante o en la BIOS del equipo.
+        </small>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
+        <a href="{% url 'equipos:mis_equipos' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">
+          Guardar Equipo y Generar Pase QR
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function() {
+  const propiedad = document.getElementById("propiedad");
+  const grupo = document.getElementById("grupo-dependencia");
+  const dependencia = document.getElementById("dependencia");
+  function toggle() {
+    const esInstitucional = propiedad.value === "institucional";
+    grupo.style.display = esInstitucional ? "" : "none";
+    dependencia.required = esInstitucional;
+    if (!esInstitucional) dependencia.value = "";
+  }
+  propiedad.addEventListener("change", toggle);
+  toggle();
+})();
+</script>
+{% endblock %}
