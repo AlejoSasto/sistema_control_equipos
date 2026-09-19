@@ -152,6 +152,7 @@ La interfaz incluye navegación offcanvas en móvil (≤1023px), grids adaptativ
 
 | Documento | Contenido |
 |-----------|-----------|
+| [`contexto/contexto-completo-sistema.md`](contexto/contexto-completo-sistema.md) | **Contexto completo vigente** (punto de entrada) |
 | [contexto/README.md](contexto/README.md) | Índice maestro: rectores, planes y operaciones |
 | [`09-guia-diseno-ux-ui.md`](contexto/09-guia-diseno-ux-ui.md) | Guía completa de diseño: colores, tipografía, layout, responsive |
 | `contexto/00`–`12` | Arquitectura, negocio, datos, UX, registro, panel, lógica, seguridad, reportes |

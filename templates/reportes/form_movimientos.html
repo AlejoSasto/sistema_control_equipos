@@ -15,7 +15,7 @@
       <p class="card-subtitle">{{ meta.descripcion }} Rango de fechas obligatorio (máx. 90 días).</p>
     </div>
   </div>
-  <form method="post" action="{% url 'reportes:exportar' tipo %}" class="filters-grid filters-grid--4" style="padding: var(--space-4);">
+  <form method="post" action="{% url 'reportes:exportar' tipo %}" data-download class="filters-grid filters-grid--4" style="padding: var(--space-4);">
     {% csrf_token %}
     <div class="form-group" style="margin-bottom: 0;">
       <label class="form-label" for="fecha_inicio">Fecha inicio</label>

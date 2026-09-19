@@ -7,22 +7,29 @@ alwaysApply: true
 
 La fuente de verdad documental del proyecto está en `contexto/`.
 
+## Contexto completo (prioridad)
+
+- El archivo **[`contexto/contexto-completo-sistema.md`](contexto/contexto-completo-sistema.md)** es la **síntesis vigente** del sistema (onboarding e IA).
+- Los documentos `00`–`12` son detalle o histórico. Si hay conflicto, **gana** `contexto-completo-sistema.md` y el código.
+- Ante un cambio material de arquitectura, roles, flujos, seguridad o UX: actualizar `contexto-completo-sistema.md` además del rector correspondiente.
+
 ## Estructura
 
 | Ubicación | Contenido |
 |-----------|-----------|
-| `00`–`12` + `walkthrough.md` | Documentos rectores |
+| `contexto-completo-sistema.md` | Contexto único vigente |
+| `00`–`12` + `walkthrough.md` | Documentos rectores (detalle) |
 | `planes/` | Planes de ejecución (kebab-case, con estado) |
 | `operaciones/` | Procedimientos y checklists operativos |
 
 ## Obligaciones del agente
 
-1. **No recrear** los documentos `00`–`12` ni `walkthrough.md` en la raíz del repo; viven en `contexto/`.
+1. **No recrear** los documentos `00`–`12`, `walkthrough.md` ni `contexto-completo-sistema.md` en la raíz del repo; viven en `contexto/`.
 2. Ante un **plan de implementación** nuevo o cambiado:
    - Crear o editar el archivo en `contexto/planes/` (kebab-case).
    - Actualizar el índice en `contexto/planes/README.md`.
    - Actualizar la tabla de estado en `contexto/README.md` (fecha de “Última actualización”).
 3. Al **completar** un plan: marcar estado `Completado`, checklist con `[x]`, y reflejarlo en ambos índices.
-4. Si se cambia arquitectura, roles, UI o flujos de negocio de forma material, actualizar el documento rector correspondiente (`00`–`12`) en `contexto/` o anotar la discrepancia en `contexto/README.md`.
+4. Si se cambia arquitectura, roles, UI o flujos de negocio de forma material, actualizar el documento rector correspondiente (`00`–`12`) **y** `contexto-completo-sistema.md`, o anotar la discrepancia en `contexto/README.md`.
 5. Procedimientos operativos (incidentes, backups, runbooks) van en `contexto/operaciones/` y se indexan en `operaciones/README.md` + `contexto/README.md`.
 6. El `README.md` de la raíz solo resume; el detalle permanece en `contexto/`.

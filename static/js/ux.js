@@ -74,6 +74,14 @@
       spin.setAttribute("aria-hidden", "true");
       btn.prepend(spin);
     }
+    /* Descargas: la página no navega; reactivar el botón tras el envío */
+    if (form.hasAttribute("data-download")) {
+      setTimeout(function () {
+        btn.disabled = false;
+        var spinEl = btn.querySelector(".spinner-border");
+        if (spinEl) spinEl.remove();
+      }, 2500);
+    }
   });
 
   /* Mostrar / ocultar contraseña — un icono (mismo estilo Heroicons del menú) */
