@@ -4,10 +4,11 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.db.models import Q
 
-from .models import Persona, TipoVinculo
-from organizacion.models import Sede, Programa
-from accounts.models import Rol
 from accounts.decorators import requiere_permiso
+from accounts.models import Rol
+from config.pagination import paginate_queryset
+from organizacion.models import Sede, Programa
+from .models import Persona, TipoVinculo
 
 
 @requiere_permiso("personas.administrar")
@@ -32,11 +33,14 @@ def persona_list(request):
     if sede_filtro:
         personas = personas.filter(sede__codigo=sede_filtro)
 
+    page = paginate_queryset(request, personas)
+
     sedes = Sede.objects.filter(activo=True)
     tipos_vinculo = TipoVinculo.objects.filter(activo=True).order_by("nombre")
 
     context = {
-        "personas": personas,
+        "personas": page,
+        "page_obj": page,
         "query": query,
         "vinculo_filtro": vinculo_filtro,
         "sede_filtro": sede_filtro,

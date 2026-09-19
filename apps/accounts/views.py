@@ -18,9 +18,11 @@ class CustomLoginView(LoginView):
     redirect_authenticated_user = True
 
     def get_success_url(self):
-        # Redirigir según roles o permisos del usuario
+        # Redirigir según roles o permisos del usuario (doc 10 §5.1: comunidad → Mis Equipos)
         if self.request.user.tiene_permiso("control.escanear"):
             return reverse_lazy("control_acceso:escanear")
+        if self.request.user.tiene_permiso("equipos.ver_propios"):
+            return reverse_lazy("equipos:mis_equipos")
         if self.request.user.tiene_permiso("perfil.ver_propio"):
             return reverse_lazy("accounts:mi_perfil")
         if self.request.user.tiene_permiso("personas.administrar"):

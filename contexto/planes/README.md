@@ -7,6 +7,7 @@ Planes concretos de implementación (features / refactors). El estado canónico 
 | [sistema-responsive-completo.md](sistema-responsive-completo.md) | Completado | 2026-09-19 |
 | [desktop-intacto-responsive.md](desktop-intacto-responsive.md) | Completado | 2026-09-19 |
 | [normalizar-qr-pistola-zebra.md](normalizar-qr-pistola-zebra.md) | Completado | 2026-09-19 |
+| [mejora-ux-ui-escalable.md](mejora-ux-ui-escalable.md) | Completado | 2026-09-19 |
 
 ## Convención
 

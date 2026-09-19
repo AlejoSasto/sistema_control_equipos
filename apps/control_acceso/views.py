@@ -5,6 +5,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Q
 from accounts.decorators import requiere_permiso
+from config.pagination import paginate_queryset
 from equipos.models import Equipo
 from .models import Movimiento
 from .utils import normalizar_codigo_escaneado
@@ -191,8 +192,11 @@ def movimientos_list(request):
     if fecha_filtro:
         movimientos = movimientos.filter(timestamp__date=fecha_filtro)
 
+    page = paginate_queryset(request, movimientos)
+
     context = {
-        "movimientos": movimientos[:100],
+        "movimientos": page,
+        "page_obj": page,
         "query": query,
         "resultado_filtro": resultado_filtro,
         "fecha_filtro": fecha_filtro,

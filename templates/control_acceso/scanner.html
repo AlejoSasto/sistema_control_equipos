@@ -88,9 +88,12 @@
         </div>
 
         <!-- Formulario HTMX con autofocus continuo -->
-        <form hx-post="{% url 'control_acceso:verificar_codigo' %}"
+        <div id="kiosk-network-banner" role="alert">Sin conexión — no se pudo verificar. Reintentando…</div>
+        <form id="form-scanner"
+              hx-post="{% url 'control_acceso:verificar_codigo' %}"
               hx-target="#resultado-escaneo"
               hx-indicator="#cargando-indicador"
+              data-allow-resubmit
               class="kiosk-input-wrapper">
           <svg class="kiosk-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
@@ -102,12 +105,13 @@
                  placeholder="Esperando lectura de QR..."
                  autocomplete="off"
                  autofocus>
-          <button type="submit" class="btn btn-primary" style="position: absolute; right: 5px; top: 5px; bottom: 5px; height: 42px;">
+          <button type="submit" id="btn-verificar" class="btn btn-primary" style="position: absolute; right: 5px; top: 5px; bottom: 5px; height: 42px;">
+            <span class="spinner-border spinner-border-sm htmx-indicator me-1" id="cargando-indicador" role="status" aria-hidden="true"></span>
             Verificar
           </button>
         </form>
 
-        <div id="cargando-indicador" class="htmx-indicator" style="text-align: center; padding: var(--space-2); color: var(--color-primary); font-size: 0.875rem; font-weight: 500;">
+        <div id="cargando-texto" class="htmx-indicator" style="text-align: center; padding: var(--space-2); color: var(--color-primary); font-size: 0.875rem; font-weight: 500;">
           Verificando equipo y titular en base de datos...
         </div>
 
@@ -160,13 +164,79 @@
     htmx.trigger(input.form, 'submit');
   }
 
-  // Mantener autofocus permanente en el lector de portería tras cada escaneo
-  document.body.addEventListener('htmx:afterOnLoad', function(evt) {
-    const input = document.getElementById('scanner-input');
-    if (input) {
-      input.value = '';
-      input.focus();
+  (function () {
+    var lastToken = '';
+    var lastAt = 0;
+    var pendingRetry = null;
+    var banner = document.getElementById('kiosk-network-banner');
+    var form = document.getElementById('form-scanner');
+    var input = document.getElementById('scanner-input');
+
+    function showNetworkError(msg) {
+      if (!banner) return;
+      banner.textContent = msg || 'Sin conexión — no se pudo verificar. Reintentando…';
+      banner.classList.add('is-visible');
+      document.getElementById('resultado-escaneo').innerHTML =
+        '<div class="kiosk-result kiosk-state-notfound" style="text-align:center;">' +
+        '<div class="kiosk-headline">No se pudo verificar</div>' +
+        '<p class="kiosk-subheadline">Error de red. Reintenta el escaneo.</p></div>';
     }
-  });
+
+    function hideNetworkError() {
+      if (banner) banner.classList.remove('is-visible');
+    }
+
+    document.body.addEventListener('htmx:configRequest', function (evt) {
+      if (evt.detail.elt !== form && evt.detail.elt !== input) return;
+      var codigo = (input.value || '').trim();
+      var now = Date.now();
+      if (codigo && codigo === lastToken && (now - lastAt) < 2000) {
+        evt.preventDefault();
+        input.value = '';
+        return;
+      }
+      if (codigo) {
+        lastToken = codigo;
+        lastAt = now;
+        pendingRetry = codigo;
+      }
+    });
+
+    document.body.addEventListener('htmx:afterOnLoad', function () {
+      hideNetworkError();
+      pendingRetry = null;
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    });
+
+    document.body.addEventListener('htmx:responseError', function (evt) {
+      if (evt.detail.elt !== form && !(form && form.contains(evt.detail.elt))) return;
+      showNetworkError('No se pudo verificar — el servidor no respondió. Reintenta.');
+      if (pendingRetry && input) {
+        setTimeout(function () {
+          if (!navigator.onLine) return;
+          input.value = pendingRetry;
+          htmx.trigger(form, 'submit');
+        }, 1500);
+      }
+      if (input) input.focus();
+    });
+
+    document.body.addEventListener('htmx:sendError', function (evt) {
+      if (evt.detail.elt !== form && !(form && form.contains(evt.detail.elt))) return;
+      showNetworkError('Sin conexión — reintentando cuando vuelva la red…');
+      if (input) input.focus();
+    });
+
+    window.addEventListener('online', function () {
+      hideNetworkError();
+      if (pendingRetry && input && form) {
+        input.value = pendingRetry;
+        htmx.trigger(form, 'submit');
+      }
+    });
+  })();
 </script>
 {% endblock %}

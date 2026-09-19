@@ -1,0 +1,15 @@
+{# Estado vacío. Uso: {% include "components/_empty_state.html" with mensaje="..." cta_url=url cta_texto="Registrar" %} #}
+<div class="card card-white text-center" style="padding: 48px var(--space-4);">
+  {% if icon_svg %}
+  {{ icon_svg|safe }}
+  {% else %}
+  <svg style="width: 48px; height: 48px; margin: 0 auto var(--space-3); color: var(--color-text-secondary); opacity: 0.5;" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+  </svg>
+  {% endif %}
+  <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--color-text);">{{ titulo|default:"Sin resultados" }}</h3>
+  <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">{{ mensaje }}</p>
+  {% if cta_url and cta_texto %}
+  <a href="{{ cta_url }}" class="btn btn-primary" style="margin-top: var(--space-3);">{{ cta_texto }}</a>
+  {% endif %}
+</div>

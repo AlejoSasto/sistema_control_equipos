@@ -99,13 +99,16 @@
               <a href="{% url 'personas:tipo_vinculo_edit' tv.pk %}" class="btn btn-secondary btn-sm" style="padding: 0 8px; height: 32px;" title="Editar">
                 Editar
               </a>
-              <form method="post" action="{% url 'personas:tipo_vinculo_toggle' tv.pk %}" style="margin: 0;">
+              <form method="post" action="{% url 'personas:tipo_vinculo_toggle' tv.pk %}" id="form-tv-toggle-{{ tv.pk }}" style="margin: 0;">
                 {% csrf_token %}
-                <button type="submit"
+                <button type="button"
                         class="btn btn-secondary btn-sm"
                         style="padding: 0 8px; height: 32px;"
                         title="{% if tv.activo %}Desactivar{% else %}Activar{% endif %}"
-                        onclick="return confirm('¿Está seguro de cambiar el estado de este tipo de vínculo?');">
+                        data-bs-toggle="modal" data-bs-target="#modalConfirmacion"
+                        data-confirm-title="Cambiar tipo de vínculo"
+                        data-confirm-body="¿Confirma cambiar el estado de este tipo de vínculo?"
+                        data-confirm-form="form-tv-toggle-{{ tv.pk }}">
                   {% if tv.activo %}Desactivar{% else %}Activar{% endif %}
                 </button>
               </form>

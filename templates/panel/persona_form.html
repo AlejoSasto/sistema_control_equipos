@@ -87,9 +87,13 @@
       </div>
     </form>
     {% if persona %}
-    <form method="post" action="{% url 'panel:persona_toggle' persona.pk %}" style="margin-top: var(--space-3);">
+    <form method="post" action="{% url 'panel:persona_toggle' persona.pk %}" id="form-persona-toggle" style="margin-top: var(--space-3);">
       {% csrf_token %}
-      <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('¿Cambiar estado de esta persona?');">
+      <button type="button" class="btn btn-secondary btn-sm"
+              data-bs-toggle="modal" data-bs-target="#modalConfirmacion"
+              data-confirm-title="Cambiar estado de persona"
+              data-confirm-body="¿Confirma cambiar el estado de esta persona?"
+              data-confirm-form="form-persona-toggle">
         {% if persona.activo %}Inactivar persona{% else %}Activar persona{% endif %}
       </button>
     </form>

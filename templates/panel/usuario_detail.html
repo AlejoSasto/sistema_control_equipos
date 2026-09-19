@@ -33,9 +33,13 @@
       <div style="color: var(--color-text-secondary);">Sin persona asociada (usuario standalone)</div>
       {% endif %}
     </div>
-    <form method="post" action="{% url 'panel:usuario_toggle' usuario_obj.pk %}" style="margin-top: var(--space-3);">
+    <form method="post" action="{% url 'panel:usuario_toggle' usuario_obj.pk %}" id="form-usuario-toggle" style="margin-top: var(--space-3);">
       {% csrf_token %}
-      <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('¿Cambiar estado de este usuario?');">
+      <button type="button" class="btn btn-secondary btn-sm"
+              data-bs-toggle="modal" data-bs-target="#modalConfirmacion"
+              data-confirm-title="Cambiar estado de usuario"
+              data-confirm-body="¿Confirma cambiar el estado de este usuario?"
+              data-confirm-form="form-usuario-toggle">
         {% if usuario_obj.activo %}Inactivar usuario{% else %}Activar usuario{% endif %}
       </button>
     </form>

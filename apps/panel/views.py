@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import requiere_permiso
 from accounts.models import Permiso, Rol, RolPermiso, Usuario, UsuarioRol
+from config.pagination import paginate_queryset
 from organizacion.models import Area, Programa, Sede
 from personas.models import CODIGO_VINCULO_ADMINISTRATIVO, Persona, TipoVinculo
 
@@ -71,8 +72,11 @@ def personas_list(request):
     elif estado_filtro == "inactivo":
         personas = personas.filter(activo=False)
 
+    page = paginate_queryset(request, personas.order_by("apellidos", "nombres"))
+
     context = {
-        "personas": personas.order_by("apellidos", "nombres"),
+        "personas": page,
+        "page_obj": page,
         "query": query,
         "vinculo_filtro": vinculo_filtro,
         "sede_filtro": sede_filtro,
@@ -244,8 +248,11 @@ def usuarios_list(request):
     elif persona_filtro == "sin":
         usuarios = usuarios.filter(persona__isnull=True)
 
+    page = paginate_queryset(request, usuarios.order_by("username").distinct())
+
     context = {
-        "usuarios": usuarios.order_by("username"),
+        "usuarios": page,
+        "page_obj": page,
         "query": query,
         "rol_filtro": rol_filtro,
         "estado_filtro": estado_filtro,

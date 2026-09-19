@@ -8,6 +8,7 @@ from django.http import HttpResponse, Http404
 from django.db.models import Q
 from accounts.decorators import requiere_permiso
 from organizacion.models import Area
+from config.pagination import paginate_queryset
 from .models import Equipo
 from personas.models import Persona
 
@@ -74,8 +75,11 @@ def equipo_list(request):
     if activo_filtro != "":
         equipos = equipos.filter(activo=(activo_filtro == "1"))
 
+    page = paginate_queryset(request, equipos)
+
     context = {
-        "equipos": equipos,
+        "equipos": page,
+        "page_obj": page,
         "query": query,
         "tipo_filtro": tipo_filtro,
         "propiedad_filtro": propiedad_filtro,

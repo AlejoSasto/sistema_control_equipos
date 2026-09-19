@@ -1,0 +1,4 @@
+{# Alerta / feedback. tipo: success|danger|warning|info #}
+<div class="alert alert-{{ tipo|default:'success' }}{% if class %} {{ class }}{% endif %}" role="alert" style="border-radius: var(--radius-sm);">
+  {{ mensaje }}
+</div>

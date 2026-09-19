@@ -1,0 +1,5 @@
+{# Badge institucional. Uso: {% include "components/_badge.html" with texto="Activo" tipo="success" %} #}
+{# tipo: success|danger|warning|info|neutral|subtle #}
+<span class="badge badge-{{ tipo|default:'neutral' }}{% if class %} {{ class }}{% endif %}">
+  {{ texto }}
+</span>

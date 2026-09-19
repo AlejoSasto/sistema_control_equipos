@@ -1,0 +1,20 @@
+{# Modal de confirmación. #}
+{# Uso: incluir una vez; disparar con data-bs-toggle="modal" data-bs-target="#modalConfirmacion" #}
+{# y atributos data-confirm-title, data-confirm-body, data-confirm-form (id del form a enviar) #}
+<div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="modalConfirmacionLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: var(--radius-md); border-color: var(--color-border);">
+      <div class="modal-header" style="border-color: var(--color-border);">
+        <h2 class="modal-title fs-5" id="modalConfirmacionLabel" style="font-weight: 600;">Confirmar acción</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="modalConfirmacionBody">
+        ¿Desea continuar?
+      </div>
+      <div class="modal-footer" style="border-color: var(--color-border);">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="modalConfirmacionSubmit">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>

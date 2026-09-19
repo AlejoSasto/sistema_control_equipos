@@ -16,7 +16,7 @@
 {% block content %}
 <!-- Filtros -->
 <div class="card card-white" style="margin-bottom: var(--space-4);">
-  <form method="get" class="filters-grid filters-grid--6">
+  <form method="get" class="filters-grid filters-grid--6 js-filter-form">
     <div class="form-group" style="margin-bottom: 0;">
       <label class="form-label" for="filter_q">Buscar por Serial, Marca o Titular:</label>
       <input type="text" name="q" id="filter_q" value="{{ query }}" class="form-control" placeholder="Ej: Lenovo, ThinkPad, 1070123456">
@@ -176,4 +176,5 @@
     </table>
   </div>
 </div>
+{% include "components/_pagination.html" with page_obj=page_obj %}
 {% endblock %}
