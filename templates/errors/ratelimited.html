@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Demasiadas solicitudes{% endblock %}
+
+{% block auth_content %}
+<div style="width: 100%; max-width: 420px; text-align: center;">
+  <div class="card card-white" style="padding: 32px;">
+    <h1 style="font-size: 1.25rem; font-weight: 700;">Demasiadas solicitudes</h1>
+    <p style="margin-top: 12px; color: var(--color-text-secondary);">
+      Ha superado el límite temporal de intentos. Espere un momento e intente de nuevo.
+    </p>
+    <a href="{% url 'accounts:login' %}" class="btn btn-primary" style="margin-top: 20px;">Volver al inicio de sesión</a>
+  </div>
+</div>
+{% endblock %}

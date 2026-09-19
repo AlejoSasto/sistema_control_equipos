@@ -1,6 +1,8 @@
-"""Reglas de negocio del panel de administración (Documento 07, sección 4)."""
+"""Reglas de negocio del panel de administración (Documento 07, principio 7)."""
 
 from accounts.models import Rol, Usuario
+from auditoria.models import AuditoriaCambio
+from auditoria.services import registrar_cambio as registrar_auditoria
 from .models import LogCambioRol
 
 ADMIN_ROL = "admin_sistema"
@@ -85,5 +87,14 @@ def validate_role_assignment_change(actor, target_user, new_role_ids: set[int]) 
     return None
 
 
-def registrar_cambio(usuario, descripcion: str):
+def registrar_cambio(usuario, descripcion: str, request=None, entidad="rol", entidad_id=None, accion=None):
+    """Auditoría legible (LogCambioRol) + registro formal auditoria_cambio."""
     LogCambioRol.objects.create(usuario_que_modifico=usuario, descripcion=descripcion)
+    registrar_auditoria(
+        usuario=usuario,
+        entidad=entidad,
+        entidad_id=entidad_id,
+        accion=accion or AuditoriaCambio.ACCION_EDITAR,
+        detalle={"descripcion": descripcion},
+        request=request,
+    )

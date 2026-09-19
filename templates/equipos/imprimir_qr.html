@@ -19,7 +19,8 @@
       text-align: center;
       color: #1e293b;
     }
-    .header { border-bottom: 2px solid #056839; padding-bottom: 12px; margin-bottom: 15px; }
+    .header { border-bottom: 2px solid #056839; padding-bottom: 12px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 12px; text-align: left; }
+    .header-logo { height: 56px; width: auto; }
     .univ-name { font-size: 13px; font-weight: 800; color: #056839; letter-spacing: 0.5px; }
     .system-name { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 2px; }
     .qr-container { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; display: inline-block; margin: 10px 0; }
@@ -43,8 +44,11 @@
 
   <div class="badge-card">
     <div class="header">
-      <div class="univ-name">UNIVERSIDAD DE CUNDINAMARCA</div>
-      <div class="system-name">Control de Acceso de Equipos de Cómputo</div>
+      <img src="{% static 'img/logo-uc.png' %}" alt="Escudo Universidad de Cundinamarca" class="header-logo" width="56" height="84">
+      <div>
+        <div class="univ-name">UNIVERSIDAD DE CUNDINAMARCA</div>
+        <div class="system-name">Control de Acceso de Equipos de Cómputo</div>
+      </div>
     </div>
 
     <div class="qr-container">

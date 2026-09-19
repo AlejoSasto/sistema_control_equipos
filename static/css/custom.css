@@ -132,7 +132,27 @@ body.nav-open {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  z-index: 50;
+}
+
+/* Móvil: por encima del backdrop de Bootstrap (si no, el menú no recibe clics) */
+@media (max-width: 991.98px) {
+  .sidebar.offcanvas-lg {
+    z-index: var(--bs-offcanvas-zindex, 1045);
+    height: 100%;
+    max-height: 100dvh;
+  }
+
+  .sidebar.offcanvas-lg.show,
+  .sidebar.offcanvas-lg.showing {
+    visibility: visible;
+  }
+}
+
+@media (min-width: 992px) {
+  .sidebar {
+    z-index: 50;
+    position: relative;
+  }
 }
 
 .sidebar-header {
@@ -157,6 +177,19 @@ body.nav-open {
   font-weight: 700;
   font-size: 1.05rem;
   flex-shrink: 0;
+}
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.brand-logo--auth {
+  height: 96px;
+  margin: 0 auto var(--space-3);
 }
 
 .brand-title {
@@ -468,6 +501,23 @@ body.nav-open {
   gap: var(--space-4);
 }
 
+.page-intro-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.page-intro-main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.page-intro-sede {
+  flex-shrink: 0;
+}
+
 .field-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -509,18 +559,41 @@ body.nav-open {
     height: auto;
     min-height: var(--header-height);
     flex-wrap: wrap;
+    align-items: center;
+    row-gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
   }
 
+  /* Fila 1: menú + acciones; título en bloque completo debajo */
+  .topbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: calc(100% - 8px);
+  }
+
   .topbar-title {
+    display: block;
+    width: 100%;
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
+    font-size: 1.0625rem;
+    line-height: 1.3;
   }
 
   .topbar-actions {
+    flex: 0 1 auto;
     flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+    gap: var(--space-2);
+  }
+
+  /* La sede ya aparece en el contenido; evita saturar el topbar en móvil */
+  .topbar-actions .sede-indicator {
+    display: none;
   }
 
   .form-grid-2,
@@ -549,18 +622,11 @@ body.nav-open {
   }
 
   .cards-grid {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    grid-template-columns: 1fr;
   }
 
   .stats-grid-4 {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .sede-indicator span:last-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 140px;
   }
 
   .kiosk-headline {
@@ -586,7 +652,27 @@ body.nav-open {
   }
 
   .topbar {
+    flex-direction: column;
+    align-items: stretch;
     padding: var(--space-2) var(--space-3);
+  }
+
+  .topbar-left {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .topbar-actions .btn {
+    width: 100%;
+  }
+
+  .topbar-actions .btn .btn-label-full {
+    display: inline;
   }
 
   .card {
@@ -805,6 +891,77 @@ body.nav-open {
   padding: 9px calc(var(--space-3) - 1px);
 }
 
+/* Campo contraseña: borde unificado + icono interno (mismo SVG/estilo que el menú) */
+.password-field {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 42px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.password-field:focus-within {
+  border: 2px solid var(--color-primary);
+}
+
+.password-field > .form-control {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 10px 8px 10px var(--space-3) !important;
+  background: transparent;
+}
+
+.password-field:focus-within > .form-control {
+  padding: 9px 7px 9px calc(var(--space-3) - 1px) !important;
+}
+
+.password-field > .password-toggle {
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--color-text-secondary);
+  box-shadow: none !important;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.password-field > .password-toggle:hover {
+  color: var(--color-primary);
+  background-color: var(--color-surface) !important;
+}
+
+.password-field > .password-toggle:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.password-field > .password-toggle .icon {
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
 /* ==========================================================================
    Badges / Estados (Doc 05 Sección 4.4)
    Border-radius: pill (9999px). Colores funcionales: verde, rojo, gris, naranja.
@@ -980,6 +1137,80 @@ body.nav-open {
   color: var(--color-text-secondary);
   width: 24px;
   height: 24px;
+}
+
+/* Cámara QR en kiosco (complementa pistola / teclado) */
+.kiosk-camera-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+.kiosk-camera-toolbar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kiosk-camera-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  flex: 1 1 200px;
+}
+
+.kiosk-camera-status {
+  margin-bottom: var(--space-2);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: #FEF3C7;
+  border: 1px solid rgba(247, 147, 30, 0.35);
+  color: #92400E;
+}
+
+.kiosk-camera-status.is-error {
+  background-color: #FDE8E8;
+  border-color: rgba(198, 40, 40, 0.3);
+  color: #8E0000;
+}
+
+.kiosk-camera-status.is-ok {
+  background-color: #EBF5F0;
+  border-color: rgba(0, 123, 62, 0.25);
+  color: var(--color-primary-dark);
+}
+
+.kiosk-camera-panel {
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: #FFFFFF;
+  overflow: hidden;
+  max-width: 420px;
+}
+
+.kiosk-camera-panel #qr-reader {
+  width: 100%;
+}
+
+.kiosk-camera-panel #qr-reader video {
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.kiosk-camera-panel #qr-reader__dashboard_section,
+.kiosk-camera-panel #qr-reader__scan_region + div {
+  padding: var(--space-2) !important;
+}
+
+@media (max-width: 575.98px) {
+  .kiosk-camera-panel {
+    max-width: 100%;
+  }
 }
 
 /* Estados del Kiosco: Fondos Sólidos (Sin Degradados) */

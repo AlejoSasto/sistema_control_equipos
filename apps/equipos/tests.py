@@ -2,6 +2,7 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from django.core.exceptions import ValidationError
 
+from accounts.models import Usuario, Rol, Permiso, RolPermiso, UsuarioRol
 from organizacion.models import Area, Decanatura, Programa, Sede
 from personas.models import Persona, TipoVinculo
 from equipos.models import Equipo
@@ -16,7 +17,9 @@ class EquiposModelTestCase(TestCase):
             codigo="IS-UBATE", nombre="Ingeniería de Sistemas", sede=self.sede, facultad=self.facultad, nivel="pregrado"
         )
         self.area, _ = Area.objects.get_or_create(codigo="CGCA", defaults={"nombre": "Biblioteca"})
-        self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(codigo="docente", defaults={"nombre": "Docente"})
+        self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(
+            codigo="gestor_conocimiento", defaults={"nombre": "Gestor del Conocimiento"}
+        )
         self.persona = Persona.objects.create(
             tipo_documento="CC",
             numero_documento="1234567890",
@@ -26,6 +29,27 @@ class EquiposModelTestCase(TestCase):
             sede=self.sede,
             programa=self.programa,
         )
+        self.perm_ver = Permiso.objects.create(codigo="equipos.ver_propios", descripcion="Ver propios")
+        self.rol_miembro = Rol.objects.create(nombre="miembro_comunidad", descripcion="Miembro")
+        RolPermiso.objects.create(rol=self.rol_miembro, permiso=self.perm_ver)
+        self.dueno = Usuario.objects.create_user(
+            username="dueno_eq", password="testpass123!", email="dueno@test.com", persona=self.persona
+        )
+        UsuarioRol.objects.create(usuario=self.dueno, rol=self.rol_miembro)
+
+        self.otra_persona = Persona.objects.create(
+            tipo_documento="CC",
+            numero_documento="9998887770",
+            nombres="Otra",
+            apellidos="Persona",
+            tipo_vinculo=self.vinculo_docente,
+            sede=self.sede,
+            programa=self.programa,
+        )
+        self.ajeno = Usuario.objects.create_user(
+            username="ajeno_eq", password="testpass123!", email="ajeno@test.com", persona=self.otra_persona
+        )
+        UsuarioRol.objects.create(usuario=self.ajeno, rol=self.rol_miembro)
 
     def test_creacion_equipo_y_qr_al_vuelo(self):
         equipo = Equipo.objects.create(
@@ -39,16 +63,59 @@ class EquiposModelTestCase(TestCase):
         self.assertIsNotNone(equipo.token_qr)
         self.assertTrue(equipo.activo)
 
-        # Verificar generación de QR al vuelo en Base64
         qr_data = equipo.generar_qr_base64()
         self.assertTrue(qr_data.startswith("data:image/png;base64,"))
+        token_exh = equipo.generar_token_exhibicion()
+        self.assertNotEqual(token_exh, str(equipo.token_qr))
+        self.assertEqual(Equipo.resolver_token_escaneado(token_exh), equipo)
 
-        # Verificar endpoint de renderizado de imagen PNG
+        self.client.login(username="dueno_eq", password="testpass123!")
         response = self.client.get(
             reverse("equipos:render_qr_image", kwargs={"token_qr": equipo.token_qr})
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "image/png")
+
+    def test_render_qr_requiere_auth_y_dueno(self):
+        equipo = Equipo.objects.create(
+            persona=self.persona,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="Acer",
+            modelo="Aspire",
+            serial="ACER-IDOR-01",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+        )
+        url = reverse("equipos:render_qr_image", kwargs={"token_qr": equipo.token_qr})
+        # Anónimo -> login redirect
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+        self.client.login(username="ajeno_eq", password="testpass123!")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+        self.client.login(username="dueno_eq", password="testpass123!")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_mostrar_qr_pantalla_solo_dueno(self):
+        equipo = Equipo.objects.create(
+            persona=self.persona,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="HP",
+            modelo="Pavilion",
+            serial="HP-PANTALLA-01",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+        )
+        url = reverse("equipos:mostrar_qr_pantalla", kwargs={"token_qr": equipo.token_qr})
+        self.client.login(username="ajeno_eq", password="testpass123!")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("equipos:mis_equipos"))
+
+        self.client.login(username="dueno_eq", password="testpass123!")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
 
     def test_equipo_institucional_requiere_dependencia(self):
         equipo = Equipo(

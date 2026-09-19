@@ -120,6 +120,8 @@ class Usuario(AbstractUser):
                 "usuarios.administrar",
                 "roles.administrar",
                 "permisos.ver",
+                "reportes.ver",
+                "reportes.exportar",
             )
         )
 
@@ -140,17 +142,32 @@ class Usuario(AbstractUser):
         return self.is_superuser or self.tiene_permiso("permisos.ver")
 
     @property
+    def puede_ver_reportes(self) -> bool:
+        return self.is_superuser or self.tiene_permiso("reportes.ver")
+
+    @property
+    def puede_exportar_reportes(self) -> bool:
+        return self.is_superuser or self.tiene_permiso("reportes.exportar")
+
+    @property
     def puede_administrar_catalogos(self) -> bool:
         return self.is_superuser or self.tiene_permiso("catalogos.administrar")
 
     @property
     def puede_ver_propio(self) -> bool:
-        return self.is_superuser or self.tiene_permiso("perfil.ver_propio")
+        """Permiso de ver perfil/equipos propios (endpoints)."""
+        return self.tiene_permiso("perfil.ver_propio")
 
     @property
     def es_miembro_comunidad(self) -> bool:
-        return self.tiene_permiso("perfil.ver_propio") and not self.es_admin and not self.es_celador
-
+        """Menú 'Mi Espacio': solo miembros, nunca admin ni quien escanea en portería."""
+        if not self.is_active or not self.activo or self.is_superuser:
+            return False
+        if self.es_admin:
+            return False
+        tiene_perfil = self.roles.filter(activo=True, permisos__codigo="perfil.ver_propio").exists()
+        tiene_escaneo = self.roles.filter(activo=True, permisos__codigo="control.escanear").exists()
+        return tiene_perfil and not tiene_escaneo
 
 class UsuarioRol(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)

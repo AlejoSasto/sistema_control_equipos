@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes Excel{% endblock %}
+{% block page_title %}Reportes Excel{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Exportaciones institucionales</h3>
+      <p class="card-subtitle">Genere archivos .xlsx con datos y gráficos nativos de Excel. Máximo 20.000 filas por exportación síncrona; rangos de movimientos hasta 90 días.</p>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for t in tipos %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card card-white h-100">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">{{ t.nombre }}</h3>
+          <p class="card-subtitle">{{ t.descripcion }}</p>
+        </div>
+      </div>
+      <div style="padding: var(--space-4);">
+        <a href="{% url 'reportes:configurar' t.slug %}" class="btn btn-primary">Configurar filtros</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

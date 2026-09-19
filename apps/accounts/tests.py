@@ -37,9 +37,9 @@ class RegistroExternoTestCase(TestCase):
         # Tipos de Vínculo:
         # Note: migration 0002 already created standard records, so get_or_create ensures no duplicate error
         self.vinculo_estudiante, _ = TipoVinculo.objects.get_or_create(
-            codigo="estudiante",
+            codigo="creador_oportunidades",
             defaults={
-                "nombre": "Estudiante",
+                "nombre": "Creador de Oportunidades",
                 "permite_autoregistro": True,
                 "dominio_correo_requerido": "@ucundinamarca.edu.co",
                 "rol_asignado": self.rol_miembro,
@@ -51,9 +51,9 @@ class RegistroExternoTestCase(TestCase):
         self.vinculo_estudiante.save()
 
         self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(
-            codigo="docente",
+            codigo="gestor_conocimiento",
             defaults={
-                "nombre": "Docente",
+                "nombre": "Gestor del Conocimiento",
                 "permite_autoregistro": False,
                 "rol_asignado": self.rol_miembro,
             },
@@ -74,6 +74,7 @@ class RegistroExternoTestCase(TestCase):
             "programa": str(self.programa.id),
             "password": "PasswordSegura123!",
             "password_confirm": "PasswordSegura123!",
+            "acepta_tratamiento": "on",
         }
 
         response = self.client.post(reverse("accounts:registro"), data)
@@ -115,6 +116,7 @@ class RegistroExternoTestCase(TestCase):
             "sede": str(self.sede.id),
             "password": "PasswordSegura123!",
             "password_confirm": "PasswordSegura123!",
+            "acepta_tratamiento": "on",
         }
 
         response = self.client.post(reverse("accounts:registro"), data)
@@ -137,6 +139,7 @@ class RegistroExternoTestCase(TestCase):
             "sede": str(self.sede.id),
             "password": "PasswordSegura123!",
             "password_confirm": "PasswordSegura123!",
+            "acepta_tratamiento": "on",
         }
 
         response = self.client.post(reverse("accounts:registro"), data)
@@ -156,6 +159,7 @@ class RegistroExternoTestCase(TestCase):
             "sede": str(self.sede.id),
             "password": "777666555",
             "password_confirm": "777666555",
+            "acepta_tratamiento": "on",
         }
 
         response = self.client.post(reverse("accounts:registro"), data)
@@ -175,6 +179,7 @@ class RegistroExternoTestCase(TestCase):
             "sede": str(self.sede.id),
             "password": "PasswordSegura123!",
             "password_confirm": "OtraPasswordDistinta",
+            "acepta_tratamiento": "on",
         }
 
         response = self.client.post(reverse("accounts:registro"), data)
@@ -206,3 +211,21 @@ class RegistroExternoTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "motivos de seguridad institucional")
         self.assertFalse(TipoVinculo.objects.filter(codigo="vulnerable_test").exists())
+
+    def test_registro_rechazado_sin_consentimiento(self):
+        data = {
+            "nombres": "Ana",
+            "apellidos": "Sin Consentir",
+            "tipo_documento": "CC",
+            "numero_documento": "555444333",
+            "tipo_vinculo": str(self.vinculo_estudiante.id),
+            "correo": "ana.sin@ucundinamarca.edu.co",
+            "sede": str(self.sede.id),
+            "programa": str(self.programa.id),
+            "password": "PasswordSegura123!",
+            "password_confirm": "PasswordSegura123!",
+        }
+        response = self.client.post(reverse("accounts:registro"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "política de tratamiento de datos")
+        self.assertFalse(Persona.objects.filter(numero_documento="555444333").exists())

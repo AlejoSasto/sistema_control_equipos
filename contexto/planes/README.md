@@ -2,16 +2,23 @@
 
 Planes concretos de implementación (features / refactors). El estado canónico también se refleja en [`../README.md`](../README.md).
 
-| Plan | Estado | Fecha |
-|------|--------|-------|
-| [sistema-responsive-completo.md](sistema-responsive-completo.md) | Completado | 2026-09-19 |
-| [desktop-intacto-responsive.md](desktop-intacto-responsive.md) | Completado | 2026-09-19 |
-| [normalizar-qr-pistola-zebra.md](normalizar-qr-pistola-zebra.md) | Completado | 2026-09-19 |
-| [mejora-ux-ui-escalable.md](mejora-ux-ui-escalable.md) | Completado | 2026-09-19 |
+Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especificación**; aquí vive el **tracker de ejecución** (checklist y entregables).
+
+| Plan | Estado | Fecha | Documento rector |
+|------|--------|-------|------------------|
+| [seguridad-iso27001-owasp.md](seguridad-iso27001-owasp.md) | Completado | 2026-09-19 | [`../11-plan-seguridad-iso27001-owasp.md`](../11-plan-seguridad-iso27001-owasp.md) |
+| [escaneo-qr-camara.md](escaneo-qr-camara.md) | Completado | 2026-09-19 | — |
+| [sistema-responsive-completo.md](sistema-responsive-completo.md) | Completado | 2026-09-19 | — |
+| [desktop-intacto-responsive.md](desktop-intacto-responsive.md) | Completado | 2026-09-19 | — |
+| [normalizar-qr-pistola-zebra.md](normalizar-qr-pistola-zebra.md) | Completado | 2026-09-19 | — |
+| [mejora-ux-ui-escalable.md](mejora-ux-ui-escalable.md) | Completado | 2026-09-19 | [`../10-plan-mejora-ux-ui-escalable.md`](../10-plan-mejora-ux-ui-escalable.md) |
+| [seed-mvp-presentacion.md](seed-mvp-presentacion.md) | Completado | 2026-09-19 | — |
+| [modulo-reportes-excel.md](modulo-reportes-excel.md) | Completado | 2026-09-19 | [`../12-modulo-reportes-excel.md`](../12-modulo-reportes-excel.md) |
 
 ## Convención
 
 1. Nombre en `kebab-case.md`.
 2. Cabecera con **Estado** (`Pendiente` / `En progreso` / `Completado`) y fecha.
 3. Checklist de tareas con `[x]` al cerrar.
-4. Actualizar este índice y `contexto/README.md` en el mismo cambio.
+4. Si el plan detalla un módulo o dominio nuevo, el documento rector numerado vive en `contexto/` (`00`–`12`); este archivo solo trackea la ejecución.
+5. Actualizar este índice y `contexto/README.md` en el mismo cambio.

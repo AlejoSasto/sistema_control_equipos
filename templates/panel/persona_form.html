@@ -9,7 +9,7 @@
     <div class="card-header">
       <h3 class="card-title">Datos de la Persona</h3>
     </div>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="form-grid-1-2">
         <div class="form-group">
@@ -26,6 +26,15 @@
           <input type="text" name="numero_documento" id="numero_documento" class="form-control"
                  value="{{ data.numero_documento }}" required style="font-family: var(--font-mono);">
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="foto">Foto (JPEG/PNG/WEBP, máx. 2 MB)</label>
+        <input type="file" name="foto" id="foto" class="form-control" accept="image/jpeg,image/png,image/webp">
+        {% if persona and persona.imagen_url %}
+        <p style="margin-top: 8px; font-size: 0.8125rem;">
+          Actual: <a href="{{ persona.imagen_url }}" target="_blank" rel="noopener">ver imagen</a>
+        </p>
+        {% endif %}
       </div>
       <div class="form-grid-2">
         <div class="form-group">

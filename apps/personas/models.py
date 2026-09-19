@@ -8,7 +8,7 @@ class TipoVinculo(models.Model):
     codigo = models.CharField(
         max_length=30,
         unique=True,
-        help_text="Código único (ej. docente, administrativo, gestor_conocimiento, graduado, estudiante)",
+        help_text="Código único (ej. gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado)",
     )
     nombre = models.CharField(max_length=80)
     permite_autoregistro = models.BooleanField(

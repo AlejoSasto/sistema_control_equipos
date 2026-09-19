@@ -264,10 +264,16 @@ Login → Mi Perfil (datos + métricas propias)
 
 ### 5.3 Control de salida en portería
 
+El kiosco acepta el `token_qr` por **tres vías** (mismo endpoint HTMX):
+
+1. **Pistola / lector óptico** — actúa como teclado + Enter sobre el input.
+2. **Cámara del dispositivo** — botón «Usar cámara» (`html5-qrcode`); al leer, rellena el input y verifica. Requiere HTTPS (o localhost).
+3. **Teclado** — escribir o pegar el código y pulsar «Verificar».
+
 ```
 Celador abre pantalla de escaneo (autofocus permanente)
     ↓
-Persona presenta QR → pistola/cámara envía token_qr
+Persona presenta QR → pistola / cámara / teclado envía token_qr
     ↓
 Sistema busca Equipo por token_qr (o serial como fallback)
     ↓

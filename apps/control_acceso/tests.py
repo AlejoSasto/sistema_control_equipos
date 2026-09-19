@@ -13,9 +13,13 @@ class ControlSalidaTestCase(TestCase):
         self.client = Client()
         self.sede = Sede.objects.create(codigo="UBATE", nombre="Seccional Ubaté", ciudad="Ubaté")
 
-        # Tipos de Vínculo
-        self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(codigo="docente", defaults={"nombre": "Docente"})
-        self.vinculo_graduado, _ = TipoVinculo.objects.get_or_create(codigo="graduado", defaults={"nombre": "Graduado"})
+        # Tipos de Vínculo (códigos canónicos)
+        self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(
+            codigo="gestor_conocimiento", defaults={"nombre": "Gestor del Conocimiento"}
+        )
+        self.vinculo_graduado, _ = TipoVinculo.objects.get_or_create(
+            codigo="egresado", defaults={"nombre": "Egresado"}
+        )
 
         # Permisos y Rol Celador
         self.perm_escanear = Permiso.objects.create(
@@ -196,6 +200,20 @@ class ControlSalidaTestCase(TestCase):
         self.assertContains(response, "COINCIDE")
         self.assertContains(response, "Juan Camilo Rodríguez")
 
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+
+    def test_salida_ok_con_token_exhibicion_firmado(self):
+        """QR con token de exhibición firmado (TTL) -> ok."""
+        self.client.login(username="celador_test", password="testpassword123")
+        token = self.equipo_ok.generar_token_exhibicion()
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": token},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
         mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
         self.assertIsNotNone(mov)
         self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)

@@ -6,7 +6,7 @@
 
 {% block topbar_actions %}
 <a href="{% url 'equipos:equipo_create' %}" class="btn btn-primary">
-  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
   </svg>
   <span>Registrar Equipo</span>
@@ -15,20 +15,20 @@
 
 {% block content %}
 <!-- Encabezado Sobrio (Doc 05: Sin degradados, superficie sólida) -->
-<div class="card card-white" style="margin-bottom: var(--space-4);">
-  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3);">
-    <div>
+<div class="card card-white page-intro" style="margin-bottom: var(--space-4);">
+  <div class="page-intro-row">
+    <div class="page-intro-main">
       <span style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-secondary); font-weight: 600;">
         Pases de Salida del Campus
       </span>
-      <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--color-text); margin-top: 2px;">
+      <h2 style="font-size: clamp(1.15rem, 4vw, 1.5rem); font-weight: 700; color: var(--color-text); margin-top: 2px; overflow-wrap: break-word;">
         {{ persona.nombre_completo|default:user.get_full_name|default:user.username }}
       </h2>
       <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">
         Al salir de la sede, pulsa <strong>"Mostrar QR al Celador"</strong> en el dispositivo que portas y preséntalo en portería.
       </p>
     </div>
-    <div class="sede-indicator">
+    <div class="sede-indicator page-intro-sede">
       <span class="sede-dot"></span>
       <span>{{ persona.sede.nombre|default:"Sede Central" }}</span>
     </div>

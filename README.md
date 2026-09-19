@@ -14,6 +14,7 @@ Aplicación web para registrar equipos de cómputo de la comunidad académica, g
 | Base de datos | PostgreSQL |
 | Estilos | CSS propio (sistema de diseño institucional v2) |
 | QR | `qrcode` + Pillow |
+| Reportes Excel | XlsxWriter (gráficos nativos) |
 | Estáticos en producción | WhiteNoise |
 
 ---
@@ -77,17 +78,24 @@ DB_PORT=5432
 
 ---
 
-## Accesos de demostración (seed)
+## Acceso inicial (seed MVP)
 
 Tras `python manage.py seed_data`:
 
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
-| Administrador | `admin` | `admin123` | Panel, catálogos, inventario |
-| Celador | `celador1` | `celador123` | Kiosco de escaneo QR |
-| Docente | `docente1` | `docente123` | Mi perfil / mis equipos |
+| Administrador | `admin` | `Udec2026!Admin` | Panel, catálogos, inventario y control de salida |
 
-> Estas credenciales son solo para entorno local de desarrollo. No usarlas en producción.
+### Catálogos cargados
+
+- **Sede:** Seccional Ubaté  
+- **Facultad:** Facultad de Ingeniería  
+- **Programa:** Ingeniería de Sistemas y Computación  
+- **Tipos de vínculo (todos activos):** gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado  
+- **Área:** Biblioteca  
+- **Roles activos:** Administrador del sistema, Miembro de la comunidad académica  
+
+> No se cargan usuarios de celador/docente ni equipos de demostración.
 
 ---
 
@@ -144,11 +152,12 @@ La interfaz incluye navegación offcanvas en móvil (≤1023px), grids adaptativ
 
 | Documento | Contenido |
 |-----------|-----------|
-| [contexto/README.md](contexto/README.md) | Índice y estado de todos los planes |
+| [contexto/README.md](contexto/README.md) | Índice maestro: rectores, planes y operaciones |
 | [`09-guia-diseno-ux-ui.md`](contexto/09-guia-diseno-ux-ui.md) | Guía completa de diseño: colores, tipografía, layout, responsive |
-| `00`–`08` | Arquitectura, negocio, datos, UX histórico, registro, panel, lógica |
-| `walkthrough.md` | Resumen de implementación |
-| `planes/` | Planes de ejecución (responsive, etc.) |
+| `contexto/00`–`12` | Arquitectura, negocio, datos, UX, registro, panel, lógica, seguridad, reportes |
+| `contexto/walkthrough.md` | Resumen de implementación |
+| [`contexto/planes/`](contexto/planes/) | Planes de ejecución (features / refactors) |
+| [`contexto/operaciones/`](contexto/operaciones/) | Procedimientos (incidentes) y checklists (backups) |
 
 ---
 

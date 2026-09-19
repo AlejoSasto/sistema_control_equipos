@@ -1,21 +1,22 @@
 # Contexto del proyecto
 
-Carpeta canónica de **documentación y planes** del Sistema de Control de Salida de Equipos de Cómputo (Universidad de Cundinamarca).
+Carpeta canónica de **documentación, planes y operaciones** del Sistema de Control de Salida de Equipos de Cómputo (Universidad de Cundinamarca).
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-19 (plan 10 UX escalable implementado)
+**Última actualización:** 2026-09-19 (organización de `contexto/`)
 
 ---
 
 ## Cómo usar esta carpeta
 
-| Subcarpeta / archivos | Contenido |
-|-----------------------|-----------|
-| `00`–`08` + `walkthrough.md` | Documentos rectores de negocio, datos, UX e implementación |
-| [`planes/`](planes/) | Planes de ejecución concretos (features, refactors) con estado |
+| Ubicación | Contenido |
+|-----------|-----------|
+| `00`–`12` + `walkthrough.md` | Documentos rectores (arquitectura, negocio, datos, UX, seguridad, módulos) |
+| [`planes/`](planes/) | Planes de ejecución concretos (features / refactors) con estado |
+| [`operaciones/`](operaciones/) | Procedimientos y checklists operativos (incidentes, backups) |
 
-Al implementar algo nuevo: crear o actualizar el plan en `planes/`, marcar todos como `completed`/`pending` y reflejar el cambio en la tabla de estado de abajo.
+Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case), actualizar [`planes/README.md`](planes/README.md) y la tabla de estado de abajo.
 
 ---
 
@@ -33,19 +34,38 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/`, marcar todos
 | [07-panel-administracion-interno.md](07-panel-administracion-interno.md) | Panel de administración interno | Implementado |
 | [08-logica-completa-aplicacion.md](08-logica-completa-aplicacion.md) | Lógica completa de la aplicación | Vigente |
 | [09-guia-diseno-ux-ui.md](09-guia-diseno-ux-ui.md) | Guía completa UX/UI: colores, tipografía, layout, responsive, componentes | **Vigente (referencia visual)** |
-| [10-plan-mejora-ux-ui-escalable.md](10-plan-mejora-ux-ui-escalable.md) | Mejora UX a escala (Bootstrap, paginación, kiosco) | **Implementado** |
+| [10-plan-mejora-ux-ui-escalable.md](10-plan-mejora-ux-ui-escalable.md) | Mejora UX a escala (Bootstrap, paginación, kiosco) | Implementado — ejecución en [`planes/mejora-ux-ui-escalable.md`](planes/mejora-ux-ui-escalable.md) |
+| [11-plan-seguridad-iso27001-owasp.md](11-plan-seguridad-iso27001-owasp.md) | Plan de seguridad ISO 27001 + OWASP + Ley 1581 | Implementado (S1–S3; pentest/RNBD externos pendientes) — ejecución en [`planes/seguridad-iso27001-owasp.md`](planes/seguridad-iso27001-owasp.md) |
+| [12-modulo-reportes-excel.md](12-modulo-reportes-excel.md) | Módulo de reportes Excel (filtros + gráficos nativos) | Implementado (sync; async fase 2) — ejecución en [`planes/modulo-reportes-excel.md`](planes/modulo-reportes-excel.md) |
 | [walkthrough.md](walkthrough.md) | Walkthrough de implementación | Completado |
 
 ---
 
 ## Planes de ejecución
 
+Índice detallado: [`planes/README.md`](planes/README.md).
+
 | Plan | Estado | Resumen |
 |------|--------|---------|
-| [planes/sistema-responsive-completo.md](planes/sistema-responsive-completo.md) | **Completado** | Offcanvas + grids; desktop-first (look web intacto) |
-| [planes/desktop-intacto-responsive.md](planes/desktop-intacto-responsive.md) | **Completado** | Restaura topbar/filtros/cards en escritorio |
-| [planes/normalizar-qr-pistola-zebra.md](planes/normalizar-qr-pistola-zebra.md) | **Completado** | Normaliza UUID con apóstrofos de Zebra DS22 (layout US→ES) |
-| [10-plan-mejora-ux-ui-escalable.md](10-plan-mejora-ux-ui-escalable.md) | **Completado** | Bootstrap 5, paginación 50, debounce, kiosco red, partials |
+| [planes/seguridad-iso27001-owasp.md](planes/seguridad-iso27001-owasp.md) | Completado | Controles S1–S3: settings, authz, auditoría, MFA, QR TTL |
+| [planes/escaneo-qr-camara.md](planes/escaneo-qr-camara.md) | Completado | Kiosco: pistola + cámara + teclado → mismo HTMX |
+| [planes/sistema-responsive-completo.md](planes/sistema-responsive-completo.md) | Completado | Offcanvas + grids; desktop-first (look web intacto) |
+| [planes/desktop-intacto-responsive.md](planes/desktop-intacto-responsive.md) | Completado | Restaura topbar/filtros/cards en escritorio |
+| [planes/normalizar-qr-pistola-zebra.md](planes/normalizar-qr-pistola-zebra.md) | Completado | Normaliza UUID con apóstrofos de Zebra DS22 (layout US→ES) |
+| [planes/mejora-ux-ui-escalable.md](planes/mejora-ux-ui-escalable.md) | Completado | Bootstrap 5, paginación 50, debounce, kiosco red, partials |
+| [planes/seed-mvp-presentacion.md](planes/seed-mvp-presentacion.md) | Completado | Seed MVP presentación (`seed_data`) |
+| [planes/modulo-reportes-excel.md](planes/modulo-reportes-excel.md) | Completado | App reportes: 5 XLSX con xlsxwriter, permisos y auditoría |
+
+---
+
+## Operaciones
+
+Índice: [`operaciones/README.md`](operaciones/README.md).
+
+| Documento | Estado | Resumen |
+|-----------|--------|---------|
+| [operaciones/procedimiento-incidentes-seguridad.md](operaciones/procedimiento-incidentes-seguridad.md) | Vigente | Procedimiento mínimo de incidentes |
+| [operaciones/checklist-backup-restauracion.md](operaciones/checklist-backup-restauracion.md) | Vigente | Checklist backups PostgreSQL + restauración |
 
 ---
 

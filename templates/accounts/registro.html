@@ -8,9 +8,13 @@
   <div class="card card-white" style="padding: 32px var(--space-4);">
     <!-- Imagotipo & Encabezado Institucional -->
     <div style="text-align: center; margin-bottom: var(--space-4);">
-      <div class="brand-icon" style="margin: 0 auto var(--space-3); width: 56px; height: 56px; font-size: 1.5rem;">
-        UC
-      </div>
+      <img
+        src="{% static 'img/logo-uc.png' %}"
+        alt="Escudo Universidad de Cundinamarca"
+        class="brand-logo brand-logo--auth"
+        width="128"
+        height="192"
+      >
       <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em;">
         Registro de Usuario
       </h2>
@@ -135,25 +139,50 @@
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label" for="id_password">Contraseña: *</label>
-          <input type="password"
-                 name="password"
-                 id="id_password"
-                 class="form-control"
-                 placeholder="Mínimo 8 caracteres"
-                 minlength="8"
-                 required>
+          <div class="password-field">
+            <input type="password"
+                   name="password"
+                   id="id_password"
+                   class="form-control"
+                   placeholder="Mínimo 8 caracteres"
+                   minlength="8"
+                   required
+                   autocomplete="new-password">
+            {% include "components/_password_toggle.html" %}
+          </div>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="id_password_confirm">Confirmar Contraseña: *</label>
-          <input type="password"
-                 name="password_confirm"
-                 id="id_password_confirm"
-                 class="form-control"
-                 placeholder="Repita la contraseña"
-                 minlength="8"
-                 required>
+          <div class="password-field">
+            <input type="password"
+                   name="password_confirm"
+                   id="id_password_confirm"
+                   class="form-control"
+                   placeholder="Repita la contraseña"
+                   minlength="8"
+                   required
+                   autocomplete="new-password">
+            {% include "components/_password_toggle.html" %}
+          </div>
         </div>
+      </div>
+
+      <div class="form-group" style="margin-top: var(--space-3);">
+        <label style="display: flex; gap: 10px; align-items: flex-start; font-size: 0.875rem; line-height: 1.45; cursor: pointer;">
+          <input type="checkbox"
+                 name="acepta_tratamiento"
+                 id="id_acepta_tratamiento"
+                 value="on"
+                 style="margin-top: 3px;"
+                 {% if form_data.acepta_tratamiento %}checked{% endif %}
+                 required>
+          <span>
+            Autorizo el tratamiento de mis datos personales conforme a la
+            <a href="{% url 'politica_datos' %}" target="_blank" rel="noopener">política de tratamiento de datos personales</a>
+            (Ley 1581 de 2012). *
+          </span>
+        </label>
       </div>
 
       <div style="margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);">

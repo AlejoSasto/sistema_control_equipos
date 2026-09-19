@@ -197,19 +197,32 @@ def equipo_create(request):
     return render(request, "equipos/equipo_form.html", context)
 
 
+def _usuario_puede_ver_qr(user, equipo) -> bool:
+    if user.tiene_permiso("equipos.ver_todos"):
+        return True
+    persona = getattr(user, "persona", None)
+    return bool(persona and equipo.persona_id == persona.id)
+
+
 @login_required
 def ver_qr_pantalla(request, token_qr):
     """
     Vista optimizada para celular para mostrar el QR en pantalla completa
-    al salir por la portería.
+    al salir por la portería. Solo dueño o quien tenga equipos.ver_todos.
     """
     equipo = get_object_or_404(
         Equipo.objects.select_related("persona", "persona__sede"),
         token_qr=token_qr,
     )
-    # Regla 7 del Doc 01: Si persona está inactiva o equipo inactivo, no muestra QR válido
+    if not _usuario_puede_ver_qr(request.user, equipo):
+        messages.error(request, "No tiene permiso para ver el QR de este equipo.")
+        return redirect("equipos:mis_equipos")
+
     if not equipo.activo or not equipo.persona.activo:
-        messages.error(request, "El equipo o el titular se encuentra inactivo. Presente su documento en portería.")
+        messages.error(
+            request,
+            "El equipo o el titular se encuentra inactivo. Presente su documento en portería.",
+        )
 
     context = {
         "equipo": equipo,
@@ -219,18 +232,24 @@ def ver_qr_pantalla(request, token_qr):
     return render(request, "equipos/mostrar_qr_pantalla.html", context)
 
 
+@login_required
 def render_qr_image(request, token_qr):
     """
-    Genera el PNG del código QR al vuelo a partir del token_qr
-    sin guardar archivos en disco.
+    Genera el PNG del QR al vuelo (token de exhibición firmado).
+    Requiere autenticación y ser dueño o admin de equipos.
     """
+    equipo = get_object_or_404(Equipo, token_qr=token_qr)
+    if not _usuario_puede_ver_qr(request.user, equipo):
+        raise Http404()
+
+    payload = equipo.generar_token_exhibicion()
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
         box_size=10,
         border=2,
     )
-    qr.add_data(str(token_qr))
+    qr.add_data(payload)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
 

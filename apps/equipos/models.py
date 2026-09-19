@@ -2,6 +2,8 @@ import uuid
 import base64
 from io import BytesIO
 import qrcode
+from django.conf import settings
+from django.core import signing
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -54,7 +56,7 @@ class Equipo(models.Model):
         unique=True,
         editable=False,
         db_index=True,
-        help_text="Identificador interno codificado en el QR",
+        help_text="Identificador interno permanente del equipo (no se exhibe crudo en el QR)",
     )
     activo = models.BooleanField(default=True, help_text="Borrado lógico (baja de equipo)")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -85,18 +87,58 @@ class Equipo(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    def generar_token_exhibicion(self) -> str:
+        """Token firmado de corta duración codificado en el QR mostrado en pantalla."""
+        max_age = getattr(settings, "QR_DISPLAY_TOKEN_MAX_AGE", 300)
+        signer = signing.TimestampSigner(salt="equipo-qr-exhibicion")
+        # max_age se valida al unsign; el sign solo marca el timestamp
+        return signer.sign(str(self.token_qr))
+
+    @classmethod
+    def resolver_token_escaneado(cls, codigo: str):
+        """
+        Resuelve un código escaneado a Equipo.
+        Acepta token de exhibición firmado (preferido) o UUID permanente (legado).
+        """
+        codigo = (codigo or "").strip()
+        if not codigo:
+            return None
+
+        qs = cls.objects.select_related(
+            "persona", "persona__sede", "persona__programa", "dependencia"
+        )
+
+        # 1) Token firmado de exhibición
+        try:
+            max_age = getattr(settings, "QR_DISPLAY_TOKEN_MAX_AGE", 300)
+            signer = signing.TimestampSigner(salt="equipo-qr-exhibicion")
+            token_uuid = signer.unsign(codigo, max_age=max_age)
+            return qs.filter(token_qr=token_uuid).first()
+        except signing.SignatureExpired:
+            return None
+        except signing.BadSignature:
+            pass
+
+        # 2) UUID permanente (transición / pistola con valor legado)
+        try:
+            token_uuid = uuid.UUID(codigo)
+            return qs.filter(token_qr=token_uuid).first()
+        except (ValueError, AttributeError, TypeError):
+            pass
+
+        # 3) Serial físico
+        return qs.filter(serial__iexact=codigo).first()
+
     def generar_qr_base64(self) -> str:
-        """
-        Genera el código QR en tiempo real al vuelo a partir del token_qr
-        y lo devuelve como string Data URI base64 (no se guarda en disco).
-        """
+        """QR al vuelo con token de exhibición firmado (Data URI base64)."""
+        payload = self.generar_token_exhibicion()
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_M,
             box_size=10,
             border=2,
         )
-        qr.add_data(str(self.token_qr))
+        qr.add_data(payload)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
 

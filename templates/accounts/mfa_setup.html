@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Configurar MFA{% endblock %}
+
+{% block auth_content %}
+<div style="width: 100%; max-width: 480px;">
+  <div class="card card-white" style="padding: 32px;">
+    <h1 style="font-size: 1.25rem; font-weight: 700;">Configurar autenticación en dos pasos</h1>
+    <p style="margin-top: 8px; color: var(--color-text-secondary); font-size: 0.875rem;">
+      Escanee este código con Google Authenticator, Authy u otra app TOTP. Luego confirme con un código.
+    </p>
+    {% if qr_data_uri %}
+    <div style="text-align: center; margin: 20px 0;">
+      <img src="{{ qr_data_uri }}" alt="QR MFA" width="200" height="200">
+    </div>
+    {% endif %}
+    <p style="font-size: 0.75rem; word-break: break-all; color: var(--color-text-secondary); font-family: var(--font-mono);">
+      {{ config_url }}
+    </p>
+    <form method="post" style="margin-top: 20px;">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="id_token">Código de verificación</label>
+        <input type="text" name="token" id="id_token" class="form-control"
+               inputmode="numeric" autocomplete="one-time-code" maxlength="8" required
+               style="font-family: var(--font-mono); letter-spacing: 0.1em;">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 16px;">Confirmar MFA</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

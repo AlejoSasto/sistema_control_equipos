@@ -8,9 +8,13 @@
   <div class="card card-white" style="padding: 32px var(--space-4);">
     <!-- Imagotipo & Encabezado Institucional -->
     <div style="text-align: center; margin-bottom: var(--space-4);">
-      <div class="brand-icon" style="margin: 0 auto var(--space-3); width: 56px; height: 56px; font-size: 1.5rem;">
-        UC
-      </div>
+      <img
+        src="{% static 'img/logo-uc.png' %}"
+        alt="Escudo Universidad de Cundinamarca"
+        class="brand-logo brand-logo--auth"
+        width="128"
+        height="192"
+      >
       <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em;">
         Sistema de Control de Equipos
       </h2>
@@ -38,17 +42,21 @@
                required
                id="id_username"
                class="form-control"
-               placeholder="Ej: celador1 o admin">
+               placeholder="Usuario o correo institucional">
       </div>
 
       <div class="form-group">
         <label class="form-label" for="id_password">Contraseña</label>
-        <input type="password"
-               name="password"
-               required
-               id="id_password"
-               class="form-control"
-               placeholder="••••••••">
+        <div class="password-field">
+          <input type="password"
+                 name="password"
+                 required
+                 id="id_password"
+                 class="form-control"
+                 placeholder="••••••••"
+                 autocomplete="current-password">
+          {% include "components/_password_toggle.html" %}
+        </div>
       </div>
 
       <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: var(--space-3);">
@@ -67,14 +75,6 @@
         </svg>
         <span>¿No tiene cuenta? Registrarse</span>
       </a>
-    </div>
-
-    <!-- Credenciales de Prueba -->
-    <div style="margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border); font-size: 0.8125rem; color: var(--color-text-secondary); text-align: center;">
-      <p style="font-weight: 600; margin-bottom: var(--space-1); color: var(--color-text);">Credenciales de Prueba:</p>
-      <p>Portería: <code style="color: var(--color-primary); font-family: var(--font-mono); font-weight: 600;">celador1</code> / <code style="color: var(--color-primary); font-family: var(--font-mono);">celador123</code></p>
-      <p style="margin-top: var(--space-1);">Docente: <code style="color: var(--color-info); font-family: var(--font-mono); font-weight: 600;">docente1</code> / <code style="color: var(--color-info); font-family: var(--font-mono);">docente123</code></p>
-      <p style="margin-top: var(--space-1);">Superadmin: <code style="color: var(--color-primary); font-family: var(--font-mono); font-weight: 600;">admin</code> / <code style="color: var(--color-primary); font-family: var(--font-mono);">admin123</code></p>
     </div>
   </div>
 </div>

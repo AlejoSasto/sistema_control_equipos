@@ -149,7 +149,7 @@ Una sola sombra suave. Nunca multi-capa ni glow.
 
 ### Navegación
 
-- Brand: icono “UC” verde + título “Control Equipos”.
+- Brand: escudo oficial (`static/img/logo-uc.png`) + título “Control Equipos”.
 - Secciones: Portería, Mi Espacio, Panel, Catálogos (según permisos).
 - Ítem activo: fondo verde suave + borde izquierdo 3px `#007B3E`.
 - Footer: avatar inicial + nombre + rol + logout.

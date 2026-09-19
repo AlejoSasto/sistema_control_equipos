@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Reporte Ejecutivo{% endblock %}
+{% block page_title %}Reporte: Ejecutivo{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'reportes:index' %}" class="btn btn-secondary">← Volver</a>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">{{ meta.nombre }}</h3>
+      <p class="card-subtitle">{{ meta.descripcion }} Solo requiere el periodo a analizar (máx. 90 días).</p>
+    </div>
+  </div>
+  <form method="post" action="{% url 'reportes:exportar' tipo %}" class="filters-grid filters-grid--4" style="padding: var(--space-4);">
+    {% csrf_token %}
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="fecha_inicio">Fecha inicio</label>
+      <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ fecha_inicio }}" class="form-control" required>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="fecha_fin">Fecha fin</label>
+      <input type="date" name="fecha_fin" id="fecha_fin" value="{{ fecha_fin }}" class="form-control" required>
+    </div>
+    <div style="display:flex; gap: var(--space-2); align-items:end;">
+      {% if puede_exportar %}
+      <button type="submit" class="btn btn-primary">Descargar Excel</button>
+      {% else %}
+      <button type="button" class="btn btn-secondary" disabled>Sin permiso de exportación</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

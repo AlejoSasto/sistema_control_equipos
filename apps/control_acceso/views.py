@@ -1,9 +1,9 @@
-import uuid
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Q
+from django_ratelimit.decorators import ratelimit
 from accounts.decorators import requiere_permiso
 from config.pagination import paginate_queryset
 from equipos.models import Equipo
@@ -16,7 +16,7 @@ from .utils import normalizar_codigo_escaneado
 def control_salida_view(request):
     """
     Pantalla principal de Control de Salida en Portería para el celador.
-    Input con autofocus permanente para recibir lectura de pistola lectora o celular.
+    Recibe token por pistola (teclado), cámara del dispositivo o ingreso manual.
     """
     hoy = timezone.localdate()
 
@@ -45,16 +45,13 @@ def control_salida_view(request):
 @login_required
 @requiere_permiso("control.escanear")
 @require_POST
+@ratelimit(key="user_or_ip", rate="60/m", method="POST", block=True)
 def escanear_qr_salida(request):
     """
     Endpoint HTMX para resolver el escaneo en tiempo real:
-    1. Recibe el token_qr (o serial para pruebas).
+    1. Recibe token de exhibición firmado, UUID legado o serial.
     2. Resuelve el Equipo y la Persona.
-    3. Aplica reglas de negocio:
-       - Si no existe -> resultado 'no_encontrado', registrar Movimiento.
-       - Si equipo inactivo o persona inactiva -> resultado 'alerta', registrar Movimiento.
-       - Si coincide y activos -> resultado 'ok', registrar Movimiento.
-    4. Muestra en pantalla el resultado gigante y actualiza la tabla del turno vía HTMX OOB.
+    3. Aplica reglas de negocio (ok / alerta / no_encontrado).
     """
     codigo_recibido = normalizar_codigo_escaneado(request.POST.get("codigo", ""))
 
@@ -65,18 +62,7 @@ def escanear_qr_salida(request):
             {"error_mensaje": "Por favor escanee el código QR presentado por la persona."},
         )
 
-    # Intentar buscar por token_qr (UUID) o por serial
-    equipo = None
-    try:
-        token_uuid = uuid.UUID(codigo_recibido)
-        equipo = Equipo.objects.select_related(
-            "persona", "persona__sede", "persona__programa", "dependencia"
-        ).filter(token_qr=token_uuid).first()
-    except (ValueError, AttributeError):
-        # Si no es un UUID válido, intentar por serial físico
-        equipo = Equipo.objects.select_related(
-            "persona", "persona__sede", "persona__programa", "dependencia"
-        ).filter(serial__iexact=codigo_recibido).first()
+    equipo = Equipo.resolver_token_escaneado(codigo_recibido)
 
     hoy = timezone.localdate()
 

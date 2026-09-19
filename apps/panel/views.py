@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Q
@@ -8,9 +9,11 @@ from django.views.decorators.http import require_POST
 
 from accounts.decorators import requiere_permiso
 from accounts.models import Permiso, Rol, RolPermiso, Usuario, UsuarioRol
+from auditoria.models import AuditoriaCambio
 from config.pagination import paginate_queryset
 from organizacion.models import Area, Programa, Sede
 from personas.models import CODIGO_VINCULO_ADMINISTRATIVO, Persona, TipoVinculo
+from personas.validators import validar_y_procesar_foto
 
 from .services import (
     permisos_agrupados,
@@ -146,12 +149,27 @@ def persona_create(request):
             persona = Persona(activo=data["activo"])
             _apply_persona_fields(persona, data)
             try:
+                foto = validar_y_procesar_foto(request.FILES.get("foto"))
+                if foto:
+                    persona.foto = foto
                 persona.save()
             except ValidationError as exc:
-                for field, errs in exc.message_dict.items():
-                    for err in errs:
+                if hasattr(exc, "message_dict"):
+                    for field, errs in exc.message_dict.items():
+                        for err in errs:
+                            messages.error(request, err)
+                else:
+                    for err in exc.messages:
                         messages.error(request, err)
                 return render(request, "panel/persona_form.html", _persona_form_context(data=data))
+            registrar_cambio(
+                request.user,
+                f"Creó persona '{persona.nombre_completo}'.",
+                request=request,
+                entidad="persona",
+                entidad_id=persona.pk,
+                accion=AuditoriaCambio.ACCION_CREAR,
+            )
             messages.success(request, f"Persona {persona.nombre_completo} registrada exitosamente.")
             return redirect("panel:persona_edit", pk=persona.pk)
         return render(request, "panel/persona_form.html", _persona_form_context(data=data))
@@ -177,16 +195,30 @@ def persona_edit(request, pk):
         else:
             _apply_persona_fields(persona, data)
             try:
+                foto = validar_y_procesar_foto(request.FILES.get("foto"))
+                if foto:
+                    persona.foto = foto
                 persona.save()
             except ValidationError as exc:
-                for field, errs in exc.message_dict.items():
-                    for err in errs:
+                if hasattr(exc, "message_dict"):
+                    for field, errs in exc.message_dict.items():
+                        for err in errs:
+                            messages.error(request, err)
+                else:
+                    for err in exc.messages:
                         messages.error(request, err)
                 return render(
                     request,
                     "panel/persona_form.html",
                     {**_persona_form_context(persona=persona, data=data), "equipos": equipos},
                 )
+            registrar_cambio(
+                request.user,
+                f"Actualizó persona '{persona.nombre_completo}'.",
+                request=request,
+                entidad="persona",
+                entidad_id=persona.pk,
+            )
             messages.success(request, f"Persona {persona.nombre_completo} actualizada correctamente.")
             return redirect("panel:persona_edit", pk=persona.pk)
         return render(
@@ -299,8 +331,11 @@ def usuario_create(request):
             errors.append("Usuario y contraseña son obligatorios.")
         if password != password_confirm:
             errors.append("Las contraseñas no coinciden.")
-        elif len(password) < 8:
-            errors.append("La contraseña debe tener al menos 8 caracteres.")
+        elif password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                errors.extend(exc.messages)
         if Usuario.objects.filter(username__iexact=username).exists():
             errors.append(f"Ya existe un usuario con el nombre '{username}'.")
         if email and Usuario.objects.filter(email__iexact=email).exists():
@@ -342,6 +377,10 @@ def usuario_create(request):
         registrar_cambio(
             request.user,
             f"Creó usuario '{usuario.username}' con roles: {', '.join(usuario.roles.values_list('nombre', flat=True))}",
+            request=request,
+            entidad="usuario",
+            entidad_id=usuario.pk,
+            accion=AuditoriaCambio.ACCION_CREAR,
         )
         messages.success(request, f"Usuario '{usuario.username}' creado exitosamente.")
         return redirect("panel:usuario_detail", pk=usuario.pk)
@@ -365,13 +404,23 @@ def usuario_detail(request, pk):
             password_confirm = request.POST.get("password_confirm", "")
             if password != password_confirm:
                 messages.error(request, "Las contraseñas no coinciden.")
-            elif len(password) < 8:
-                messages.error(request, "La contraseña debe tener al menos 8 caracteres.")
             else:
-                usuario.set_password(password)
-                usuario.save()
-                registrar_cambio(request.user, f"Restableció la contraseña del usuario '{usuario.username}'.")
-                messages.success(request, f"Contraseña de '{usuario.username}' actualizada correctamente.")
+                try:
+                    validate_password(password, user=usuario)
+                except ValidationError as exc:
+                    for err in exc.messages:
+                        messages.error(request, err)
+                else:
+                    usuario.set_password(password)
+                    usuario.save()
+                    registrar_cambio(
+                        request.user,
+                        f"Restableció la contraseña del usuario '{usuario.username}'.",
+                        request=request,
+                        entidad="usuario",
+                        entidad_id=usuario.pk,
+                    )
+                    messages.success(request, f"Contraseña de '{usuario.username}' actualizada correctamente.")
 
         elif action == "update_roles":
             rol_ids = {int(r) for r in request.POST.getlist("roles") if r.isdigit()}
@@ -389,6 +438,9 @@ def usuario_detail(request, pk):
                 registrar_cambio(
                     request.user,
                     f"Actualizó roles de '{usuario.username}': {roles_anteriores} → {roles_nuevos}",
+                    request=request,
+                    entidad="usuario",
+                    entidad_id=usuario.pk,
                 )
                 messages.success(request, "Roles del usuario actualizados correctamente.")
 
@@ -416,7 +468,14 @@ def usuario_toggle(request, pk):
     usuario.is_active = usuario.activo
     usuario.save()
     estado = "activado" if usuario.activo else "inactivado"
-    registrar_cambio(request.user, f"{estado.capitalize()} usuario '{usuario.username}'.")
+    registrar_cambio(
+        request.user,
+        f"{estado.capitalize()} usuario '{usuario.username}'.",
+        request=request,
+        entidad="usuario",
+        entidad_id=usuario.pk,
+        accion=AuditoriaCambio.ACCION_INACTIVAR if not usuario.activo else AuditoriaCambio.ACCION_EDITAR,
+    )
     messages.success(request, f"Usuario '{usuario.username}' {estado} exitosamente.")
     return redirect("panel:usuario_detail", pk=usuario.pk)
 
@@ -464,11 +523,24 @@ def rol_form(request, pk=None):
                 rol.descripcion = descripcion
                 rol.activo = activo
                 rol.save()
-                registrar_cambio(request.user, f"Actualizó rol '{rol.nombre}'.")
+                registrar_cambio(
+                    request.user,
+                    f"Actualizó rol '{rol.nombre}'.",
+                    request=request,
+                    entidad="rol",
+                    entidad_id=rol.pk,
+                )
                 messages.success(request, f"Rol '{rol.nombre}' actualizado correctamente.")
             else:
                 rol = Rol.objects.create(nombre=nombre, descripcion=descripcion, activo=activo)
-                registrar_cambio(request.user, f"Creó rol '{rol.nombre}'.")
+                registrar_cambio(
+                    request.user,
+                    f"Creó rol '{rol.nombre}'.",
+                    request=request,
+                    entidad="rol",
+                    entidad_id=rol.pk,
+                    accion=AuditoriaCambio.ACCION_CREAR,
+                )
                 messages.success(request, f"Rol '{rol.nombre}' creado exitosamente.")
             return redirect("panel:rol_permisos", pk=rol.pk)
 
@@ -514,6 +586,9 @@ def rol_permisos(request, pk):
         registrar_cambio(
             request.user,
             f"Actualizó permisos del rol '{rol.nombre}': {permisos_anteriores} → {permisos_nuevos}",
+            request=request,
+            entidad="rol",
+            entidad_id=rol.pk,
         )
         messages.success(request, f"Permisos del rol '{rol.nombre}' guardados correctamente.")
         return redirect("panel:rol_permisos", pk=rol.pk)

@@ -11,7 +11,9 @@ class PanelPermisosTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.sede = Sede.objects.create(codigo="UBATE", nombre="Seccional Ubaté", ciudad="Ubaté")
-        self.vinculo, _ = TipoVinculo.objects.get_or_create(codigo="docente", defaults={"nombre": "Docente"})
+        self.vinculo, _ = TipoVinculo.objects.get_or_create(
+            codigo="gestor_conocimiento", defaults={"nombre": "Gestor del Conocimiento"}
+        )
 
         self.perm_personas, _ = Permiso.objects.get_or_create(
             codigo="personas.administrar", defaults={"descripcion": "Admin personas"}
@@ -55,7 +57,9 @@ class PanelReglasNegocioTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         self.sede = Sede.objects.create(codigo="UBATE", nombre="Seccional Ubaté", ciudad="Ubaté")
-        self.vinculo, _ = TipoVinculo.objects.get_or_create(codigo="docente", defaults={"nombre": "Docente"})
+        self.vinculo, _ = TipoVinculo.objects.get_or_create(
+            codigo="gestor_conocimiento", defaults={"nombre": "Gestor del Conocimiento"}
+        )
 
         self.perm_usuarios, _ = Permiso.objects.get_or_create(
             codigo="usuarios.administrar", defaults={"descripcion": "Admin usuarios"}

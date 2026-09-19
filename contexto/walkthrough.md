@@ -29,12 +29,12 @@ En cumplimiento de las directrices de `05-sistema-diseno-v2.md`:
 
 ---
 
-## 3. Demostración y Accesos
+## 3. Acceso MVP
 
-Servidor local activo en **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**:
+Servidor local: **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**
 
-| Perfil | Usuario | Contraseña | Enlace Directo |
-|---|---|---|---|
-| **Celador (Portería)** | `celador1` | `celador123` | [Puesto de Control Kiosco](http://127.0.0.1:8000/acceso/control-salida/) |
-| **Docente (Comunidad)** | `docente1` | `docente123` | [Mis Equipos & Pases QR](http://127.0.0.1:8000/equipos/mis-equipos/) |
-| **Administrador** | `admin` | `admin123` | [Auditoría de Salidas](http://127.0.0.1:8000/acceso/historico/) |
+| Perfil | Usuario | Contraseña |
+|---|---|---|
+| **Administrador** | `admin` | `Udec2026!Admin` |
+
+Catálogos del seed: Sede Ubaté, Facultad de Ingeniería, programa Ingeniería de Sistemas y Computación, tipo de vínculo Administrativo.

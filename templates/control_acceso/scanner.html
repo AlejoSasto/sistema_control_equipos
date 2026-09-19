@@ -69,21 +69,8 @@
               Puesto de Control de Salida
             </h2>
             <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: 2px;">
-              Apunta el lector óptico a la pantalla del celular del titular
+              Lector óptico, cámara del dispositivo o código por teclado
             </p>
-          </div>
-
-          <!-- Accesos rápidos para demostración -->
-          <div style="display: flex; flex-wrap: wrap; gap: var(--space-1);">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="copiarDemo('LNV-UBATE-2026-01')">
-              Demo: Salida OK
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" style="color: var(--color-danger) !important; border-color: var(--color-danger);" onclick="copiarDemo('HP-BAJA-ALERT-00')">
-              Demo: Equipo Baja (R6)
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" style="color: var(--color-danger) !important; border-color: var(--color-danger);" onclick="copiarDemo('ASUS-INACT-ALERT-77')">
-              Demo: Persona Inactiva (R7)
-            </button>
           </div>
         </div>
 
@@ -111,6 +98,23 @@
           </button>
         </form>
 
+        <div class="kiosk-camera-toolbar">
+          <button type="button" id="btn-toggle-camera" class="btn btn-secondary btn-sm" aria-pressed="false">
+            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            <span id="btn-toggle-camera-label">Usar cámara</span>
+          </button>
+          <p class="kiosk-camera-hint" id="kiosk-camera-hint">
+            Sin pistola: use la cámara. Sin cámara: escriba o pegue el código y pulse Verificar.
+          </p>
+        </div>
+        <div id="kiosk-camera-status" class="kiosk-camera-status" hidden role="status"></div>
+        <div id="qr-reader-wrap" class="kiosk-camera-panel" hidden>
+          <div id="qr-reader"></div>
+        </div>
+
         <div id="cargando-texto" class="htmx-indicator" style="text-align: center; padding: var(--space-2); color: var(--color-primary); font-size: 0.875rem; font-weight: 500;">
           Verificando equipo y titular en base de datos...
         </div>
@@ -126,7 +130,7 @@
               Esperando escaneo…
             </h3>
             <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">
-              Presenta el código QR ante el lector óptico de portería.
+              Presente el QR ante el lector óptico, la cámara o ingrese el código manualmente.
             </p>
           </div>
         </div>
@@ -156,14 +160,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
 <script>
-  function copiarDemo(valor) {
-    const input = document.getElementById('scanner-input');
-    input.value = valor;
-    input.focus();
-    htmx.trigger(input.form, 'submit');
-  }
-
   (function () {
     var lastToken = '';
     var lastAt = 0;
@@ -239,4 +237,5 @@
     });
   })();
 </script>
+<script src="{% static 'js/kiosk-camera.js' %}?v=2"></script>
 {% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Política de tratamiento de datos personales{% endblock %}
+
+{% block auth_content %}
+<div style="width: 100%; max-width: 720px;">
+  <div class="card card-white" style="padding: 32px var(--space-4);">
+    <h1 style="font-size: 1.35rem; font-weight: 700;">Política de tratamiento de datos personales</h1>
+    <p style="margin-top: 8px; color: var(--color-text-secondary); font-size: 0.875rem;">
+      Sistema de Control de Salida de Equipos de Cómputo — Universidad de Cundinamarca
+    </p>
+
+    <section style="margin-top: 24px;">
+      <h2 style="font-size: 1rem; font-weight: 600;">1. Responsable</h2>
+      <p style="margin-top: 8px; font-size: 0.9375rem; line-height: 1.55;">
+        La Universidad de Cundinamarca trata los datos personales recolectados a través de este sistema
+        conforme a la Ley 1581 de 2012 y el Decreto 1377 de 2013.
+      </p>
+    </section>
+
+    <section style="margin-top: 20px;">
+      <h2 style="font-size: 1rem; font-weight: 600;">2. Datos que se recolectan</h2>
+      <p style="margin-top: 8px; font-size: 0.9375rem; line-height: 1.55;">
+        Documento de identidad, nombres y apellidos, correo institucional, sede/programa o área,
+        fotografía (si se carga), datos de equipos registrados y registros de salida (movimientos)
+        asociados al control de portería.
+      </p>
+    </section>
+
+    <section style="margin-top: 20px;">
+      <h2 style="font-size: 1rem; font-weight: 600;">3. Finalidad</h2>
+      <p style="margin-top: 8px; font-size: 0.9375rem; line-height: 1.55;">
+        Verificar la autorización de salida de equipos de cómputo del campus, administrar cuentas
+        de la comunidad académica y generar trazabilidad de control de acceso.
+      </p>
+    </section>
+
+    <section style="margin-top: 20px;">
+      <h2 style="font-size: 1rem; font-weight: 600;">4. Retención</h2>
+      <p style="margin-top: 8px; font-size: 0.9375rem; line-height: 1.55;">
+        Los datos se conservan mientras la persona mantenga vínculo activo con la universidad o
+        mientras exista obligación legal/institucional de conservación de registros de control.
+        Las cuentas inactivadas se mantienen con borrado lógico según las reglas del sistema.
+      </p>
+    </section>
+
+    <section style="margin-top: 20px;">
+      <h2 style="font-size: 1rem; font-weight: 600;">5. Derechos ARCO</h2>
+      <p style="margin-top: 8px; font-size: 0.9375rem; line-height: 1.55;">
+        Puede ejercer los derechos de acceso, rectificación, cancelación y oposición escribiendo a
+        <strong>{{ contacto_arco|default:"protecciondatos@ucundinamarca.edu.co" }}</strong>.
+      </p>
+    </section>
+
+    <p style="margin-top: 28px;">
+      <a href="{% url 'accounts:registro' %}" class="btn btn-secondary">Volver al registro</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

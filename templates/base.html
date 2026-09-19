@@ -17,7 +17,8 @@
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 
   <!-- Custom CSS Design System v2 (después de Bootstrap para preservar look institucional) -->
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=6">
+  <link rel="icon" type="image/png" href="{% static 'img/logo-uc.png' %}">
 
   <!-- HTMX for Dynamic Real-Time Interactions -->
   <script src="{% static 'js/htmx.min.js' %}"></script>
@@ -30,9 +31,13 @@
     <!-- Sidebar: fija en lg+; Offcanvas nativo Bootstrap debajo de lg -->
     <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="app-sidebar" aria-labelledby="sidebarLabel">
       <div class="sidebar-header">
-        <div class="brand-icon">
-          <span>UC</span>
-        </div>
+        <img
+          src="{% static 'img/logo-uc.png' %}"
+          alt="Escudo Universidad de Cundinamarca"
+          class="brand-logo"
+          width="64"
+          height="96"
+        >
         <div class="flex-grow-1">
           <div class="brand-title" id="sidebarLabel">Control Equipos</div>
           <div class="brand-subtitle">U. Cundinamarca</div>
@@ -42,7 +47,7 @@
 
       <nav class="sidebar-nav">
         <!-- Menú para Celador / Puesto de Salida -->
-        {% if user.es_celador or user.is_superuser %}
+        {% if user.es_celador %}
         <div class="nav-section-title">Portería (Control de Salida)</div>
         <a href="{% url 'control_acceso:escanear' %}" class="nav-link {% if request.resolver_match.url_name == 'escanear' %}active{% endif %}">
           <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,7 +64,7 @@
         {% endif %}
 
         <!-- Menú para Miembro de la Comunidad Académica (solo perfil y equipos propios) -->
-        {% if user.puede_ver_propio %}
+        {% if user.es_miembro_comunidad %}
         <div class="nav-section-title">Mi Espacio</div>
         <a href="{% url 'accounts:mi_perfil' %}" class="nav-link {% if request.resolver_match.url_name == 'mi_perfil' %}active{% endif %}">
           <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,6 +121,16 @@
           <span>Permisos</span>
         </a>
         {% endif %}
+        {% endif %}
+
+        {% if user.puede_ver_reportes %}
+        <div class="nav-section-title">Reportes</div>
+        <a href="{% url 'reportes:index' %}" class="nav-link {% if request.resolver_match.app_name == 'reportes' %}active{% endif %}">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span>Reportes Excel</span>
+        </a>
         {% endif %}
 
         <!-- Catálogos e Inventario -->
@@ -242,7 +257,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
           integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
           crossorigin="anonymous"></script>
-  <script src="{% static 'js/ux.js' %}"></script>
+  <script src="{% static 'js/ux.js' %}?v=4"></script>
+  <script src="{% static 'js/nav.js' %}?v=4"></script>
   {% block extra_scripts %}{% endblock %}
 </body>
 </html>

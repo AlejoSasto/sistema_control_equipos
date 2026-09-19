@@ -1,335 +1,271 @@
+"""
+Carga inicial MVP para presentación.
+
+Catálogos mínimos:
+- Sede: Seccional Ubaté
+- Facultad: Ingeniería
+- Programa: Ingeniería de Sistemas y Computación
+- Tipo de vínculo: Administrativo
+- Roles: Administrador del sistema, Miembro de la comunidad
+- Permisos en español
+
+No crea usuarios de celador/docente ni equipos de prueba.
+Tipos de vínculo canónicos (todos activos):
+gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado.
+"""
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Q
+
 from accounts.models import Rol, Permiso, Usuario, RolPermiso, UsuarioRol
 from organizacion.models import Area, Decanatura, Programa, Sede
 from personas.models import TipoVinculo, Persona
 from equipos.models import Equipo
+from control_acceso.models import Movimiento
+
+
+# Datos de prueba antiguos a eliminar al reseedar
+DEMO_USERNAMES = ("celador1", "docente1", "celador")
+DEMO_DOCUMENTOS = ("1070123456", "1070654321", "1070999999")
+DEMO_SERIALES = (
+    "LNV-UBATE-2026-01",
+    "DELL-INST-2026-99",
+    "HP-BAJA-ALERT-00",
+    "ASUS-INACT-ALERT-77",
+)
 
 
 class Command(BaseCommand):
-    help = "Poblar roles, permisos, catálogos y usuarios oficiales según Documentos 01, 02, 03 y 06"
+    help = "Carga catálogos MVP (Ubaté / Ingeniería / Sistemas) y limpia datos de demostración"
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("Iniciando carga de datos institucionales (Docs 01, 02, 03 y 06)..."))
+        self.stdout.write(self.style.NOTICE("Cargando datos MVP para presentación..."))
 
         with transaction.atomic():
-            # 1. Permisos del Documento 01
-            permisos_data = [
-                ("equipos.registrar", "Registrar equipos propios"),
-                ("equipos.ver_propios", "Ver y mostrar el QR de los equipos propios"),
-                ("equipos.ver_todos", "Ver todos los equipos registrados (uso administrativo)"),
-                ("control.escanear", "Acceder a la pantalla de control de salida (rol celador)"),
-                ("control.ver_alertas", "Ver el histórico de alertas generadas"),
-                ("catalogos.administrar", "Crear/editar sedes, facultades, programas, áreas y tipos de vínculo"),
-                ("personas.administrar", "Crear/editar/inactivar personas de la comunidad académica"),
-                ("usuarios.administrar", "Crear/editar/inactivar usuarios y resetear contraseñas"),
-                ("roles.administrar", "Crear/editar roles y asignar permisos"),
-                ("permisos.ver", "Ver el catálogo de permisos (solo lectura)"),
-                ("perfil.ver_propio", "Ver información personal, equipos y métricas propias"),
-            ]
+            self._limpiar_datos_demostracion()
+            permisos_objs = self._cargar_permisos()
+            roles_objs = self._cargar_roles(permisos_objs)
+            tipo_admin = self._cargar_tipos_vinculo(roles_objs)
+            sede = self._cargar_organizacion()
+            area = self._cargar_areas()
+            self._asegurar_admin(roles_objs)
 
-            permisos_objs = {}
-            for cod, desc in permisos_data:
-                p, _ = Permiso.objects.get_or_create(codigo=cod, defaults={"descripcion": desc})
-                permisos_objs[cod] = p
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(permisos_objs)} Permisos configurados"))
+            self.stdout.write(self.style.SUCCESS(
+                f"\n[LISTO] MVP listo — Sede: {sede.nombre} | "
+                f"4 vínculos activos | Área: {area.nombre}"
+            ))
+            self.stdout.write(self.style.SUCCESS(
+                "Acceso administrador: usuario 'admin' / contraseña 'Udec2026!Admin'"
+            ))
 
-            # 2. Roles del Documento 01
-            roles_def = {
-                "miembro_comunidad": (
-                    "Miembro de la Comunidad Académica",
-                    "Gestor del Conocimiento, Creador de Oportunidades, Administrativo y Graduado: "
-                    "solo acceden a su perfil personal, equipos y métricas propias",
-                    ["equipos.registrar", "equipos.ver_propios", "perfil.ver_propio"],
-                ),
-                "celador": (
-                    "Celador / Personal de Control",
-                    "Vigilancia en punto de salida que escanea el QR y verifica coincidencia",
-                    ["control.escanear", "control.ver_alertas"],
-                ),
-                "admin_sistema": (
-                    "Administrador del Sistema",
-                    "Coordina el proceso institucional, gestiona catálogos, usuarios y auditoría",
-                    list(permisos_objs.keys()),
-                ),
-            }
+    def _limpiar_datos_demostracion(self):
+        personas_demo = Persona.objects.filter(numero_documento__in=DEMO_DOCUMENTOS)
+        usuarios_demo = Usuario.objects.filter(username__in=DEMO_USERNAMES)
+        equipos_qs = Equipo.objects.filter(Q(serial__in=DEMO_SERIALES) | Q(persona__in=personas_demo))
+        movs = Movimiento.objects.filter(
+            Q(equipo__in=equipos_qs) | Q(usuario_control__in=usuarios_demo)
+        ).delete()[0]
+        eliminados_eq = equipos_qs.delete()[0]
+        eliminados_per = personas_demo.delete()[0]
+        eliminados_usr = usuarios_demo.delete()[0]
+        self.stdout.write(self.style.WARNING(
+            f"[LIMPIEZA] Demostración eliminada — movimientos:{movs} equipos:{eliminados_eq} "
+            f"personas:{eliminados_per} usuarios:{eliminados_usr}"
+        ))
 
-            roles_objs = {}
-            for nom, (display_name, desc, perms_list) in roles_def.items():
-                rol, _ = Rol.objects.get_or_create(
-                    nombre=nom,
-                    defaults={"descripcion": desc, "activo": True},
-                )
-                rol.descripcion = desc
-                rol.save(update_fields=["descripcion"])
-                for p_cod in perms_list:
-                    RolPermiso.objects.get_or_create(rol=rol, permiso=permisos_objs[p_cod])
-                roles_objs[nom] = rol
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(roles_objs)} Roles configurados y asignados"))
+    def _cargar_permisos(self):
+        permisos_data = [
+            ("equipos.registrar", "Registrar equipos propios"),
+            ("equipos.ver_propios", "Ver y mostrar el código QR de los equipos propios"),
+            ("equipos.ver_todos", "Consultar el inventario completo de equipos"),
+            ("control.escanear", "Usar el puesto de control de salida (escaneo QR)"),
+            ("control.ver_alertas", "Consultar el historial de salidas y alertas"),
+            ("catalogos.administrar", "Administrar sedes, facultades, programas, áreas y tipos de vínculo"),
+            ("personas.administrar", "Administrar personas de la comunidad académica"),
+            ("usuarios.administrar", "Administrar usuarios y restablecer contraseñas"),
+            ("roles.administrar", "Administrar roles y asignar permisos"),
+            ("permisos.ver", "Consultar el catálogo de permisos (solo lectura)"),
+            ("perfil.ver_propio", "Ver el perfil personal, equipos y métricas propias"),
+            ("reportes.ver", "Acceder al módulo de reportes y configurar filtros"),
+            ("reportes.exportar", "Generar y descargar reportes Excel"),
+        ]
+        permisos_objs = {}
+        for codigo, descripcion in permisos_data:
+            permiso, created = Permiso.objects.get_or_create(
+                codigo=codigo,
+                defaults={"descripcion": descripcion},
+            )
+            if not created and permiso.descripcion != descripcion:
+                permiso.descripcion = descripcion
+                permiso.save(update_fields=["descripcion"])
+            permisos_objs[codigo] = permiso
+        self.stdout.write(self.style.SUCCESS(f"[OK] {len(permisos_objs)} permisos (descripciones en español)"))
+        return permisos_objs
 
-            # 2.5 Catálogo TipoVinculo (Doc 06 + equivalencias institucionales)
-            # nombre  = término que usa la universidad (visible en formularios)
-            # codigo  = nombre técnico interno del sistema
-            tipos_vinculo_data = [
-                {
-                    "codigo": "docente",
-                    "nombre": "Gestor del Conocimiento",
-                    "permite_autoregistro": True,
+    def _cargar_roles(self, permisos_objs):
+        roles_def = {
+            "miembro_comunidad": (
+                "Miembro de la comunidad académica: acceso solo a perfil y equipos propios",
+                ["equipos.registrar", "equipos.ver_propios", "perfil.ver_propio"],
+                True,
+            ),
+            "admin_sistema": (
+                "Administrador del sistema: gestión completa de catálogos, usuarios y control de salida",
+                list(permisos_objs.keys()),
+                True,
+            ),
+            # Rol legado: se desactiva para el MVP (sin celador)
+            "celador": (
+                "Personal de portería (desactivado en MVP)",
+                ["control.escanear", "control.ver_alertas"],
+                False,
+            ),
+        }
+
+        roles_objs = {}
+        for nombre, (descripcion, perms, activo) in roles_def.items():
+            rol, _ = Rol.objects.update_or_create(
+                nombre=nombre,
+                defaults={"descripcion": descripcion, "activo": activo},
+            )
+            RolPermiso.objects.filter(rol=rol).delete()
+            if activo:
+                for codigo in perms:
+                    RolPermiso.objects.get_or_create(rol=rol, permiso=permisos_objs[codigo])
+            roles_objs[nombre] = rol
+
+        activos = sum(1 for r in roles_objs.values() if r.activo)
+        self.stdout.write(self.style.SUCCESS(f"[OK] {activos} roles activos (celador desactivado)"))
+        return roles_objs
+
+    def _cargar_tipos_vinculo(self, roles_objs):
+        """
+        Solo 4 códigos canónicos, todos activos:
+        gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado.
+        """
+        rol_miembro = roles_objs["miembro_comunidad"]
+        tipos_data = [
+            {
+                "codigo": "gestor_administrativo",
+                "nombre": "Administrativo",
+                "permite_autoregistro": False,
+            },
+            {
+                "codigo": "creador_oportunidades",
+                "nombre": "Creador de Oportunidades",
+                "permite_autoregistro": True,
+            },
+            {
+                "codigo": "gestor_conocimiento",
+                "nombre": "Gestor del Conocimiento",
+                "permite_autoregistro": True,
+            },
+            {
+                "codigo": "egresado",
+                "nombre": "Egresado",
+                "permite_autoregistro": True,
+            },
+        ]
+
+        tipos_objs = {}
+        for data in tipos_data:
+            tv, _ = TipoVinculo.objects.update_or_create(
+                codigo=data["codigo"],
+                defaults={
+                    "nombre": data["nombre"],
+                    "permite_autoregistro": data["permite_autoregistro"],
                     "dominio_correo_requerido": "@ucundinamarca.edu.co",
-                    "rol_asignado": roles_objs["miembro_comunidad"],
-                },
-                {
-                    "codigo": "estudiante",
-                    "nombre": "Creador de Oportunidades",
-                    "permite_autoregistro": True,
-                    "dominio_correo_requerido": "@ucundinamarca.edu.co",
-                    "rol_asignado": roles_objs["miembro_comunidad"],
-                },
-                {
-                    "codigo": "gestor_administrativo",
-                    "nombre": "Administrativo",
-                    "permite_autoregistro": False,
-                    "dominio_correo_requerido": "@ucundinamarca.edu.co",
-                    "rol_asignado": roles_objs["miembro_comunidad"],
-                },
-                {
-                    "codigo": "egresado",
-                    "nombre": "Graduado",
-                    "permite_autoregistro": True,
-                    "dominio_correo_requerido": "@ucundinamarca.edu.co",
-                    "rol_asignado": roles_objs["miembro_comunidad"],
-                },
-            ]
-
-            # Códigos obsoletos → código canónico (migración de datos legacy)
-            legacy_to_canonical = {
-                "gestor_conocimiento": "docente",
-                "creador_oportunidades": "estudiante",
-                "administrativo": "gestor_administrativo",
-                "graduado": "egresado",
-            }
-
-            tipos_objs = {}
-            for tv_data in tipos_vinculo_data:
-                tv, _ = TipoVinculo.objects.update_or_create(
-                    codigo=tv_data["codigo"],
-                    defaults={**tv_data, "activo": True},
-                )
-                tipos_objs[tv_data["codigo"]] = tv
-
-            # Reasignar personas de tipos legacy al catálogo canónico
-            for legacy_codigo, canonical_codigo in legacy_to_canonical.items():
-                legacy = TipoVinculo.objects.filter(codigo=legacy_codigo).first()
-                if legacy and legacy.codigo != canonical_codigo:
-                    Persona.objects.filter(tipo_vinculo=legacy).update(
-                        tipo_vinculo=tipos_objs[canonical_codigo]
-                    )
-                    legacy.activo = False
-                    legacy.save(update_fields=["activo"])
-
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(tipos_objs)} Tipos de Vínculo canónicos configurados"))
-
-            # 3. Sedes (incluyendo Seccional Ubaté del ejemplo del Doc 01)
-            sedes_data = [
-                ("UBATE", "Seccional Ubaté", "Ubaté"),
-                ("FUSA", "Sede Fusagasugá (Principal)", "Fusagasugá"),
-                ("GIR", "Seccional Girardot", "Girardot"),
-                ("CHIA", "Extensión Chía", "Chía"),
-                ("FAC", "Extensión Facatativá", "Facatativá"),
-            ]
-            sedes_objs = {}
-            for cod, nom, ciu in sedes_data:
-                s, _ = Sede.objects.get_or_create(
-                    codigo=cod,
-                    defaults={"nombre": nom, "ciudad": ciu, "activo": True},
-                )
-                sedes_objs[cod] = s
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(sedes_objs)} Sedes registradas"))
-
-            # 4. Facultades (independientes de sede)
-            facultades_data = [
-                ("FAC-ING", "Facultad de Ingeniería"),
-                ("FAC-CIEN", "Facultad de Ciencias Agropecuarias"),
-                ("FAC-ADM", "Facultad de Ciencias Administrativas"),
-            ]
-            facultades_objs = {}
-            for cod, nom in facultades_data:
-                f, _ = Decanatura.objects.update_or_create(
-                    codigo=cod,
-                    defaults={"nombre": nom, "activo": True},
-                )
-                facultades_objs[cod] = f
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(facultades_objs)} Facultades registradas"))
-
-            # 5. Programas (sede + facultad)
-            programas_data = [
-                ("IS-UBATE", "Ingeniería de Sistemas y Computación", "UBATE", "FAC-ING", "pregrado"),
-                ("IS-FUSA", "Ingeniería de Sistemas y Computación", "FUSA", "FAC-ING", "pregrado"),
-                ("IA-FUSA", "Ingeniería Agronómica", "FUSA", "FAC-CIEN", "pregrado"),
-            ]
-            programas_objs = {}
-            for cod, nom, sede_cod, fac_cod, niv in programas_data:
-                prog, _ = Programa.objects.update_or_create(
-                    codigo=cod,
-                    defaults={
-                        "nombre": nom,
-                        "sede": sedes_objs[sede_cod],
-                        "facultad": facultades_objs[fac_cod],
-                        "nivel": niv,
-                        "activo": True,
-                    },
-                )
-                programas_objs[cod] = prog
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(programas_objs)} Programas creados"))
-
-            # 5.5 Áreas / Dependencias
-            areas_data = [
-                ("CGCA", "Biblioteca"),
-                ("ISU", "Interacción Social Universitaria"),
-                ("CTeI", "Ciencia, Tecnología e Innovación"),
-            ]
-            areas_objs = {}
-            for cod, nom in areas_data:
-                a, _ = Area.objects.update_or_create(
-                    codigo=cod,
-                    defaults={"nombre": nom, "activo": True},
-                )
-                areas_objs[cod] = a
-            self.stdout.write(self.style.SUCCESS(f"[OK] {len(areas_objs)} Áreas registradas"))
-
-            # 6. Personas de la Comunidad Académica
-            persona_docente, _ = Persona.objects.get_or_create(
-                numero_documento="1070123456",
-                defaults={
-                    "tipo_documento": "CC",
-                    "nombres": "Juan Camilo",
-                    "apellidos": "Rodríguez Castro",
-                    "tipo_vinculo": tipos_objs["docente"],
-                    "sede": sedes_objs["UBATE"],
-                    "programa": programas_objs["IS-UBATE"],
+                    "rol_asignado": rol_miembro,
                     "activo": True,
                 },
             )
+            tipos_objs[data["codigo"]] = tv
 
-            persona_admin, _ = Persona.objects.update_or_create(
-                numero_documento="1070654321",
-                defaults={
-                    "tipo_documento": "CC",
-                    "nombres": "Diana Marcela",
-                    "apellidos": "Morales Gómez",
-                    "tipo_vinculo": tipos_objs["gestor_administrativo"],
-                    "sede": sedes_objs["UBATE"],
-                    "area": areas_objs["CGCA"],
-                    "programa": None,
-                    "activo": True,
-                },
-            )
-
-            persona_inactiva, _ = Persona.objects.get_or_create(
-                numero_documento="1070999999",
-                defaults={
-                    "tipo_documento": "CC",
-                    "nombres": "Pedro Pablo",
-                    "apellidos": "Pérez Desvinculado",
-                    "tipo_vinculo": tipos_objs["egresado"],
-                    "sede": sedes_objs["UBATE"],
-                    "activo": False,  # Regla 7 del Doc 01: inactivo
-                },
-            )
-            self.stdout.write(self.style.SUCCESS("[OK] Personas de la comunidad creadas"))
-
-            # 7. Usuarios del Sistema
-            # Administrador
-            if not Usuario.objects.filter(username="admin").exists():
-                u_admin = Usuario.objects.create_superuser(
-                    username="admin",
-                    email="admin@ucundinamarca.edu.co",
-                    password="admin123",
-                    first_name="Administrador",
-                    last_name="General",
+        # Reasignar personas desde códigos alias/legacy al canónico
+        migracion = {
+            "administrativo": "gestor_administrativo",
+            "docente": "gestor_conocimiento",
+            "estudiante": "creador_oportunidades",
+            "graduado": "egresado",
+        }
+        for origen, destino in migracion.items():
+            legacy = TipoVinculo.objects.filter(codigo=origen).first()
+            if legacy:
+                Persona.objects.filter(tipo_vinculo=legacy).update(
+                    tipo_vinculo=tipos_objs[destino]
                 )
-                UsuarioRol.objects.create(usuario=u_admin, rol=roles_objs["admin_sistema"])
-                self.stdout.write(self.style.SUCCESS("[OK] Superadmin 'admin' creado (pass: admin123)"))
 
-            # Celador de Portería
-            if not Usuario.objects.filter(username="celador1").exists():
-                u_celador = Usuario.objects.create_user(
-                    username="celador1",
-                    email="vigilancia.ubate@ucundinamarca.edu.co",
-                    password="celador123",
-                    first_name="Marco",
-                    last_name="Torres",
-                    is_staff=True,
-                )
-                UsuarioRol.objects.create(usuario=u_celador, rol=roles_objs["celador"])
-                self.stdout.write(self.style.SUCCESS("[OK] Celador 'celador1' creado (pass: celador123)"))
+        # Eliminar de la BD todo lo que no sea canónico
+        eliminados, _ = TipoVinculo.objects.exclude(
+            codigo__in=tipos_objs.keys()
+        ).delete()
+        self.stdout.write(self.style.SUCCESS(
+            f"[OK] 4 tipos de vínculo activos (eliminados otros: {eliminados})"
+        ))
+        return tipos_objs["gestor_administrativo"]
 
-            # Docente (Miembro de la Comunidad)
-            if not Usuario.objects.filter(username="docente1").exists():
-                u_docente = Usuario.objects.create_user(
-                    username="docente1",
-                    email="juan.rodriguez@ucundinamarca.edu.co",
-                    password="docente123",
-                    first_name="Juan Camilo",
-                    last_name="Rodríguez",
-                    persona=persona_docente,
-                )
-                UsuarioRol.objects.create(usuario=u_docente, rol=roles_objs["miembro_comunidad"])
-                self.stdout.write(self.style.SUCCESS("[OK] Docente 'docente1' creado (pass: docente123)"))
+    def _cargar_organizacion(self):
+        sede, _ = Sede.objects.update_or_create(
+            codigo="UBATE",
+            defaults={"nombre": "Seccional Ubaté", "ciudad": "Ubaté", "activo": True},
+        )
+        Sede.objects.exclude(codigo="UBATE").update(activo=False)
 
-            # 8. Equipos de Prueba
-            eq_personal, _ = Equipo.objects.get_or_create(
-                serial="LNV-UBATE-2026-01",
-                defaults={
-                    "persona": persona_docente,
-                    "tipo": Equipo.TIPO_PORTATIL,
-                    "marca": "Lenovo",
-                    "modelo": "ThinkPad T14 Gen 3",
-                    "propiedad": Equipo.PROPIEDAD_PERSONAL,
-                    "activo": True,
-                },
+        facultad, _ = Decanatura.objects.update_or_create(
+            codigo="FAC-ING",
+            defaults={"nombre": "Facultad de Ingeniería", "activo": True},
+        )
+        Decanatura.objects.exclude(codigo="FAC-ING").update(activo=False)
+
+        Programa.objects.update_or_create(
+            codigo="IS-UBATE",
+            defaults={
+                "nombre": "Ingeniería de Sistemas y Computación",
+                "sede": sede,
+                "facultad": facultad,
+                "nivel": "pregrado",
+                "activo": True,
+            },
+        )
+        Programa.objects.exclude(codigo="IS-UBATE").update(activo=False)
+
+        self.stdout.write(self.style.SUCCESS(
+            "[OK] Organización: Ubaté · Ingeniería · Sistemas y Computación"
+        ))
+        return sede
+
+    def _cargar_areas(self):
+        area, _ = Area.objects.update_or_create(
+            codigo="CGCA",
+            defaults={"nombre": "Biblioteca", "activo": True},
+        )
+        Area.objects.exclude(codigo="CGCA").update(activo=False)
+        self.stdout.write(self.style.SUCCESS("[OK] Área activa: Biblioteca"))
+        return area
+
+    def _asegurar_admin(self, roles_objs):
+        password = "Udec2026!Admin"
+        admin = Usuario.objects.filter(username="admin").first()
+        if admin is None:
+            admin = Usuario.objects.create_superuser(
+                username="admin",
+                email="admin@ucundinamarca.edu.co",
+                password=password,
+                first_name="Administrador",
+                last_name="Sistema",
             )
+            self.stdout.write(self.style.SUCCESS("[OK] Usuario administrador creado"))
+        else:
+            admin.set_password(password)
+            admin.email = "admin@ucundinamarca.edu.co"
+            admin.first_name = "Administrador"
+            admin.last_name = "Sistema"
+            admin.is_superuser = True
+            admin.is_staff = True
+            admin.activo = True
+            admin.is_active = True
+            admin.save()
+            self.stdout.write(self.style.SUCCESS("[OK] Usuario administrador actualizado"))
 
-            eq_inst, _ = Equipo.objects.update_or_create(
-                serial="DELL-INST-2026-99",
-                defaults={
-                    "persona": persona_docente,
-                    "tipo": Equipo.TIPO_PORTATIL,
-                    "marca": "Dell",
-                    "modelo": "Latitude 5420",
-                    "propiedad": Equipo.PROPIEDAD_INSTITUCIONAL,
-                    "dependencia": areas_objs["CGCA"],
-                    "activo": True,
-                },
-            )
-
-            eq_inactivo, _ = Equipo.objects.get_or_create(
-                serial="HP-BAJA-ALERT-00",
-                defaults={
-                    "persona": persona_docente,
-                    "tipo": Equipo.TIPO_PORTATIL,
-                    "marca": "HP",
-                    "modelo": "EliteBook 840",
-                    "propiedad": Equipo.PROPIEDAD_PERSONAL,
-                    "activo": False,
-                },
-            )
-
-            eq_persona_inactiva, _ = Equipo.objects.get_or_create(
-                serial="ASUS-INACT-ALERT-77",
-                defaults={
-                    "persona": persona_inactiva,
-                    "tipo": Equipo.TIPO_PORTATIL,
-                    "marca": "Asus",
-                    "modelo": "ZenBook 14",
-                    "propiedad": Equipo.PROPIEDAD_PERSONAL,
-                    "activo": True,
-                },
-            )
-
-            self.stdout.write(self.style.SUCCESS(f"[OK] Equipo personal: {eq_personal.serial}"))
-            self.stdout.write(self.style.SUCCESS(f"[OK] Equipo institucional: {eq_inst.serial}"))
-            self.stdout.write(self.style.SUCCESS(f"[OK] Equipo inactivo (R6): {eq_inactivo.serial}"))
-            self.stdout.write(self.style.SUCCESS(f"[OK] Equipo titular inactivo (R7): {eq_persona_inactiva.serial}"))
-
-        self.stdout.write(self.style.SUCCESS("\n[EXITO] Seeder de datos oficiales completado!"))
+        UsuarioRol.objects.filter(usuario=admin).exclude(rol=roles_objs["admin_sistema"]).delete()
+        UsuarioRol.objects.get_or_create(usuario=admin, rol=roles_objs["admin_sistema"])
