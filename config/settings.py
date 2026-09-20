@@ -165,6 +165,17 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 # Token de exhibición QR (segundos)
 QR_DISPLAY_TOKEN_MAX_AGE = int(os.environ.get("QR_DISPLAY_TOKEN_MAX_AGE", "300"))
 
+# Dashboard administrador (doc 13)
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "sistema-control-dashboard",
+    }
+}
+DASHBOARD_ALERTA_UMBRAL = float(os.environ.get("DASHBOARD_ALERTA_UMBRAL", "0.05"))
+DASHBOARD_CACHE_TTL = int(os.environ.get("DASHBOARD_CACHE_TTL", "45"))
+DASHBOARD_CACHE_TTL_ESTRUCTURAL = int(os.environ.get("DASHBOARD_CACHE_TTL_ESTRUCTURAL", "300"))
+
 # Rate limiting / Axes
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 1  # horas

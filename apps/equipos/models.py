@@ -99,6 +99,9 @@ class Equipo(models.Model):
         """
         Resuelve un código escaneado a Equipo.
         Acepta token de exhibición firmado (preferido) o UUID permanente (legado).
+
+        Si la pistola HID corrompe timestamp/firma (BadSignature) o el TTL venció,
+        se intenta el UUID del primer segmento — equivalente al UUID legado ya aceptado.
         """
         codigo = (codigo or "").strip()
         if not codigo:
@@ -114,17 +117,21 @@ class Equipo(models.Model):
             signer = signing.TimestampSigner(salt="equipo-qr-exhibicion")
             token_uuid = signer.unsign(codigo, max_age=max_age)
             return qs.filter(token_qr=token_uuid).first()
-        except signing.SignatureExpired:
-            return None
-        except signing.BadSignature:
+        except (signing.SignatureExpired, signing.BadSignature):
             pass
 
-        # 2) UUID permanente (transición / pistola con valor legado)
-        try:
-            token_uuid = uuid.UUID(codigo)
-            return qs.filter(token_qr=token_uuid).first()
-        except (ValueError, AttributeError, TypeError):
-            pass
+        # 2) UUID permanente: código completo o primer segmento de token firmado
+        candidatos = [codigo]
+        if ":" in codigo:
+            candidatos.append(codigo.split(":", 1)[0])
+        for candidato in candidatos:
+            try:
+                token_uuid = uuid.UUID(candidato)
+            except (ValueError, AttributeError, TypeError):
+                continue
+            equipo = qs.filter(token_qr=token_uuid).first()
+            if equipo is not None:
+                return equipo
 
         # 3) Serial físico
         return qs.filter(serial__iexact=codigo).first()

@@ -14,11 +14,12 @@ Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especif
 | [mejora-ux-ui-escalable.md](mejora-ux-ui-escalable.md) | Completado | 2026-09-19 | [`../10-plan-mejora-ux-ui-escalable.md`](../10-plan-mejora-ux-ui-escalable.md) |
 | [seed-mvp-presentacion.md](seed-mvp-presentacion.md) | Completado | 2026-09-19 | — |
 | [modulo-reportes-excel.md](modulo-reportes-excel.md) | Completado | 2026-09-19 | [`../12-modulo-reportes-excel.md`](../12-modulo-reportes-excel.md) |
+| [dashboard-administrador.md](dashboard-administrador.md) | Completado | 2026-09-19 | [`../13-dashboard-administrador.md`](../13-dashboard-administrador.md) |
 
 ## Convención
 
 1. Nombre en `kebab-case.md`.
 2. Cabecera con **Estado** (`Pendiente` / `En progreso` / `Completado`) y fecha.
 3. Checklist de tareas con `[x]` al cerrar.
-4. Si el plan detalla un módulo o dominio nuevo, el documento rector numerado vive en `contexto/` (`00`–`12`); este archivo solo trackea la ejecución.
+4. Si el plan detalla un módulo o dominio nuevo, el documento rector numerado vive en `contexto/` (`00`–`13`); este archivo solo trackea la ejecución.
 5. Actualizar este índice y `contexto/README.md` en el mismo cambio.

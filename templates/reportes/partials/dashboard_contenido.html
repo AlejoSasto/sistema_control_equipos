@@ -1,0 +1,97 @@
+<div class="stats-grid-4" style="margin-bottom: var(--space-4);">
+  <div class="stat-card">
+    <div>
+      <div class="stat-value" style="color: var(--color-primary);">{{ movimientos }}</div>
+      <div class="stat-label">Movimientos</div>
+      <div style="font-size: 0.75rem; color: var(--color-text-secondary);">En el periodo seleccionado</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div>
+      <div class="stat-value" style="color: {% if alertas_sobre_umbral %}var(--color-danger){% else %}var(--color-text-secondary){% endif %};">
+        {{ alertas }}
+        <span style="font-size: 0.875rem; font-weight: 500;">({{ alertas_pct }}%)</span>
+      </div>
+      <div class="stat-label">Alertas</div>
+      <div style="font-size: 0.75rem; color: var(--color-text-secondary);">
+        En el periodo{% if alertas_sobre_umbral %} · supera {{ umbral_pct }}%{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div>
+      <div class="stat-value" style="color: var(--color-primary);">{{ equipos_activos }}</div>
+      <div class="stat-label">Equipos activos</div>
+      <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Dato actual (no depende del periodo)</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div>
+      <div class="stat-value" style="color: var(--color-primary);">{{ personas_activas }}</div>
+      <div class="stat-label">Personas activas</div>
+      <div style="font-size: 0.75rem; color: var(--color-text-secondary);">Dato actual (no depende del periodo)</div>
+    </div>
+  </div>
+</div>
+
+{% if sede_lider %}
+<div class="card card-white" style="margin-bottom: var(--space-4); padding: var(--space-3);">
+  <div style="font-size: 0.8125rem; color: var(--color-text-secondary);">Sede con más movimiento en el periodo</div>
+  <div style="font-size: 1.125rem; font-weight: 600; color: var(--color-primary);">
+    {{ sede_lider.nombre }}
+    <span style="font-weight: 400; color: var(--color-text-secondary); font-size: 0.875rem;">
+      ({{ sede_lider.movimientos }} movimientos)
+    </span>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card card-white dashboard-chart-card">
+      <h3 class="card-title">Movimientos en el tiempo</h3>
+      <div class="dashboard-chart-box">
+        <div class="js-chart-empty dashboard-chart-empty" data-chart="linea" hidden>
+          Sin movimientos en este periodo
+        </div>
+        <canvas id="chart-linea" aria-label="Gráfico de línea de movimientos"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card card-white dashboard-chart-card">
+      <h3 class="card-title">Resultado global</h3>
+      <div class="dashboard-chart-box">
+        <div class="js-chart-empty dashboard-chart-empty" data-chart="dona" hidden>
+          Sin datos de resultado en este periodo
+        </div>
+        <canvas id="chart-dona" aria-label="Gráfico de dona de resultados"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card card-white dashboard-chart-card">
+      <h3 class="card-title">Movimientos por sede</h3>
+      <div class="dashboard-chart-box">
+        <div class="js-chart-empty dashboard-chart-empty" data-chart="sedes" hidden>
+          Sin movimientos por sede en este periodo
+        </div>
+        <canvas id="chart-sedes" aria-label="Gráfico de barras por sede"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card card-white dashboard-chart-card">
+      <h3 class="card-title">Top alertas</h3>
+      <div class="dashboard-chart-box">
+        <div class="js-chart-empty dashboard-chart-empty" data-chart="top_alertas" hidden>
+          <svg style="width:32px;height:32px;margin-bottom:8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div>Sin alertas en este periodo</div>
+        </div>
+        <canvas id="chart-top-alertas" aria-label="Gráfico de top alertas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>

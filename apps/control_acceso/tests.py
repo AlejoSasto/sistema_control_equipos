@@ -217,3 +217,56 @@ class ControlSalidaTestCase(TestCase):
         mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
         self.assertIsNotNone(mov)
         self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+
+    def test_salida_ok_token_firmado_zebra_apostrofos_y_ene(self):
+        """Zebra US→ES: token firmado con '-'→\"'\" y ':'→'ñ' -> ok."""
+        self.client.login(username="celador_test", password="testpassword123")
+        token = self.equipo_ok.generar_token_exhibicion()
+        codigo_pistola = token.replace("-", "'").replace(":", "ñ")
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": codigo_pistola},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "LNV-OK-TEST-01")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+
+    def test_salida_ok_token_firmado_zebra_uuid_mayusculas_y_ene(self):
+        """Zebra: UUID en mayúsculas + ':'→'ñ' en token firmado -> ok."""
+        self.client.login(username="celador_test", password="testpassword123")
+        token = self.equipo_ok.generar_token_exhibicion()
+        uuid_part, resto = token.split(":", 1)
+        codigo_pistola = f"{uuid_part.upper()}ñ{resto.replace(':', 'ñ')}"
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": codigo_pistola},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "LNV-OK-TEST-01")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)
+
+    def test_salida_ok_token_firmado_firma_corrupta_fallback_uuid(self):
+        """Pistola corrompe la firma (BadSignature) pero el UUID del segmento -> ok."""
+        self.client.login(username="celador_test", password="testpassword123")
+        token = self.equipo_ok.generar_token_exhibicion()
+        uuid_part = token.split(":", 1)[0]
+        codigo_pistola = f"{uuid_part}:1X85jy:koe7rvxdR0Kbu0rHlF3jFR7aRrbEZzNUTR8SPQiIu4y"
+        response = self.client.post(
+            reverse("control_acceso:verificar_codigo"),
+            {"codigo": codigo_pistola},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "COINCIDE")
+        self.assertContains(response, "LNV-OK-TEST-01")
+
+        mov = Movimiento.objects.filter(equipo=self.equipo_ok).first()
+        self.assertIsNotNone(mov)
+        self.assertEqual(mov.resultado, Movimiento.RESULTADO_OK)

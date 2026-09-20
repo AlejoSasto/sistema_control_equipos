@@ -5,7 +5,7 @@
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
 **Fecha:** 2026-09-19  
 
-> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`12` siguen como detalle; ver sección 14.
+> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`13` siguen como detalle; ver sección 14.
 
 ---
 
@@ -30,8 +30,9 @@ No hay control de ingreso. Cada escaneo genera un `Movimiento` (auditoría), inc
 | Frontend | Templates Django + HTMX (sin SPA) |
 | Estilos | `static/css/custom.css` + Bootstrap 5.3 (CDN) |
 | QR | `qrcode` + Pillow; exhibición con token firmado TTL |
-| Reportes | `xlsxwriter` (gráficos nativos Excel) |
+| Reportes | `xlsxwriter` (Excel) + Chart.js (dashboard en pantalla) |
 | Auth extra | django-axes, Argon2, django-otp (MFA), django-ratelimit |
+| Caché | LocMemCache (agregados del dashboard) |
 
 ```
 sistema de control/
@@ -42,9 +43,9 @@ sistema de control/
 │   ├── personas/           # Persona, TipoVinculo
 │   ├── equipos/            # Equipo, QR
 │   ├── control_acceso/     # Kiosco, Movimiento
-│   ├── panel/              # Administración interna /panel/
+│   ├── panel/              # Administración interna /panel/ (+ monta dashboard)
 │   ├── auditoria/          # AuditoriaCambio
-│   └── reportes/           # Exportaciones Excel
+│   └── reportes/           # Excel + dashboard (KPIs/Chart.js)
 ├── templates/
 ├── static/
 ├── contexto/               # Documentación (este archivo = entrada)
@@ -70,9 +71,9 @@ python manage.py runserver
 | `personas` | Ficha de comunidad académica + TipoVinculo |
 | `equipos` | Inventario, generación/exhibición de QR |
 | `control_acceso` | Kiosco de portería + historial de movimientos |
-| `panel` | CRUD interno (personas, usuarios, roles, organización) |
+| `panel` | CRUD interno (personas, usuarios, roles, organización); URLs del dashboard |
 | `auditoria` | Traza de cambios sensibles y exportaciones |
-| `reportes` | Cinco reportes `.xlsx` con filtros |
+| `reportes` | Exportaciones `.xlsx` + dashboard admin (agregados, filtros HTMX, Chart.js) |
 
 ---
 
@@ -122,10 +123,10 @@ Facultad (indep.) ─┼──► Programa (sede + facultad)
 
 | Entidad | Descripción | Ejemplo seed |
 |---------|-------------|--------------|
-| **Sede** | Ubicación física | Seccional Ubaté |
-| **Facultad** (`Decanatura`) | Unidad académica transversal (no depende de sede) | Facultad de Ingeniería |
-| **Programa** | Carrera en una sede bajo una facultad | Ing. de Sistemas — Ubaté |
-| **Área** | Dependencia administrativa | Biblioteca |
+| **Sede** | Ubicación física | 7 sedes/seccionales/extensiones (seed) |
+| **Facultad** (`Decanatura`) | Unidad académica transversal (no depende de sede) | 7 facultades (seed) |
+| **Programa** | Carrera en una sede bajo una facultad | 45 programas (seed) |
+| **Área** | Dependencia administrativa | 8 áreas (CGCA, ISU, CTeI, …) |
 
 **Persona:** sede obligatoria; perfiles académicos pueden tener programa; administrativo (`gestor_administrativo`) tiene área (sin programa).
 
@@ -162,8 +163,8 @@ En el MVP actual, el **administrador** opera también el kiosco (tiene `control.
 | `roles.administrar` | Roles + matriz |
 | `permisos.ver` | Catálogo de permisos (solo lectura) |
 | `perfil.ver_propio` | Mi perfil |
-| `reportes.ver` | Ver/configurar reportes |
-| `reportes.exportar` | Descargar Excel |
+| `reportes.ver` | Dashboard + configurar filtros de reportes (solo agregados en pantalla) |
+| `reportes.exportar` | Descargar Excel con datos fila a fila |
 
 Los permisos se cargan por migración/seed; el panel no los crea, solo los asigna a roles.
 
@@ -246,9 +247,29 @@ Semáforo: verde (`ok`), rojo (`alerta`), gris (`no_encontrado`).
 
 Administración universitaria (no Django Admin). Personas, usuarios, roles, organización. Django Admin (`ADMIN_URL`) solo soporte técnico.
 
-### 9.6 Reportes (`/reportes/`)
+Con `reportes.ver`, `/panel/` redirige primero al **dashboard** (`panel:dashboard`).
 
-Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` / `reportes.exportar`; cada descarga queda en auditoría. Export síncrono (límites documentados en doc `12`).
+### 9.6 Dashboard administrador (`/panel/dashboard/`)
+
+Vista en pantalla (doc [`13`](13-dashboard-administrador.md)); lógica en `apps/reportes/`, rutas bajo `/panel/`. **No** descarga datos personales crudos — solo agregados.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Permiso | Solo `reportes.ver` (no exige `reportes.exportar`) |
+| Default | Periodo **Hoy** sin que el admin configure nada |
+| Filtros | Preset fecha (hoy/ayer/7d/mes/custom), sede, tipo vínculo, resultado — HTMX sin recarga completa |
+| KPIs periodo | Movimientos, alertas (+ %; acento danger si > umbral 5%) |
+| KPIs estructurales | Equipos activos, personas activas («dato actual»; no cambian con el rango de fechas) |
+| Extra | Sede con más movimiento (si hay >1 sede con datos) |
+| Gráficos | Chart.js: línea temporal, dona resultados, barras por sede, top 5 alertas (personas) |
+| Caché | LocMem: ~45 s agregados de periodo; ~5 min estructurales |
+| Endpoints | `/panel/dashboard/`, `/parcial/`, `/datos-grafico/` (JSON combinado) |
+
+Colores de resultado alineados al design system: OK `#007B3E`, alerta `#C62828`, no encontrado `#5B615D`.
+
+### 9.7 Reportes Excel (`/reportes/`)
+
+Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` para configurar y `reportes.exportar` para descargar; cada descarga queda en `auditoria_cambio`. Export síncrono (límites en doc [`12`](12-modulo-reportes-excel.md)). Complementa el dashboard de §9.6.
 
 ---
 
@@ -263,8 +284,11 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | `/accounts/` | login, logout, registro, perfil, MFA |
 | `/equipos/` | listado, mis-equipos, registrar, QR |
 | `/acceso/` | kiosco + verificar-qr + histórico |
-| `/panel/` | administración interna |
-| `/reportes/` | índice / configurar / exportar |
+| `/panel/` | administración interna (redirect a dashboard si `reportes.ver`) |
+| `/panel/dashboard/` | KPIs + gráficos (HTMX + Chart.js) |
+| `/panel/dashboard/parcial/` | Fragmento HTMX (tarjetas + canvas) |
+| `/panel/dashboard/datos-grafico/` | JSON de series para Chart.js |
+| `/reportes/` | índice / configurar / exportar Excel |
 | `/personas/` | personas + tipos de vínculo |
 
 ---
@@ -283,6 +307,7 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | Sesión | 7200 s, HttpOnly; Secure en prod |
 | Prod | `DEBUG=False`, HTTPS, HSTS, secretos obligatorios |
 | Auditoría | `auditoria_cambio` (+ logs de rol en panel) |
+| Mínimo privilegio reportes | Dashboard = `reportes.ver` (agregados); Excel crudo = `reportes.exportar` |
 
 Detalle: [`11-plan-seguridad-iso27001-owasp.md`](11-plan-seguridad-iso27001-owasp.md).  
 Operación: [`operaciones/`](operaciones/) (incidentes, backups).
@@ -297,6 +322,7 @@ Operación: [`operaciones/`](operaciones/) (incidentes, backups).
 | Tipografía | Inter + JetBrains Mono (seriales/QR) |
 | Modo | Claro fijo; sin dark mode |
 | Layout | Desktop-first; offcanvas en móvil |
+| Dashboard | `.stats-grid-4` / `.stat-card`; Chart.js CDN solo en esa vista |
 | Kiosco | Semáforo alto contraste a 1–2 m |
 | Anti-patrones | Sin amarillo UCundinamarca en UI, sin emojis de estado |
 
@@ -312,9 +338,9 @@ python manage.py seed_data
 
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
-| Administrador | `admin` | `Udec2026!Admin` | Panel, catálogos, inventario, kiosco |
+| Administrador | `admin` | `Udec2026!Admin` | Dashboard, panel, catálogos, inventario, kiosco, reportes Excel |
 
-Carga: sede Ubaté, Facultad de Ingeniería, programa IS, área Biblioteca, 4 tipos de vínculo, 2 roles activos. Elimina demos (`celador1`, `docente1`, equipos demo) y deja `celador` inactivo.
+Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas** (catálogo institucional), 4 tipos de vínculo, 2 roles activos. Elimina demos (`celador1`, `docente1`, equipos demo) y deja `celador` inactivo.
 
 > Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales.
 
@@ -333,6 +359,7 @@ Carga: sede Ubaté, Facultad de Ingeniería, programa IS, área Biblioteca, 4 ti
 | Guía UX/UI completa | [`09-guia-diseno-ux-ui.md`](09-guia-diseno-ux-ui.md) |
 | Seguridad ISO/OWASP | [`11-plan-seguridad-iso27001-owasp.md`](11-plan-seguridad-iso27001-owasp.md) |
 | Módulo reportes | [`12-modulo-reportes-excel.md`](12-modulo-reportes-excel.md) |
+| Dashboard administrador | [`13-dashboard-administrador.md`](13-dashboard-administrador.md) |
 | Planes de ejecución | [`planes/`](planes/) |
 | Incidentes / backups | [`operaciones/`](operaciones/) |
 
@@ -348,4 +375,6 @@ Carga: sede Ubaté, Facultad de Ingeniería, programa IS, área Biblioteca, 4 ti
 | Login / MFA / registro | `apps/accounts/views.py` |
 | QR firmado | `apps/equipos/models.py` |
 | Kiosco | `apps/control_acceso/views.py`, `templates/control_acceso/scanner.html` |
-| Reportes | `apps/reportes/` |
+| Reportes Excel | `apps/reportes/` (generadores, filtros, views) |
+| Dashboard | `apps/reportes/dashboard.py`, `views_dashboard.py`; templates `reportes/dashboard*.html`; `static/js/dashboard.js` |
+| Montaje URLs dashboard | `apps/panel/urls.py` |

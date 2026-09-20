@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard de administración{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'reportes:index' %}" class="btn btn-secondary">Reportes Excel</a>
+{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <form
+    id="dashboard-filtros"
+    method="get"
+    action="{% url 'panel:dashboard_parcial' %}"
+    class="filters-grid filters-grid--4 dashboard-filters"
+    hx-get="{% url 'panel:dashboard_parcial' %}"
+    hx-target="#dashboard-contenido"
+    hx-swap="innerHTML"
+    hx-push-url="{% url 'panel:dashboard' %}"
+    hx-trigger="change, submit"
+  >
+    <div class="form-group">
+      <label class="form-label" for="preset">Periodo</label>
+      <select name="preset" id="preset" class="form-select">
+        {% for cod, nom in presets %}
+        <option value="{{ cod }}" {% if preset == cod %}selected{% endif %}>{{ nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group js-custom-dates"{% if preset != 'custom' %} style="display:none;"{% endif %}>
+      <label class="form-label" for="fecha_inicio">Desde</label>
+      <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control"
+             value="{% if fecha_inicio %}{{ fecha_inicio|date:'Y-m-d' }}{% endif %}">
+    </div>
+    <div class="form-group js-custom-dates"{% if preset != 'custom' %} style="display:none;"{% endif %}>
+      <label class="form-label" for="fecha_fin">Hasta</label>
+      <input type="date" name="fecha_fin" id="fecha_fin" class="form-control"
+             value="{% if fecha_fin %}{{ fecha_fin|date:'Y-m-d' }}{% endif %}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="sede">Sede</label>
+      <select name="sede" id="sede" class="form-select">
+        <option value="">Todas</option>
+        {% for s in sedes %}
+        <option value="{{ s.id }}" {% if selected_sede == s.id %}selected{% endif %}>{{ s.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="grid-column: 1 / -1;">
+      <label class="form-label">Tipo de vínculo</label>
+      <div class="dashboard-filter-checks">
+        {% for tv in tipos_vinculo %}
+        <label class="form-check">
+          <input type="checkbox" name="tipo_vinculo" value="{{ tv.id }}"
+                 {% if tv.id in selected_vinculos %}checked{% endif %}>
+          {{ tv.nombre }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="form-group" style="grid-column: 1 / -1;">
+      <label class="form-label">Resultado</label>
+      <div class="dashboard-filter-checks">
+        {% for cod, nom in opciones_resultado %}
+        <label class="form-check">
+          <input type="checkbox" name="resultado" value="{{ cod }}"
+                 {% if cod in selected_resultados %}checked{% endif %}>
+          {{ nom }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </form>
+</div>
+
+<div id="dashboard-contenido"
+     data-datos-url="{{ datos_url }}">
+  {% include "reportes/partials/dashboard_contenido.html" %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/dashboard.js' %}?v=2"></script>
+{% endblock %}

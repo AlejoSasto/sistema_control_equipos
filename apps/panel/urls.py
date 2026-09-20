@@ -1,11 +1,17 @@
 from django.urls import path
 from . import views
 from . import views_organizacion
+from reportes import views_dashboard
 
 app_name = "panel"
 
 urlpatterns = [
     path("", views.panel_index, name="index"),
+
+    # Dashboard administrador (lógica en reportes, rutas bajo /panel/)
+    path("dashboard/", views_dashboard.dashboard, name="dashboard"),
+    path("dashboard/parcial/", views_dashboard.dashboard_parcial, name="dashboard_parcial"),
+    path("dashboard/datos-grafico/", views_dashboard.dashboard_datos, name="dashboard_datos"),
 
     # Personas
     path("personas/", views.personas_list, name="personas_list"),

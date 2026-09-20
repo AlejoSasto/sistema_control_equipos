@@ -28,6 +28,8 @@ from .services import (
 @login_required
 def panel_index(request):
     """Redirige al primer módulo del panel al que el usuario tenga acceso."""
+    if request.user.tiene_permiso("reportes.ver"):
+        return redirect("panel:dashboard")
     if request.user.tiene_permiso("catalogos.administrar"):
         return redirect("panel:organizacion_list")
     if request.user.tiene_permiso("personas.administrar"):

@@ -88,14 +88,13 @@ Tras `python manage.py seed_data`:
 
 ### Catálogos cargados
 
-- **Sede:** Seccional Ubaté  
-- **Facultad:** Facultad de Ingeniería  
-- **Programa:** Ingeniería de Sistemas y Computación  
+- **Sedes (7):** Fusagasugá, Girardot, Ubaté, Chía, Facatativá, Soacha, Zipaquirá  
+- **Facultades (7)** y **programas (45)** según catálogo institucional  
+- **Áreas (8):** CGCA, Tesorería, ISU, CTeI, Internacionalización, Bienestar, Dir. Administrativa, Admisiones  
 - **Tipos de vínculo (todos activos):** gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado  
-- **Área:** Biblioteca  
 - **Roles activos:** Administrador del sistema, Miembro de la comunidad académica  
 
-> No se cargan usuarios de celador/docente ni equipos de demostración.
+> Fuente: `apps/accounts/management/commands/seed_organizacion_data.py` (Excel en `data/`). No se cargan usuarios/equipos de demostración.
 
 ---
 

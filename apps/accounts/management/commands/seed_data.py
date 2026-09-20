@@ -1,17 +1,10 @@
 """
-Carga inicial MVP para presentación.
+Carga inicial MVP / catálogos institucionales.
 
-Catálogos mínimos:
-- Sede: Seccional Ubaté
-- Facultad: Ingeniería
-- Programa: Ingeniería de Sistemas y Computación
-- Tipo de vínculo: Administrativo
-- Roles: Administrador del sistema, Miembro de la comunidad
-- Permisos en español
+Organización: sedes, facultades, programas y áreas desde
+`seed_organizacion_data.py` (fuente Excel Universidad de Cundinamarca).
 
-No crea usuarios de celador/docente ni equipos de prueba.
-Tipos de vínculo canónicos (todos activos):
-gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado.
+También: permisos, roles, tipos de vínculo canónicos y usuario admin.
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -22,6 +15,8 @@ from organizacion.models import Area, Decanatura, Programa, Sede
 from personas.models import TipoVinculo, Persona
 from equipos.models import Equipo
 from control_acceso.models import Movimiento
+
+from .seed_organizacion_data import AREAS, FACULTADES, PROGRAMAS, SEDES
 
 
 # Datos de prueba antiguos a eliminar al reseedar
@@ -36,23 +31,24 @@ DEMO_SERIALES = (
 
 
 class Command(BaseCommand):
-    help = "Carga catálogos MVP (Ubaté / Ingeniería / Sistemas) y limpia datos de demostración"
+    help = "Carga catálogos institucionales UCundinamarca y limpia datos de demostración"
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("Cargando datos MVP para presentación..."))
+        self.stdout.write(self.style.NOTICE("Cargando datos institucionales..."))
 
         with transaction.atomic():
             self._limpiar_datos_demostracion()
             permisos_objs = self._cargar_permisos()
             roles_objs = self._cargar_roles(permisos_objs)
-            tipo_admin = self._cargar_tipos_vinculo(roles_objs)
-            sede = self._cargar_organizacion()
-            area = self._cargar_areas()
+            self._cargar_tipos_vinculo(roles_objs)
+            org = self._cargar_organizacion()
+            areas_n = self._cargar_areas()
             self._asegurar_admin(roles_objs)
 
             self.stdout.write(self.style.SUCCESS(
-                f"\n[LISTO] MVP listo — Sede: {sede.nombre} | "
-                f"4 vínculos activos | Área: {area.nombre}"
+                f"\n[LISTO] Catálogos listos — "
+                f"{org['sedes']} sedes, {org['facultades']} facultades, "
+                f"{org['programas']} programas, {areas_n} áreas | 4 vínculos"
             ))
             self.stdout.write(self.style.SUCCESS(
                 "Acceso administrador: usuario 'admin' / contraseña 'Udec2026!Admin'"
@@ -205,43 +201,76 @@ class Command(BaseCommand):
         return tipos_objs["gestor_administrativo"]
 
     def _cargar_organizacion(self):
-        sede, _ = Sede.objects.update_or_create(
-            codigo="UBATE",
-            defaults={"nombre": "Seccional Ubaté", "ciudad": "Ubaté", "activo": True},
-        )
-        Sede.objects.exclude(codigo="UBATE").update(activo=False)
+        """Sedes, facultades y programas del catálogo institucional (todos activos)."""
+        sede_objs = {}
+        for data in SEDES:
+            sede, _ = Sede.objects.update_or_create(
+                codigo=data["codigo"],
+                defaults={
+                    "nombre": data["nombre"],
+                    "ciudad": data["ciudad"],
+                    "activo": True,
+                },
+            )
+            sede_objs[data["codigo"]] = sede
+        Sede.objects.exclude(codigo__in=sede_objs.keys()).update(activo=False)
 
-        facultad, _ = Decanatura.objects.update_or_create(
-            codigo="FAC-ING",
-            defaults={"nombre": "Facultad de Ingeniería", "activo": True},
-        )
-        Decanatura.objects.exclude(codigo="FAC-ING").update(activo=False)
+        fac_objs = {}
+        for data in FACULTADES:
+            fac, _ = Decanatura.objects.update_or_create(
+                codigo=data["codigo"],
+                defaults={"nombre": data["nombre"], "activo": True},
+            )
+            fac_objs[data["codigo"]] = fac
+        Decanatura.objects.exclude(codigo__in=fac_objs.keys()).update(activo=False)
 
-        Programa.objects.update_or_create(
-            codigo="IS-UBATE",
-            defaults={
-                "nombre": "Ingeniería de Sistemas y Computación",
-                "sede": sede,
-                "facultad": facultad,
-                "nivel": "pregrado",
-                "activo": True,
-            },
-        )
-        Programa.objects.exclude(codigo="IS-UBATE").update(activo=False)
+        prog_codes = set()
+        for data in PROGRAMAS:
+            Programa.objects.update_or_create(
+                codigo=data["codigo"],
+                defaults={
+                    "nombre": data["nombre"],
+                    "sede": sede_objs[data["sede"]],
+                    "facultad": fac_objs[data["facultad"]],
+                    "nivel": data.get("nivel", Programa.NIVEL_PREGRADO),
+                    "activo": True,
+                },
+            )
+            prog_codes.add(data["codigo"])
+
+        # Alias legado del MVP anterior
+        if "IS-UBATE" not in prog_codes and "ISC-UBATE" in prog_codes:
+            legado = Programa.objects.filter(codigo="IS-UBATE").first()
+            if legado:
+                Persona.objects.filter(programa=legado).update(
+                    programa_id=Programa.objects.get(codigo="ISC-UBATE").pk
+                )
+                legado.activo = False
+                legado.save(update_fields=["activo"])
+
+        Programa.objects.exclude(codigo__in=prog_codes).update(activo=False)
 
         self.stdout.write(self.style.SUCCESS(
-            "[OK] Organización: Ubaté · Ingeniería · Sistemas y Computación"
+            f"[OK] Organización: {len(sede_objs)} sedes · "
+            f"{len(fac_objs)} facultades · {len(prog_codes)} programas (activos)"
         ))
-        return sede
+        return {
+            "sedes": len(sede_objs),
+            "facultades": len(fac_objs),
+            "programas": len(prog_codes),
+        }
 
     def _cargar_areas(self):
-        area, _ = Area.objects.update_or_create(
-            codigo="CGCA",
-            defaults={"nombre": "Biblioteca", "activo": True},
-        )
-        Area.objects.exclude(codigo="CGCA").update(activo=False)
-        self.stdout.write(self.style.SUCCESS("[OK] Área activa: Biblioteca"))
-        return area
+        codes = set()
+        for data in AREAS:
+            Area.objects.update_or_create(
+                codigo=data["codigo"],
+                defaults={"nombre": data["nombre"], "activo": True},
+            )
+            codes.add(data["codigo"])
+        Area.objects.exclude(codigo__in=codes).update(activo=False)
+        self.stdout.write(self.style.SUCCESS(f"[OK] {len(codes)} áreas / dependencias activas"))
+        return len(codes)
 
     def _asegurar_admin(self, roles_objs):
         password = "Udec2026!Admin"

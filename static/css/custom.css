@@ -1386,3 +1386,77 @@ body.nav-open {
   gap: var(--space-2);
   font-size: 0.875rem;
 }
+
+/* ==========================================================================
+   Dashboard administrador (Chart.js acotado)
+   ========================================================================== */
+.dashboard-filters {
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+}
+
+.dashboard-filters .form-group {
+  margin-bottom: 0;
+}
+
+.dashboard-filter-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.dashboard-filter-checks .form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.dashboard-chart-card {
+  padding: var(--space-3);
+  height: 100%;
+}
+
+.dashboard-chart-card .card-title {
+  margin-bottom: var(--space-2);
+  font-size: 0.9375rem;
+}
+
+.dashboard-chart-box {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  max-height: 240px;
+}
+
+.dashboard-chart-box canvas {
+  display: block;
+  max-height: 100%;
+}
+
+.dashboard-chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  padding: var(--space-3);
+}
+
+.dashboard-chart-empty[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 767px) {
+  .dashboard-chart-box {
+    height: 200px;
+    max-height: 200px;
+  }
+}
