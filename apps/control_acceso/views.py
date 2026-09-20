@@ -7,39 +7,120 @@ from django_ratelimit.decorators import ratelimit
 from accounts.decorators import requiere_permiso
 from config.pagination import paginate_queryset
 from equipos.models import Equipo
+from equipos.services import (
+    NO_VIGENTE,
+    SIN_ASIGNACION,
+    VENCIDA,
+    asignacion_activa,
+    liberar_asignacion_vencida,
+    nombre_unidad,
+    unidad_de_equipo,
+    vigencia_asignacion,
+)
+from personas.models import CODIGO_VINCULO_EXTERNO
+from personas.services import (
+    VENCIDA as VISITA_VENCIDA,
+    VIGENTE as VISITA_VIGENTE,
+    SIN_VISITA,
+    cerrar_visita_vencida,
+    nombre_dependencia_visita,
+    vigencia_visita,
+    visita_activa,
+)
 from .models import Movimiento
 from .utils import normalizar_codigo_escaneado
+
+
+def _contexto_institucional(equipo, asignacion=None):
+    es_institucional = equipo.propiedad == Equipo.PROPIEDAD_INSTITUCIONAL
+    if not es_institucional:
+        return {"es_institucional": False, "nombre_unidad": ""}
+    ut, uid = unidad_de_equipo(equipo)
+    return {"es_institucional": True, "nombre_unidad": nombre_unidad(ut, uid)}
+
+
+def _contexto_externo(persona, visita=None):
+    if not persona or not getattr(persona, "tipo_vinculo", None):
+        return {"es_personal_externo": False}
+    if persona.tipo_vinculo.codigo != CODIGO_VINCULO_EXTERNO:
+        return {"es_personal_externo": False}
+    visita = visita or visita_activa(persona)
+    return {
+        "es_personal_externo": True,
+        "visita_externo": visita,
+        "nombre_dependencia_visita": nombre_dependencia_visita(visita) if visita else "",
+        "fecha_fin_visita": visita.fecha_fin if visita else None,
+    }
+
+
+def _contexto_otra_sede(request, persona):
+    vigilante_persona = getattr(request.user, "persona", None)
+    if not vigilante_persona or not persona or not persona.sede_id:
+        return {"es_otra_sede": False, "nombre_otra_sede": ""}
+    if not vigilante_persona.sede_id:
+        return {"es_otra_sede": False, "nombre_otra_sede": ""}
+    if vigilante_persona.sede_id == persona.sede_id:
+        return {"es_otra_sede": False, "nombre_otra_sede": ""}
+    return {
+        "es_otra_sede": True,
+        "nombre_otra_sede": persona.sede.nombre if persona.sede else "",
+    }
+
+
+def _alerta_render(request, *, equipo, persona, motivo_codigo, motivo_texto, hoy):
+    movimiento = Movimiento.objects.create(
+        equipo=equipo,
+        token_escaneado=str(equipo.token_qr),
+        usuario_control=request.user,
+        resultado=Movimiento.RESULTADO_ALERTA,
+        motivo_alerta=motivo_codigo,
+        observacion=f"Alerta: {motivo_texto}",
+    )
+    movimientos = Movimiento.objects.select_related(
+        "equipo", "equipo__persona", "usuario_control"
+    ).filter(timestamp__date=hoy)[:20]
+    return render(
+        request,
+        "control_acceso/partials/resultado_escaneo.html",
+        {
+            "equipo": equipo,
+            "persona": persona,
+            "resultado": "alerta",
+            "motivo_alerta": motivo_texto,
+            "motivo_alerta_codigo": motivo_codigo,
+            "movimiento": movimiento,
+            "movimientos_hoy": movimientos,
+            **_contexto_institucional(equipo),
+            **_contexto_externo(persona),
+        },
+    )
 
 
 @login_required
 @requiere_permiso("control.escanear")
 def control_salida_view(request):
-    """
-    Pantalla principal de Control de Salida en Portería para el celador.
-    Recibe token por pistola (teclado), cámara del dispositivo o ingreso manual.
-    """
     hoy = timezone.localdate()
-
-    # Movimientos del día
     movimientos_hoy = Movimiento.objects.select_related(
         "equipo", "equipo__persona", "usuario_control"
     ).filter(timestamp__date=hoy)[:20]
-
-    # Estadísticas rápidas del turno de control de salida
     total_hoy = Movimiento.objects.filter(timestamp__date=hoy).count()
-    total_ok = Movimiento.objects.filter(timestamp__date=hoy, resultado=Movimiento.RESULTADO_OK).count()
+    total_ok = Movimiento.objects.filter(
+        timestamp__date=hoy, resultado=Movimiento.RESULTADO_OK
+    ).count()
     total_alertas = Movimiento.objects.filter(
         timestamp__date=hoy,
-        resultado__in=[Movimiento.RESULTADO_ALERTA, Movimiento.RESULTADO_NO_ENCONTRADO]
+        resultado__in=[Movimiento.RESULTADO_ALERTA, Movimiento.RESULTADO_NO_ENCONTRADO],
     ).count()
-
-    context = {
-        "movimientos_hoy": movimientos_hoy,
-        "total_hoy": total_hoy,
-        "total_ok": total_ok,
-        "total_alertas": total_alertas,
-    }
-    return render(request, "control_acceso/scanner.html", context)
+    return render(
+        request,
+        "control_acceso/scanner.html",
+        {
+            "movimientos_hoy": movimientos_hoy,
+            "total_hoy": total_hoy,
+            "total_ok": total_ok,
+            "total_alertas": total_alertas,
+        },
+    )
 
 
 @login_required
@@ -47,12 +128,6 @@ def control_salida_view(request):
 @require_POST
 @ratelimit(key="user_or_ip", rate="60/m", method="POST", block=True)
 def escanear_qr_salida(request):
-    """
-    Endpoint HTMX para resolver el escaneo en tiempo real:
-    1. Recibe token de exhibición firmado, UUID legado o serial.
-    2. Resuelve el Equipo y la Persona.
-    3. Aplica reglas de negocio (ok / alerta / no_encontrado).
-    """
     codigo_recibido = normalizar_codigo_escaneado(request.POST.get("codigo", ""))
 
     if not codigo_recibido:
@@ -63,10 +138,8 @@ def escanear_qr_salida(request):
         )
 
     equipo = Equipo.resolver_token_escaneado(codigo_recibido)
-
     hoy = timezone.localdate()
 
-    # Caso 1: Código no encontrado en base de datos
     if not equipo:
         movimiento = Movimiento.objects.create(
             equipo=None,
@@ -78,7 +151,6 @@ def escanear_qr_salida(request):
         movimientos_actualizados = Movimiento.objects.select_related(
             "equipo", "equipo__persona", "usuario_control"
         ).filter(timestamp__date=hoy)[:20]
-
         return render(
             request,
             "control_acceso/partials/resultado_escaneo.html",
@@ -92,48 +164,136 @@ def escanear_qr_salida(request):
 
     persona = equipo.persona
 
-    # Caso 2: Alerta por equipo o persona inactiva
-    if not equipo.activo or not persona.activo:
-        motivo = []
-        if not equipo.activo:
-            motivo.append("Equipo dado de baja o inactivo")
-        if not persona.activo:
-            motivo.append("Persona inactiva / desvinculada")
-        motivo_str = " y ".join(motivo)
-
-        movimiento = Movimiento.objects.create(
-            equipo=equipo,
-            token_escaneado=str(equipo.token_qr),
-            usuario_control=request.user,
-            resultado=Movimiento.RESULTADO_ALERTA,
-            observacion=f"Alerta: {motivo_str}",
-        )
-        movimientos_actualizados = Movimiento.objects.select_related(
-            "equipo", "equipo__persona", "usuario_control"
-        ).filter(timestamp__date=hoy)[:20]
-
-        return render(
+    if not equipo.activo:
+        return _alerta_render(
             request,
-            "control_acceso/partials/resultado_escaneo.html",
-            {
-                "equipo": equipo,
-                "persona": persona,
-                "resultado": "alerta",
-                "motivo_alerta": motivo_str,
-                "movimiento": movimiento,
-                "movimientos_hoy": movimientos_actualizados,
-            },
+            equipo=equipo,
+            persona=persona,
+            motivo_codigo=Movimiento.MOTIVO_EQUIPO_INACTIVO,
+            motivo_texto="Equipo dado de baja o inactivo",
+            hoy=hoy,
         )
 
-    # Caso 3: Coincide y Autorizado (OK)
+    # Institucional: vigencia + cierre automático (doc 15 §5 / §9)
+    if equipo.propiedad == Equipo.PROPIEDAD_INSTITUCIONAL:
+        ut, uid = unidad_de_equipo(equipo)
+        nombre = nombre_unidad(ut, uid)
+        asig = asignacion_activa(equipo)
+        vig = vigencia_asignacion(asig, hoy)
+
+        if vig == VENCIDA:
+            liberar_asignacion_vencida(equipo, hoy=hoy)
+            equipo.refresh_from_db()
+            persona = None
+            texto = (
+                f"Asignación institucional vencida — el equipo quedó disponible en {nombre}. "
+                "Contactar a la dependencia."
+                if nombre
+                else "Asignación institucional vencida — el equipo quedó disponible en inventario."
+            )
+            return _alerta_render(
+                request,
+                equipo=equipo,
+                persona=persona,
+                motivo_codigo=Movimiento.MOTIVO_ASIGNACION_VENCIDA,
+                motivo_texto=texto,
+                hoy=hoy,
+            )
+
+        if (
+            equipo.estado_inventario == Equipo.ESTADO_DISPONIBLE
+            or vig == SIN_ASIGNACION
+            or persona is None
+        ):
+            return _alerta_render(
+                request,
+                equipo=equipo,
+                persona=persona,
+                motivo_codigo=Movimiento.MOTIVO_SIN_ASIGNACION_ACTIVA,
+                motivo_texto=(
+                    f"Equipo en inventario sin asignación activa"
+                    + (f" ({nombre})" if nombre else "")
+                ),
+                hoy=hoy,
+            )
+
+        if vig == NO_VIGENTE:
+            return _alerta_render(
+                request,
+                equipo=equipo,
+                persona=persona,
+                motivo_codigo=Movimiento.MOTIVO_ASIGNACION_NO_VIGENTE,
+                motivo_texto="Asignación institucional no vigente todavía",
+                hoy=hoy,
+            )
+
+    if persona is None:
+        return _alerta_render(
+            request,
+            equipo=equipo,
+            persona=None,
+            motivo_codigo=Movimiento.MOTIVO_SIN_ASIGNACION_ACTIVA,
+            motivo_texto="Equipo sin titular asignado",
+            hoy=hoy,
+        )
+
+    if not persona.activo:
+        return _alerta_render(
+            request,
+            equipo=equipo,
+            persona=persona,
+            motivo_codigo=Movimiento.MOTIVO_PERSONA_INACTIVA,
+            motivo_texto="Persona inactiva / desvinculada",
+            hoy=hoy,
+        )
+
+    # Personal externo: visita vigente (doc 16) — no inactiva Persona
+    visita = None
+    if persona.tipo_vinculo and persona.tipo_vinculo.codigo == CODIGO_VINCULO_EXTERNO:
+        visita = visita_activa(persona)
+        vig_visita = vigencia_visita(visita, hoy)
+        if vig_visita == VISITA_VENCIDA:
+            cerrar_visita_vencida(persona, hoy=hoy)
+            return _alerta_render(
+                request,
+                equipo=equipo,
+                persona=persona,
+                motivo_codigo=Movimiento.MOTIVO_VISITA_VENCIDA,
+                motivo_texto="Visita de personal externo vencida — registrar una nueva visita",
+                hoy=hoy,
+            )
+        if vig_visita == SIN_VISITA:
+            return _alerta_render(
+                request,
+                equipo=equipo,
+                persona=persona,
+                motivo_codigo=Movimiento.MOTIVO_SIN_VISITA_ACTIVA,
+                motivo_texto="Sin visita activa — el visitante debe registrar su llegada",
+                hoy=hoy,
+            )
+        if vig_visita != VISITA_VIGENTE:
+            return _alerta_render(
+                request,
+                equipo=equipo,
+                persona=persona,
+                motivo_codigo=Movimiento.MOTIVO_SIN_VISITA_ACTIVA,
+                motivo_texto="Visita de personal externo aún no vigente",
+                hoy=hoy,
+            )
+
+    ctx_otra = _contexto_otra_sede(request, persona)
+    observacion = "Salida autorizada sin novedad."
+    if ctx_otra["es_otra_sede"]:
+        observacion = f"Salida autorizada — persona de otra sede ({ctx_otra['nombre_otra_sede']})."
+
     movimiento = Movimiento.objects.create(
         equipo=equipo,
         token_escaneado=str(equipo.token_qr),
         usuario_control=request.user,
         resultado=Movimiento.RESULTADO_OK,
-        observacion="Salida autorizada sin novedad.",
+        otra_sede=ctx_otra["es_otra_sede"],
+        observacion=observacion,
     )
-
     movimientos_actualizados = Movimiento.objects.select_related(
         "equipo", "equipo__persona", "usuario_control"
     ).filter(timestamp__date=hoy)[:20]
@@ -147,6 +307,9 @@ def escanear_qr_salida(request):
             "resultado": "ok",
             "movimiento": movimiento,
             "movimientos_hoy": movimientos_actualizados,
+            **_contexto_institucional(equipo),
+            **_contexto_externo(persona, visita),
+            **ctx_otra,
         },
     )
 
@@ -154,7 +317,6 @@ def escanear_qr_salida(request):
 @login_required
 @requiere_permiso("control.ver_alertas")
 def movimientos_list(request):
-    """Vista de histórico de movimientos con filtros por fecha y resultado."""
     query = request.GET.get("q", "").strip()
     resultado_filtro = request.GET.get("resultado", "")
     fecha_filtro = request.GET.get("fecha", "")
@@ -180,12 +342,15 @@ def movimientos_list(request):
 
     page = paginate_queryset(request, movimientos)
 
-    context = {
-        "movimientos": page,
-        "page_obj": page,
-        "query": query,
-        "resultado_filtro": resultado_filtro,
-        "fecha_filtro": fecha_filtro,
-        "opciones_resultado": Movimiento.OPCIONES_RESULTADO,
-    }
-    return render(request, "control_acceso/movimientos_list.html", context)
+    return render(
+        request,
+        "control_acceso/movimientos_list.html",
+        {
+            "movimientos": page,
+            "page_obj": page,
+            "query": query,
+            "resultado_filtro": resultado_filtro,
+            "fecha_filtro": fecha_filtro,
+            "opciones_resultado": Movimiento.OPCIONES_RESULTADO,
+        },
+    )

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrar nueva visita{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Registrar nueva visita</h1>
+  <p class="text-secondary">Declare sede, dependencia y vigencia de esta llegada. Su cuenta no se vuelve a crear.</p>
+</div>
+
+{% if visita_actual %}
+<div class="feedback-box" style="margin-bottom: var(--space-4);">
+  <strong>Visita activa actual:</strong>
+  {{ visita_actual.sede.nombre }} — {{ nombre_dependencia }}
+  ({{ visita_actual.fecha_inicio|date:"Y-m-d" }} a {{ visita_actual.fecha_fin|date:"Y-m-d" }}).
+  Al guardar una nueva, la anterior se finalizará.
+</div>
+{% endif %}
+
+<div class="card card-white" style="max-width: 640px; padding: var(--space-4);">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="form-label" for="id_sede">Sede destino: *</label>
+      <select name="sede" id="id_sede" class="form-select" required onchange="actualizarUnidades()">
+        <option value="">-- Seleccionar --</option>
+        {% for s in sedes %}
+        <option value="{{ s.id }}" {% if form_data.sede == s.id|stringformat:'s' %}selected{% endif %}>
+          {{ s.nombre }} ({{ s.codigo }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="id_unidad_tipo">Tipo de dependencia: *</label>
+        <select name="unidad_tipo" id="id_unidad_tipo" class="form-select" required onchange="actualizarUnidades()">
+          <option value="">-- Seleccionar --</option>
+          <option value="facultad" {% if form_data.unidad_tipo == 'facultad' %}selected{% endif %}>Facultad</option>
+          <option value="programa" {% if form_data.unidad_tipo == 'programa' %}selected{% endif %}>Programa</option>
+          <option value="area" {% if form_data.unidad_tipo == 'area' %}selected{% endif %}>Área</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_unidad_id">Dependencia: *</label>
+        <select name="unidad_id" id="id_unidad_id" class="form-select" required>
+          <option value="">-- Seleccionar --</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="id_fecha_inicio">Inicio: *</label>
+        <input type="date" name="fecha_inicio" id="id_fecha_inicio" class="form-control" required
+               value="{{ form_data.fecha_inicio|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_fecha_fin">Fin: *</label>
+        <input type="date" name="fecha_fin" id="id_fecha_fin" class="form-control" required
+               value="{{ form_data.fecha_fin|default:'' }}">
+      </div>
+    </div>
+    <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">
+      <button type="submit" class="btn btn-primary">Registrar visita</button>
+      <a href="{% url 'accounts:mi_perfil' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  const FACULTADES = [{% for f in facultades %}{id:"{{ f.id }}",nombre:"{{ f.nombre|escapejs }}"},{% endfor %}];
+  const PROGRAMAS = [{% for p in programas %}{id:"{{ p.id }}",nombre:"{{ p.nombre|escapejs }}",sede:"{{ p.sede_id }}"},{% endfor %}];
+  const AREAS = [{% for a in areas %}{id:"{{ a.id }}",nombre:"{{ a.codigo }} — {{ a.nombre|escapejs }}"},{% endfor %}];
+  const PRE = "{{ form_data.unidad_id|default:'' }}";
+  function actualizarUnidades() {
+    const tipo = document.getElementById('id_unidad_tipo').value;
+    const sedeId = document.getElementById('id_sede').value;
+    const sel = document.getElementById('id_unidad_id');
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+    let items = [];
+    if (tipo === 'facultad') items = FACULTADES;
+    else if (tipo === 'programa') items = PROGRAMAS.filter(p => !sedeId || p.sede === sedeId);
+    else if (tipo === 'area') items = AREAS;
+    items.forEach(it => {
+      const o = document.createElement('option');
+      o.value = it.id; o.textContent = it.nombre;
+      if (PRE && String(it.id) === String(PRE)) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', actualizarUnidades);
+</script>
+{% endblock %}

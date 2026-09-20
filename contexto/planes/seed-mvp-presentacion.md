@@ -15,9 +15,9 @@
 | Facultades | 7 activas |
 | Programas | 45 pregrados por sede/facultad |
 | Áreas | 8 dependencias (CGCA, ISU, CTeI, etc.) |
-| Tipo de vínculo | 4 activos: gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado |
-| Roles activos | Administrador del sistema, Miembro de la comunidad |
-| Permisos | 13 permisos con descripción en español |
+| Tipo de vínculo | 4 activos con autorregistro: gestor_administrativo (área la asigna admin después), creador_oportunidades, gestor_conocimiento, egresado |
+| Roles activos | admin_sistema, miembro_comunidad, responsable_dependencia |
+| Permisos | 16 (incluye inventario/asignación institucional) |
 
 ## Qué elimina
 

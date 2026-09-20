@@ -101,3 +101,49 @@ class Programa(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.sede.codigo} / {self.facultad.codigo})"
+
+
+UNIDAD_FACULTAD = "facultad"
+UNIDAD_PROGRAMA = "programa"
+UNIDAD_AREA = "area"
+
+OPCIONES_UNIDAD_TIPO = [
+    (UNIDAD_FACULTAD, "Facultad"),
+    (UNIDAD_PROGRAMA, "Programa"),
+    (UNIDAD_AREA, "Área / Dependencia"),
+]
+
+
+class ResponsableDependencia(models.Model):
+    """Usuario autorizado a asignar equipos institucionales en nombre de una unidad."""
+
+    usuario = models.ForeignKey(
+        "accounts.Usuario",
+        on_delete=models.CASCADE,
+        related_name="responsabilidades_dependencia",
+    )
+    unidad_tipo = models.CharField(max_length=20, choices=OPCIONES_UNIDAD_TIPO)
+    unidad_id = models.PositiveBigIntegerField(
+        help_text="ID de la Facultad, Programa o Área según unidad_tipo",
+    )
+    activo = models.BooleanField(default=True, help_text="Borrado lógico")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "responsable_dependencia"
+        verbose_name = "Responsable de dependencia"
+        verbose_name_plural = "Responsables de dependencia"
+        ordering = ["unidad_tipo", "unidad_id"]
+        indexes = [
+            models.Index(fields=["usuario", "activo"]),
+            models.Index(fields=["unidad_tipo", "unidad_id"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usuario", "unidad_tipo", "unidad_id"],
+                name="uniq_responsable_usuario_unidad",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario_id} → {self.unidad_tipo}:{self.unidad_id}"

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Alta inventario institucional{% endblock %}
+{% block page_title %}Alta de inventario institucional{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="max-width: 640px;">
+  <p style="color: var(--color-text-secondary); margin-bottom: var(--space-4);">
+    Registra el equipo como propiedad de la dependencia. No se asigna a ninguna persona en este paso.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="form-label" for="unidad">Unidad propietaria</label>
+      <select name="unidad" id="unidad" class="form-select" required data-tom-select>
+        <option value="">Seleccione…</option>
+        {% for u in unidades %}
+        <option value="{{ u.clave }}" {% if unidad_clave == u.clave %}selected{% endif %}>{{ u.etiqueta }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="tipo">Tipo</label>
+      <select name="tipo" id="tipo" class="form-select">
+        {% for val, label in tipos_equipo %}
+        <option value="{{ val }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="marca">Marca</label>
+      <input type="text" name="marca" id="marca" class="form-control" required maxlength="50">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="modelo">Modelo</label>
+      <input type="text" name="modelo" id="modelo" class="form-control" required maxlength="80">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="serial">Serial</label>
+      <input type="text" name="serial" id="serial" class="form-control" required maxlength="80">
+    </div>
+    <div style="display: flex; gap: var(--space-3); justify-content: flex-end;">
+      <a href="{% url 'panel:equipos_institucionales' %}" class="btn btn-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Dar de alta</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -37,10 +37,28 @@
     <div style="flex: 1;">
       <span class="kiosk-badge-tag">Alerta de Seguridad</span>
       <h2 class="kiosk-headline">
+        {% if motivo_alerta_codigo == 'asignacion_vencida' %}
+        ASIGNACIÓN INSTITUCIONAL VENCIDA
+        {% elif motivo_alerta_codigo == 'asignacion_no_vigente' %}
+        ASIGNACIÓN INSTITUCIONAL NO VIGENTE
+        {% elif motivo_alerta_codigo == 'visita_vencida' %}
+        VISITA DE PERSONAL EXTERNO VENCIDA
+        {% elif motivo_alerta_codigo == 'sin_visita_activa' %}
+        SIN VISITA ACTIVA
+        {% elif es_institucional %}
+        ALERTA — EQUIPO INSTITUCIONAL{% if nombre_unidad %} DE {{ nombre_unidad|upper }}{% endif %}
+        {% else %}
         ALERTA — RETENER EQUIPO
+        {% endif %}
       </h2>
       <div style="font-size: 1.125rem; font-weight: 700; margin-top: var(--space-1);">
+        {% if motivo_alerta_codigo == 'asignacion_vencida' or motivo_alerta_codigo == 'asignacion_no_vigente' %}
+        {{ motivo_alerta }}
+        {% elif es_institucional %}
+        Alerta — Equipo institucional{% if nombre_unidad %} de {{ nombre_unidad }}{% endif %}
+        {% else %}
         SALIDA NO AUTORIZADA
+        {% endif %}
       </div>
 
       <div style="margin-top: var(--space-3); background-color: rgba(0,0,0,0.2); border-left: 4px solid #FFFFFF; padding: var(--space-2) var(--space-3); border-radius: 4px;">
@@ -126,6 +144,27 @@
         <div style="font-size: 1.25rem; font-weight: 700; line-height: 1.2; margin-top: 2px;">
           {{ persona.nombre_completo }}
         </div>
+        {% if es_institucional %}
+        <div style="margin-top: var(--space-2);">
+          <span style="display: inline-block; background-color: var(--color-info, #0D9488); color: #fff; padding: 4px 10px; border-radius: var(--radius-pill); font-size: 0.8125rem; font-weight: 700;">
+            Equipo institucional{% if nombre_unidad %} — {{ nombre_unidad }}{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if es_personal_externo %}
+        <div style="margin-top: var(--space-2);">
+          <span style="display: inline-block; background-color: #5B4B8A; color: #fff; padding: 4px 10px; border-radius: var(--radius-pill); font-size: 0.8125rem; font-weight: 700;">
+            Visitante externo{% if nombre_dependencia_visita %} — {{ nombre_dependencia_visita }}{% endif %}{% if fecha_fin_visita %}, hasta {{ fecha_fin_visita|date:"Y-m-d" }}{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if es_otra_sede %}
+        <div style="margin-top: var(--space-2);">
+          <span style="display: inline-block; background-color: #B45309; color: #fff; padding: 4px 10px; border-radius: var(--radius-pill); font-size: 0.8125rem; font-weight: 700;">
+            Otra sede — {{ nombre_otra_sede }}
+          </span>
+        </div>
+        {% endif %}
         <div style="font-size: 0.875rem; opacity: 0.95; margin-top: 4px;">
           {{ persona.tipo_documento }}: <span style="font-family: var(--font-mono); font-weight: 600;">{{ persona.numero_documento }}</span>
         </div>

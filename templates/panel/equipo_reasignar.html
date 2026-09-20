@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Reasignar equipo{% endblock %}
+{% block page_title %}Reasignar equipo institucional{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="card card-white">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">{{ equipo.marca }} {{ equipo.modelo }}</h2>
+        <p class="card-subtitle">
+          Serial <code>{{ equipo.serial }}</code> · Unidad: <strong>{{ unidad_nombre }}</strong>
+        </p>
+      </div>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="persona">Nuevo titular (misma unidad): *</label>
+        <select name="persona" id="persona" class="form-select" required>
+          <option value="">-- Seleccione --</option>
+          {% for p in personas %}
+          <option value="{{ p.id }}" {% if p.id == equipo.persona_id %}selected{% endif %}>
+            {{ p.nombre_completo }} — {{ p.numero_documento }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="fecha_inicio">Fecha inicio: *</label>
+          <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" required value="{{ fecha_inicio }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fecha_fin">Fecha fin: *</label>
+          <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" required value="{{ fecha_fin }}">
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+        <a href="{% url 'panel:equipos_institucionales' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Reasignar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

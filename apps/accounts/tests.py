@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from accounts.models import Usuario, Rol, Permiso, RolPermiso, UsuarioRol
-from organizacion.models import Sede, Decanatura, Programa
+from organizacion.models import Sede, Decanatura, Programa, Area
 from personas.models import Persona, TipoVinculo
 
 
@@ -60,6 +60,22 @@ class RegistroExternoTestCase(TestCase):
         )
         self.vinculo_docente.permite_autoregistro = False
         self.vinculo_docente.save()
+
+        self.area = Area.objects.create(codigo="CGCA-TEST", nombre="Área Test Registro")
+        self.vinculo_admin, _ = TipoVinculo.objects.get_or_create(
+            codigo="gestor_administrativo",
+            defaults={
+                "nombre": "Gestor Administrativo",
+                "permite_autoregistro": True,
+                "dominio_correo_requerido": "@ucundinamarca.edu.co",
+                "rol_asignado": self.rol_miembro,
+            },
+        )
+        self.vinculo_admin.permite_autoregistro = True
+        self.vinculo_admin.dominio_correo_requerido = "@ucundinamarca.edu.co"
+        self.vinculo_admin.rol_asignado = self.rol_miembro
+        self.vinculo_admin.nombre = "Gestor Administrativo"
+        self.vinculo_admin.save()
 
     def test_registro_exitoso_con_correo_institucional(self):
         """Autorregistro exitoso con correo @ucundinamarca.edu.co: crea Persona, Usuario y Rol."""
@@ -229,3 +245,44 @@ class RegistroExternoTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "política de tratamiento de datos")
         self.assertFalse(Persona.objects.filter(numero_documento="555444333").exists())
+
+    def test_registro_gestor_administrativo_sin_area(self):
+        """El gestor se registra sin área; la asigna después un admin en el panel."""
+        data = {
+            "nombres": "Luis",
+            "apellidos": "Admin",
+            "tipo_documento": "CC",
+            "numero_documento": "3030303030",
+            "tipo_vinculo": str(self.vinculo_admin.id),
+            "correo": "luis.admin@ucundinamarca.edu.co",
+            "sede": str(self.sede.id),
+            "password": "PasswordSegura123!",
+            "password_confirm": "PasswordSegura123!",
+            "acepta_tratamiento": "on",
+        }
+        response = self.client.post(reverse("accounts:registro"), data)
+        self.assertRedirects(response, reverse("accounts:login"))
+        persona = Persona.objects.get(numero_documento="3030303030")
+        self.assertEqual(persona.tipo_vinculo, self.vinculo_admin)
+        self.assertIsNone(persona.area_id)
+        self.assertIsNone(persona.programa_id)
+
+    def test_registro_gestor_administrativo_ignora_area_en_post(self):
+        """Si alguien envía área en el POST de autorregistro, se ignora."""
+        data = {
+            "nombres": "Luis",
+            "apellidos": "SinArea",
+            "tipo_documento": "CC",
+            "numero_documento": "4040404040",
+            "tipo_vinculo": str(self.vinculo_admin.id),
+            "correo": "luis.sinarea@ucundinamarca.edu.co",
+            "sede": str(self.sede.id),
+            "area": str(self.area.id),
+            "password": "PasswordSegura123!",
+            "password_confirm": "PasswordSegura123!",
+            "acepta_tratamiento": "on",
+        }
+        response = self.client.post(reverse("accounts:registro"), data)
+        self.assertRedirects(response, reverse("accounts:login"))
+        persona = Persona.objects.get(numero_documento="4040404040")
+        self.assertIsNone(persona.area_id)

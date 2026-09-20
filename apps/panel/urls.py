@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import views_organizacion
+from . import views_equipos
 from reportes import views_dashboard
 
 app_name = "panel"
@@ -16,6 +17,7 @@ urlpatterns = [
     # Personas
     path("personas/", views.personas_list, name="personas_list"),
     path("personas/nueva/", views.persona_create, name="persona_create"),
+    path("personas/vigilante/nuevo/", views.vigilante_create, name="vigilante_create"),
     path("personas/<int:pk>/editar/", views.persona_edit, name="persona_edit"),
     path("personas/<int:pk>/toggle/", views.persona_toggle, name="persona_toggle"),
 
@@ -33,6 +35,75 @@ urlpatterns = [
 
     # Permisos (solo lectura)
     path("permisos/", views.permisos_list, name="permisos_list"),
+
+    # Equipos institucionales
+    path(
+        "equipos/institucionales/nuevo/",
+        views_equipos.equipos_inventario_nuevo,
+        name="equipos_inventario_nuevo",
+    ),
+    path(
+        "equipos/asignar-institucional/",
+        views_equipos.equipos_asignar_institucional,
+        name="equipos_asignar_institucional",
+    ),
+    path(
+        "equipos/institucionales/",
+        views_equipos.equipos_institucionales_list,
+        name="equipos_institucionales",
+    ),
+    path(
+        "equipos/buscar-personas/",
+        views_equipos.buscar_personas_unidad,
+        name="equipos_buscar_personas",
+    ),
+    path(
+        "equipos/sugerir-fecha-fin/",
+        views_equipos.sugerir_fecha_fin_persona,
+        name="equipos_sugerir_fecha_fin",
+    ),
+    path(
+        "equipos/<int:pk>/reasignar/",
+        views_equipos.equipo_reasignar,
+        name="equipo_reasignar",
+    ),
+    path(
+        "equipos/<int:pk>/renovar/",
+        views_equipos.equipo_renovar,
+        name="equipo_renovar",
+    ),
+    path(
+        "equipos/<int:pk>/devolver/",
+        views_equipos.equipo_devolver_inventario,
+        name="equipo_devolver",
+    ),
+    path(
+        "equipos/<int:pk>/dar-de-baja/",
+        views_equipos.equipo_dar_de_baja,
+        name="equipo_dar_de_baja",
+    ),
+
+    # Responsables de dependencia
+    path(
+        "responsables-dependencia/",
+        views_equipos.responsables_list,
+        name="responsables_list",
+    ),
+    path(
+        "responsables-dependencia/nuevo/",
+        views_equipos.responsable_form,
+        name="responsable_create",
+    ),
+    path(
+        "responsables-dependencia/<int:pk>/editar/",
+        views_equipos.responsable_form,
+        name="responsable_edit",
+    ),
+    path(
+        "responsables-dependencia/<int:pk>/toggle/",
+        views_equipos.responsable_toggle,
+        name="responsable_toggle",
+    ),
 
     # Organización (Sedes, Facultades, Programas)
     path("organizacion/", views_organizacion.organizacion_list, name="organizacion_list"),

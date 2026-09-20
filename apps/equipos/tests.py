@@ -117,26 +117,63 @@ class EquiposModelTestCase(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-    def test_equipo_institucional_requiere_dependencia(self):
-        equipo = Equipo(
-            persona=self.persona,
+    def test_equipo_institucional_inventario_sin_persona(self):
+        equipo = Equipo.objects.create(
+            persona=None,
             tipo=Equipo.TIPO_PORTATIL,
             marca="Dell",
             modelo="Latitude",
             serial="INST-NO-DEP",
             propiedad=Equipo.PROPIEDAD_INSTITUCIONAL,
+            unidad_tipo="area",
+            unidad_id=self.area.pk,
+            estado_inventario=Equipo.ESTADO_DISPONIBLE,
+            dependencia=self.area,
         )
-        with self.assertRaises(ValidationError):
-            equipo.save()
+        self.assertEqual(equipo.propiedad, Equipo.PROPIEDAD_INSTITUCIONAL)
+        self.assertIsNone(equipo.persona_id)
 
-    def test_equipo_institucional_con_dependencia(self):
-        equipo = Equipo.objects.create(
-            persona=self.persona,
+    def test_equipo_institucional_con_asignacion(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from equipos.models import AsignacionEquipo
+        from equipos.services import crear_asignacion, crear_equipo_inventario
+
+        equipo = crear_equipo_inventario(
             tipo=Equipo.TIPO_PORTATIL,
             marca="Dell",
             modelo="Latitude",
             serial="INST-CON-DEP",
-            propiedad=Equipo.PROPIEDAD_INSTITUCIONAL,
-            dependencia=self.area,
+            unidad_tipo="area",
+            unidad_id=self.area.pk,
+            creado_por_usuario=self.dueno,
         )
-        self.assertEqual(equipo.dependencia.codigo, "CGCA")
+        hoy = timezone.localdate()
+        asig = crear_asignacion(
+            equipo=equipo,
+            persona=self.persona,
+            fecha_inicio=hoy,
+            fecha_fin=hoy + timedelta(days=30),
+            asignado_por_usuario=self.dueno,
+        )
+        self.assertEqual(asig.estado, AsignacionEquipo.ESTADO_ACTIVA)
+        equipo.refresh_from_db()
+        self.assertEqual(equipo.dependencia_id, self.area.pk)
+        self.assertEqual(equipo.estado_inventario, Equipo.ESTADO_ASIGNADO)
+    def test_autoregistro_rechaza_institucional(self):
+        perm_reg = Permiso.objects.create(codigo="equipos.registrar", descripcion="Registrar")
+        RolPermiso.objects.create(rol=self.rol_miembro, permiso=perm_reg)
+        self.client.login(username="dueno_eq", password="testpass123!")
+        response = self.client.post(
+            reverse("equipos:equipo_create"),
+            {
+                "tipo": Equipo.TIPO_PORTATIL,
+                "marca": "Hack",
+                "modelo": "Attempt",
+                "serial": "HACK-INST-01",
+                "propiedad": "institucional",
+                "dependencia": str(self.area.pk),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Equipo.objects.filter(serial="HACK-INST-01").exists())

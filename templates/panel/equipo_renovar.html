@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Renovar asignación{% endblock %}
+{% block page_title %}Renovar asignación institucional{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="card card-white">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">{{ equipo.marca }} {{ equipo.modelo }}</h2>
+        <p class="card-subtitle">
+          Titular: <strong>{{ persona.nombre_completo }}</strong> · Unidad: <strong>{{ unidad_nombre }}</strong>
+        </p>
+      </div>
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="feedback-box feedback-success" style="margin-bottom: var(--space-3); font-size: 0.875rem;">
+        Se cierra la asignación actual y se crea una nueva con las mismas persona y unidad, y las fechas indicadas.
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="fecha_inicio">Fecha inicio: *</label>
+          <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" required value="{{ fecha_inicio }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fecha_fin">Fecha fin: *</label>
+          <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" required value="{{ fecha_fin }}">
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+        <a href="{% url 'panel:equipos_institucionales' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Renovar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

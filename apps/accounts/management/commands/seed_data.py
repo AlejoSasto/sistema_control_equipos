@@ -48,7 +48,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f"\n[LISTO] Catálogos listos — "
                 f"{org['sedes']} sedes, {org['facultades']} facultades, "
-                f"{org['programas']} programas, {areas_n} áreas | 4 vínculos"
+                f"{org['programas']} programas, {areas_n} áreas | 6 vínculos"
             ))
             self.stdout.write(self.style.SUCCESS(
                 "Acceso administrador: usuario 'admin' / contraseña 'Udec2026!Admin'"
@@ -74,6 +74,18 @@ class Command(BaseCommand):
             ("equipos.registrar", "Registrar equipos propios"),
             ("equipos.ver_propios", "Ver y mostrar el código QR de los equipos propios"),
             ("equipos.ver_todos", "Consultar el inventario completo de equipos"),
+            (
+                "equipos.asignar_institucional",
+                "Asignar, renovar, reasignar o devolver equipos institucionales de su dependencia",
+            ),
+            (
+                "equipos.inventario_institucional",
+                "Dar de alta equipos institucionales en inventario de su dependencia (sin asignar persona)",
+            ),
+            (
+                "equipos.gestionar_responsables",
+                "Administrar responsables de dependencia (quién asigna equipos por unidad)",
+            ),
             ("control.escanear", "Usar el puesto de control de salida (escaneo QR)"),
             ("control.ver_alertas", "Consultar el historial de salidas y alertas"),
             ("catalogos.administrar", "Administrar sedes, facultades, programas, áreas y tipos de vínculo"),
@@ -110,9 +122,19 @@ class Command(BaseCommand):
                 list(permisos_objs.keys()),
                 True,
             ),
-            # Rol legado: se desactiva para el MVP (sin celador)
+            "responsable_dependencia": (
+                "Responsable de dependencia: inventaria y asigna equipos institucionales en sus unidades",
+                ["equipos.asignar_institucional", "equipos.inventario_institucional"],
+                True,
+            ),
+            "vigilante": (
+                "Personal de portería: control de salida en su sede",
+                ["control.escanear", "control.ver_alertas"],
+                True,
+            ),
+            # Rol legado: desactivado; usar vigilante
             "celador": (
-                "Personal de portería (desactivado en MVP)",
+                "Personal de portería (legado; usar rol vigilante)",
                 ["control.escanear", "control.ver_alertas"],
                 False,
             ),
@@ -131,35 +153,59 @@ class Command(BaseCommand):
             roles_objs[nombre] = rol
 
         activos = sum(1 for r in roles_objs.values() if r.activo)
-        self.stdout.write(self.style.SUCCESS(f"[OK] {activos} roles activos (celador desactivado)"))
+        self.stdout.write(self.style.SUCCESS(
+            f"[OK] {activos} roles activos (celador legado inactivo)"
+        ))
         return roles_objs
 
     def _cargar_tipos_vinculo(self, roles_objs):
         """
-        Solo 4 códigos canónicos, todos activos:
-        gestor_administrativo, creador_oportunidades, gestor_conocimiento, egresado.
+        Códigos canónicos de comunidad + personal_externo + vigilante (doc 16).
         """
         rol_miembro = roles_objs["miembro_comunidad"]
+        rol_vigilante = roles_objs["vigilante"]
         tipos_data = [
             {
                 "codigo": "gestor_administrativo",
-                "nombre": "Administrativo",
-                "permite_autoregistro": False,
+                "nombre": "Gestor Administrativo",
+                "permite_autoregistro": True,
+                "dominio_correo_requerido": "@ucundinamarca.edu.co",
+                "rol_asignado": rol_miembro,
             },
             {
                 "codigo": "creador_oportunidades",
                 "nombre": "Creador de Oportunidades",
                 "permite_autoregistro": True,
+                "dominio_correo_requerido": "@ucundinamarca.edu.co",
+                "rol_asignado": rol_miembro,
             },
             {
                 "codigo": "gestor_conocimiento",
                 "nombre": "Gestor del Conocimiento",
                 "permite_autoregistro": True,
+                "dominio_correo_requerido": "@ucundinamarca.edu.co",
+                "rol_asignado": rol_miembro,
             },
             {
                 "codigo": "egresado",
                 "nombre": "Egresado",
                 "permite_autoregistro": True,
+                "dominio_correo_requerido": "@ucundinamarca.edu.co",
+                "rol_asignado": rol_miembro,
+            },
+            {
+                "codigo": "personal_externo",
+                "nombre": "Personal Externo",
+                "permite_autoregistro": True,
+                "dominio_correo_requerido": None,
+                "rol_asignado": rol_miembro,
+            },
+            {
+                "codigo": "vigilante",
+                "nombre": "Vigilante",
+                "permite_autoregistro": False,
+                "dominio_correo_requerido": None,
+                "rol_asignado": rol_vigilante,
             },
         ]
 
@@ -170,8 +216,8 @@ class Command(BaseCommand):
                 defaults={
                     "nombre": data["nombre"],
                     "permite_autoregistro": data["permite_autoregistro"],
-                    "dominio_correo_requerido": "@ucundinamarca.edu.co",
-                    "rol_asignado": rol_miembro,
+                    "dominio_correo_requerido": data["dominio_correo_requerido"],
+                    "rol_asignado": data["rol_asignado"],
                     "activo": True,
                 },
             )
@@ -183,20 +229,21 @@ class Command(BaseCommand):
             "docente": "gestor_conocimiento",
             "estudiante": "creador_oportunidades",
             "graduado": "egresado",
+            "celador": "vigilante",
         }
         for origen, destino in migracion.items():
             legacy = TipoVinculo.objects.filter(codigo=origen).first()
-            if legacy:
+            if legacy and destino in tipos_objs:
                 Persona.objects.filter(tipo_vinculo=legacy).update(
                     tipo_vinculo=tipos_objs[destino]
                 )
 
-        # Eliminar de la BD todo lo que no sea canónico
+        # Eliminar de la BD todo lo que no esté en el catálogo vigente
         eliminados, _ = TipoVinculo.objects.exclude(
             codigo__in=tipos_objs.keys()
         ).delete()
         self.stdout.write(self.style.SUCCESS(
-            f"[OK] 4 tipos de vínculo activos (eliminados otros: {eliminados})"
+            f"[OK] {len(tipos_objs)} tipos de vínculo activos (eliminados otros: {eliminados})"
         ))
         return tipos_objs["gestor_administrativo"]
 

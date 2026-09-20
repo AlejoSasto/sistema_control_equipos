@@ -182,3 +182,53 @@ class PanelOrganizacionTestCase(TestCase):
         persona = Persona.objects.get(numero_documento="99887766")
         self.assertEqual(persona.area.codigo, "ISU")
         self.assertIsNone(persona.programa_id)
+
+    def test_persona_administrativa_sin_area(self):
+        """Área pendiente: admin puede crear gestor sin área asignada."""
+        self.client.login(username="org_admin", password="adminpass123")
+        response = self.client.post(
+            reverse("panel:persona_create"),
+            {
+                "tipo_documento": "CC",
+                "numero_documento": "88776655",
+                "nombres": "Luis",
+                "apellidos": "Pendiente",
+                "tipo_vinculo": str(self.vinculo_admin.id),
+                "sede": str(self.sede.id),
+                "area": "",
+                "programa": "",
+                "activo": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        persona = Persona.objects.get(numero_documento="88776655")
+        self.assertIsNone(persona.area_id)
+        self.assertIsNone(persona.programa_id)
+
+    def test_filtro_sin_area(self):
+        self.client.login(username="org_admin", password="adminpass123")
+        Persona.objects.create(
+            tipo_documento="CC",
+            numero_documento="11223344",
+            nombres="Sin",
+            apellidos="Area",
+            tipo_vinculo=self.vinculo_admin,
+            sede=self.sede,
+            area=None,
+            activo=True,
+        )
+        Persona.objects.create(
+            tipo_documento="CC",
+            numero_documento="55667788",
+            nombres="Con",
+            apellidos="Area",
+            tipo_vinculo=self.vinculo_admin,
+            sede=self.sede,
+            area=self.area,
+            activo=True,
+        )
+        response = self.client.get(reverse("panel:personas_list"), {"sin_area": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "11223344")
+        self.assertNotContains(response, "55667788")
+        self.assertContains(response, "Sin área")

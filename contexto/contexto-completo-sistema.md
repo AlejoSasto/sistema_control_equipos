@@ -3,9 +3,9 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-19  
+**Fecha:** 2026-09-20  
 
-> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`13` siguen como detalle; ver sección 14.
+> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`15` siguen como detalle; ver sección 14.
 
 ---
 
@@ -118,7 +118,9 @@ Sede ──────────────┐
 Facultad (indep.) ─┼──► Programa (sede + facultad)
 Área (indep.) ─────┤
                    ├──► Persona (sede + programa | área)
-                   └──► Equipo (persona + dependencia opcional)
+                   ├──► Equipo personal (persona obligatoria)
+                   └──► Equipo institucional (unidad propietaria +
+                        estado_inventario; AsignacionEquipo opcional)
 ```
 
 | Entidad | Descripción | Ejemplo seed |
@@ -128,7 +130,7 @@ Facultad (indep.) ─┼──► Programa (sede + facultad)
 | **Programa** | Carrera en una sede bajo una facultad | 45 programas (seed) |
 | **Área** | Dependencia administrativa | 8 áreas (CGCA, ISU, CTeI, …) |
 
-**Persona:** sede obligatoria; perfiles académicos pueden tener programa; administrativo (`gestor_administrativo`) tiene área (sin programa).
+**Persona:** sede obligatoria; perfiles académicos pueden tener programa; `gestor_administrativo` **no** elige área al autorregistrarse (queda pendiente); un admin con `personas.administrar` la asigna después en el panel (sin programa).
 
 > Nota: docs antiguos `01`/`02` describían `Sede → Decanatura → Programa`. El modelo vigente trata Facultad como independiente.
 
@@ -142,19 +144,24 @@ Fuente canónica: `apps/accounts/management/commands/seed_data.py`.
 
 | Rol (BD) | Activo | Permisos |
 |----------|--------|----------|
-| `admin_sistema` | Sí | Todos (13) |
+| `admin_sistema` | Sí | Todos (16) |
 | `miembro_comunidad` | Sí | `equipos.registrar`, `equipos.ver_propios`, `perfil.ver_propio` |
-| `celador` | **No** (legado MVP) | `control.escanear`, `control.ver_alertas` |
+| `responsable_dependencia` | Sí | `equipos.inventario_institucional`, `equipos.asignar_institucional` |
+| `vigilante` | Sí | `control.escanear`, `control.ver_alertas` |
+| `celador` | **No** (legado) | mismos que vigilante |
 
-En el MVP actual, el **administrador** opera también el kiosco (tiene `control.escanear`). El rol celador existe en BD pero está inactivo.
+El rol **vigilante** opera el kiosco; se crea por alta interna (Persona + Usuario, una sede, correo libre). `admin_sistema` también tiene `control.escanear`. El responsable de dependencia inventaría y asigna equipos institucionales solo en las unidades donde tiene filas en `responsable_dependencia` (o alcance global si es `admin_sistema`).
 
-### Permisos (13)
+### Permisos (16)
 
 | Código | Uso |
 |--------|-----|
-| `equipos.registrar` | Alta de equipos propios |
+| `equipos.registrar` | Alta de equipos **personales** propios (autoregistro; no mezcla con institucionales) |
 | `equipos.ver_propios` | Ver/mostrar QR propio |
 | `equipos.ver_todos` | Inventario completo |
+| `equipos.inventario_institucional` | Alta de equipos institucionales **sin persona** (pool de la unidad) |
+| `equipos.asignar_institucional` | Asignar / renovar / reasignar / devolver / baja de institucionales (alcance por unidad) |
+| `equipos.gestionar_responsables` | CRUD de `responsable_dependencia` (MVP: solo admin) |
 | `control.escanear` | Kiosco de salida |
 | `control.ver_alertas` | Historial / alertas |
 | `catalogos.administrar` | Sedes, facultades, programas, áreas, vínculos |
@@ -174,14 +181,16 @@ Los permisos se cargan por migración/seed; el panel no los crea, solo los asign
 
 Catálogo dinámico. **No es rol de acceso:** todos los que se autoregistran reciben `miembro_comunidad` vía `TipoVinculo.rol_asignado`.
 
-| Código | Nombre visible | Autoregistro |
-|--------|----------------|--------------|
-| `gestor_conocimiento` | Gestor del Conocimiento | Sí |
-| `creador_oportunidades` | Creador de Oportunidades | Sí |
-| `egresado` | Egresado | Sí |
-| `gestor_administrativo` | Administrativo | No (alta por panel) |
+| Código | Nombre visible | Autoregistro | Correo | Organización / notas |
+|--------|----------------|--------------|--------|----------------------|
+| `gestor_administrativo` | Gestor Administrativo | Sí | `@ucundinamarca.edu.co` | Área pendiente al registrarse; la asigna admin después (sin programa) |
+| `creador_oportunidades` | Creador de Oportunidades | Sí | `@ucundinamarca.edu.co` | Programa opcional |
+| `gestor_conocimiento` | Gestor del Conocimiento | Sí | `@ucundinamarca.edu.co` | Programa opcional |
+| `egresado` | Egresado | Sí | `@ucundinamarca.edu.co` | Programa opcional |
+| `personal_externo` | Personal Externo | Sí | **cualquier correo** | VisitaExterno (sede + dependencia + vigencia); rol `miembro_comunidad` |
+| `vigilante` | Vigilante | **No** (alta interna) | **cualquier correo** | Una sede; rol `vigilante` |
 
-Dominio de correo institucional: `@ucundinamarca.edu.co`.
+Si `dominio_correo_requerido` es NULL, no se exige dominio institucional.
 
 ---
 
@@ -191,8 +200,49 @@ Dominio de correo institucional: `@ucundinamarca.edu.co`.
 
 - `serial` único en todo el sistema.
 - `token_qr` UUID interno; el QR de exhibición usa token **firmado con TTL** (default 300 s).
-- Propiedad: `personal` o `institucional` (esta última exige `dependencia` → Área).
-- Si `activo=false`, el escaneo genera alerta.
+- Propiedad: `personal` o `institucional`.
+- **Personal:** lo registra la persona en Mis equipos (`equipos.registrar`); `persona` obligatoria; sin unidad.
+- **Institucional:**
+  - Unidad propietaria permanente en `Equipo.unidad_tipo` / `unidad_id` (facultad / programa / área).
+  - `estado_inventario`: `disponible` (sin persona) | `asignado` | `de_baja`.
+  - `persona` **nullable**: `NULL` mientras está disponible en inventario.
+  - Alta: `/panel/equipos/institucionales/nuevo/` (`equipos.inventario_institucional`) — **sin elegir persona**.
+  - Si `unidad_tipo=area`, se sincroniza `dependencia` (FK Área).
+- Una persona **nunca** se autoasigna un institucional; el autoregistro personal no se mezcla con este flujo.
+- El titular ve el institucional en Mis equipos (badge + QR) solo mientras esté asignado a él.
+- Si `activo=false` / `de_baja`, el escaneo genera alerta.
+
+### AsignacionEquipo
+
+Historial de **préstamos a personas** (la unidad propietaria vive en `Equipo`, no se repite aquí):
+
+| Campo | Regla |
+|-------|--------|
+| `fecha_inicio` / `fecha_fin` | Obligatorias; `fecha_fin >= fecha_inicio` |
+| `estado` | `activa` \| `finalizada` \| `revocada` — **máximo una `activa` por equipo** |
+| `persona` | Titular del periodo |
+| `asignado_por_usuario` | Quién ejecutó la asignación |
+
+Renovar / reasignar cierran la fila activa y crean una nueva. **Devolver al inventario** cierra la activa y deja `persona=NULL`, `estado_inventario=disponible`.
+
+**Cierre automático al vencer:** al escanear (tiempo real) o con el command `cerrar_asignaciones_vencidas` (batch diario): `estado=finalizada`, equipo vuelve a `disponible`.
+
+### VisitaExterno (doc 16)
+
+Separación cuenta vs visita para `personal_externo` (simetría con equipo vs asignación):
+
+| Campo | Regla |
+|-------|--------|
+| `persona` | Solo tipo `personal_externo` |
+| `sede` / `unidad_tipo` / `unidad_id` | Destino autodeclarado (sin aprobación) |
+| `fecha_inicio` / `fecha_fin` | Obligatorias |
+| `estado` | `activa` \| `finalizada` \| `cancelada` — máx. una `activa` por persona |
+
+Primera visita en `/registro/`; siguientes en `/accounts/registrar-visita/`. Al vencer: cierre en escaneo o `cerrar_visitas_vencidas` — **no** se inactiva la Persona.
+
+### ResponsableDependencia
+
+Tabla que vincula un `Usuario` con una unidad (`facultad` / `programa` / `area`) para inventariar/asignar. `admin_sistema` no necesita filas (alcance global).
 
 ### Movimiento
 
@@ -200,17 +250,22 @@ Cada escaneo crea un registro:
 
 | Resultado | Significado |
 |-----------|-------------|
-| `ok` | Persona y equipo activos y coherentes |
-| `alerta` | Inactivo u anomalía |
+| `ok` | Persona y equipo activos; si es institucional, asignación vigente hoy; si es externo, visita vigente |
+| `alerta` | Inactivo, sin asignación/visita, vigencia inválida u anomalía |
 | `no_encontrado` | QR/serial inexistente |
+
+`motivo_alerta`: `equipo_inactivo`, `persona_inactiva`, `asignacion_vencida`, `asignacion_no_vigente`, `sin_asignacion_activa`, `visita_vencida`, `sin_visita_activa`, `no_coincide`.
+
+`otra_sede`: flag si la sede de la persona ≠ sede del vigilante (salida sigue `ok` + badge).
 
 ### Reglas transversales
 
-1. Un equipo tiene un único responsable (`Persona`).
+1. Un equipo personal tiene un único responsable (`Persona`); un institucional puede estar sin titular (`disponible`).
 2. Solo quien tiene `control.escanear` usa el kiosco.
 3. Persona o equipo inactivo → no salida válida (alerta).
-4. Borrado lógico (`activo`), no físico.
+4. Borrado lógico (`activo` / `de_baja`), no físico.
 5. MFA obligatorio para usuarios con rol activo `admin_sistema`.
+6. Vigilante pertenece a una sola sede; persona de otra sede → `ok` + badge «Otra sede».
 
 ---
 
@@ -218,7 +273,13 @@ Cada escaneo crea un registro:
 
 ### 9.1 Autorregistro (`/registro/` → `/accounts/registro/`)
 
-Público. Elige `TipoVinculo` con `permite_autoregistro=true` → crea atómicamente Persona + Usuario + `UsuarioRol` (nunca elige su rol).
+Público. Elige `TipoVinculo` con `permite_autoregistro=true` → crea atómicamente Persona + Usuario + `UsuarioRol` (nunca elige su rol).  
+Si el vínculo es **Gestor Administrativo**, el formulario **no** pide área ni programa (el área la asigna después un admin con `personas.administrar`); para el resto de comunidad, programa es opcional y no se asigna área.  
+Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → también crea la primera `VisitaExterno`. Documento ya registrado como externo → hint de login + «Registrar nueva visita».
+
+### 9.1b Vigilante (alta interna)
+
+`/panel/personas/vigilante/nuevo/` (`personas.administrar`): Persona + Usuario + rol vigilante, una sede, correo libre. No aparece en `/registro/`.
 
 ### 9.2 Login + MFA
 
@@ -231,7 +292,16 @@ Público. Elige `TipoVinculo` con `permite_autoregistro=true` → crea atómicam
 
 ### 9.3 Miembro: equipos y QR
 
-Login → Mis equipos → registrar equipo → al salir mostrar QR. Exhibición: `TimestampSigner` (`salt=equipo-qr-exhibicion`). Escaneo acepta token firmado, UUID legado o serial.
+Login → Mis equipos → registrar equipo **personal** → al salir mostrar QR. Exhibición: `TimestampSigner` (`salt=equipo-qr-exhibicion`). Escaneo acepta token firmado, UUID legado o serial. Los institucionales aparecen en Mis equipos solo para mostrar QR (sin editar/baja).
+
+### 9.3b Inventario y asignación institucional (docs 14 + 15)
+
+1. Admin designa responsables en `/panel/responsables-dependencia/` (`equipos.gestionar_responsables`).
+2. **Alta inventario** (`equipos.inventario_institucional`): `/panel/equipos/institucionales/nuevo/` → equipo `disponible`, sin persona, con unidad propietaria.
+3. **Asignar** (`equipos.asignar_institucional`): `/panel/equipos/asignar-institucional/` elige un equipo `disponible`, persona de la unidad y fechas → `AsignacionEquipo` activa + `estado_inventario=asignado`.
+4. Listado `/panel/equipos/institucionales/`: filtros inventario (disponible/asignado/de baja) y vigencia (vigente / por vencer ≤15 días / vencida).
+5. Acciones: **Renovar**, **Reasignar**, **Devolver** (vuelve a disponible), **Dar de baja**.
+6. Cierre automático al vencer: en kiosco al escanear, o job `manage.py cerrar_asignaciones_vencidas`.
 
 ### 9.4 Kiosco de portería (`/acceso/control-salida/`)
 
@@ -241,7 +311,14 @@ Tres vías al mismo endpoint HTMX:
 2. Cámara (`html5-qrcode`; HTTPS o localhost)  
 3. Entrada manual  
 
-Semáforo: verde (`ok`), rojo (`alerta`), gris (`no_encontrado`).
+Semáforo: verde (`ok`), rojo (`alerta`), gris (`no_encontrado`).  
+Institucional: si está `disponible` / sin asignación → alerta `sin_asignacion_activa`; si `fecha_fin < hoy` → **cierra** la asignación, deja disponible y alerta `asignacion_vencida`; si hoy &lt; inicio → `asignacion_no_vigente`; vigente → `ok` + badge de unidad.  
+Personal externo: sin visita activa → `sin_visita_activa`; visita vencida → cierra y `visita_vencida`; vigente → `ok` + badge «Visitante externo — [Dependencia], hasta [fecha]».  
+Otra sede (cualquier vínculo): si `persona.sede` ≠ sede del vigilante → `ok` + badge «Otra sede — [nombre]» (sin confirmación extra).
+
+### 9.4b Nueva visita externo
+
+`/accounts/registrar-visita/` (miembro `personal_externo`): declara sede/dependencia/vigencia; cierra la visita activa previa.
 
 ### 9.5 Panel interno (`/panel/`)
 
@@ -261,7 +338,7 @@ Vista en pantalla (doc [`13`](13-dashboard-administrador.md)); lógica en `apps/
 | KPIs periodo | Movimientos, alertas (+ %; acento danger si > umbral 5%) |
 | KPIs estructurales | Equipos activos, personas activas («dato actual»; no cambian con el rango de fechas) |
 | Extra | Sede con más movimiento (si hay >1 sede con datos) |
-| Gráficos | Chart.js: línea temporal, dona resultados, barras por sede, top 5 alertas (personas) |
+| Gráficos | Chart.js: línea temporal, dona resultados, barras por sede, top 5 alertas (personas), barras por `motivo_alerta` |
 | Caché | LocMem: ~45 s agregados de periodo; ~5 min estructurales |
 | Endpoints | `/panel/dashboard/`, `/parcial/`, `/datos-grafico/` (JSON combinado) |
 
@@ -269,7 +346,7 @@ Colores de resultado alineados al design system: OK `#007B3E`, alerta `#C62828`,
 
 ### 9.7 Reportes Excel (`/reportes/`)
 
-Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` para configurar y `reportes.exportar` para descargar; cada descarga queda en `auditoria_cambio`. Export síncrono (límites en doc [`12`](12-modulo-reportes-excel.md)). Complementa el dashboard de §9.6.
+Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` para configurar y `reportes.exportar` para descargar; cada descarga queda en `auditoria_cambio`. El reporte de alertas filtra y columna por `motivo_alerta`. Export síncrono (límites en doc [`12`](12-modulo-reportes-excel.md)). Complementa el dashboard de §9.6.
 
 ---
 
@@ -279,6 +356,8 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 |------|---------|
 | `/` | Redirect al kiosco |
 | `/registro/` | Autorregistro |
+| `/accounts/registrar-visita/` | Nueva visita (personal externo) |
+| `/panel/personas/vigilante/nuevo/` | Alta interna de vigilante |
 | `/legal/politica-datos/` | Política de datos personales |
 | `{ADMIN_URL}` | Django admin (default `admin/`) |
 | `/accounts/` | login, logout, registro, perfil, MFA |
@@ -288,6 +367,14 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | `/panel/dashboard/` | KPIs + gráficos (HTMX + Chart.js) |
 | `/panel/dashboard/parcial/` | Fragmento HTMX (tarjetas + canvas) |
 | `/panel/dashboard/datos-grafico/` | JSON de series para Chart.js |
+| `/panel/equipos/institucionales/nuevo/` | Alta inventario institucional (sin persona) |
+| `/panel/equipos/asignar-institucional/` | Asignar equipo disponible a persona |
+| `/panel/equipos/institucionales/` | Listado (alcance + inventario + vigencia) |
+| `/panel/equipos/<id>/renovar/` | Renovar fechas (misma persona) |
+| `/panel/equipos/<id>/reasignar/` | Reasignar titular |
+| `/panel/equipos/<id>/devolver/` | Devolver al inventario (disponible) |
+| `/panel/equipos/<id>/dar-de-baja/` | Baja lógica |
+| `/panel/responsables-dependencia/` | CRUD responsables de unidad |
 | `/reportes/` | índice / configurar / exportar Excel |
 | `/personas/` | personas + tipos de vínculo |
 
@@ -338,9 +425,9 @@ python manage.py seed_data
 
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
-| Administrador | `admin` | `Udec2026!Admin` | Dashboard, panel, catálogos, inventario, kiosco, reportes Excel |
+| Administrador | `admin` | `Udec2026!Admin` | Dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
 
-Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas** (catálogo institucional), 4 tipos de vínculo, 2 roles activos. Elimina demos (`celador1`, `docente1`, equipos demo) y deja `celador` inactivo.
+Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Elimina demos (`celador1`, `docente1`, equipos demo) y deja `celador` inactivo (legado).
 
 > Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales.
 
@@ -360,6 +447,9 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas** (catálogo 
 | Seguridad ISO/OWASP | [`11-plan-seguridad-iso27001-owasp.md`](11-plan-seguridad-iso27001-owasp.md) |
 | Módulo reportes | [`12-modulo-reportes-excel.md`](12-modulo-reportes-excel.md) |
 | Dashboard administrador | [`13-dashboard-administrador.md`](13-dashboard-administrador.md) |
+| Asignación equipos institucionales | [`14-asignacion-equipos-institucionales.md`](14-asignacion-equipos-institucionales.md) |
+| Vigencia asignaciones institucionales | [`15-vigencia-asignacion-equipos-institucionales.md`](15-vigencia-asignacion-equipos-institucionales.md) |
+| Personal externo y vigilante | [`16-personal-externo-y-vigilante.md`](16-personal-externo-y-vigilante.md) |
 | Planes de ejecución | [`planes/`](planes/) |
 | Incidentes / backups | [`operaciones/`](operaciones/) |
 
@@ -374,6 +464,8 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas** (catálogo 
 | Seed | `apps/accounts/management/commands/seed_data.py` |
 | Login / MFA / registro | `apps/accounts/views.py` |
 | QR firmado | `apps/equipos/models.py` |
+| Asignación / inventario institucional | `apps/equipos/services.py`, `apps/equipos/models.py`, `apps/panel/views_equipos.py`; command `cerrar_asignaciones_vencidas` |
+| ResponsableDependencia | `apps/organizacion/models.py` |
 | Kiosco | `apps/control_acceso/views.py`, `templates/control_acceso/scanner.html` |
 | Reportes Excel | `apps/reportes/` (generadores, filtros, views) |
 | Dashboard | `apps/reportes/dashboard.py`, `views_dashboard.py`; templates `reportes/dashboard*.html`; `static/js/dashboard.js` |

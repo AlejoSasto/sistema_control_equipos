@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-19 (normalización Zebra `ñ`/token firmado)
+**Última actualización:** 2026-09-20 (área del gestor: asignación post-registro)
 
 ---
 
@@ -50,6 +50,9 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [11-plan-seguridad-iso27001-owasp.md](11-plan-seguridad-iso27001-owasp.md) | Plan de seguridad ISO 27001 + OWASP + Ley 1581 | Implementado (S1–S3; pentest/RNBD externos pendientes) — ejecución en [`planes/seguridad-iso27001-owasp.md`](planes/seguridad-iso27001-owasp.md) |
 | [12-modulo-reportes-excel.md](12-modulo-reportes-excel.md) | Módulo de reportes Excel (filtros + gráficos nativos) | Implementado (sync; async fase 2) — ejecución en [`planes/modulo-reportes-excel.md`](planes/modulo-reportes-excel.md) |
 | [13-dashboard-administrador.md](13-dashboard-administrador.md) | Dashboard admin (KPIs + Chart.js + HTMX) | **Implementado** — ejecución en [`planes/dashboard-administrador.md`](planes/dashboard-administrador.md) |
+| [14-asignacion-equipos-institucionales.md](14-asignacion-equipos-institucionales.md) | Asignación de equipos institucionales por dependencia | **Implementado** — ejecución en [`planes/asignacion-equipos-institucionales.md`](planes/asignacion-equipos-institucionales.md) |
+| [15-vigencia-asignacion-equipos-institucionales.md](15-vigencia-asignacion-equipos-institucionales.md) | Inventario y vigencia de equipos institucionales | **Implementado** — ejecución en [`planes/vigencia-asignacion-equipos-institucionales.md`](planes/vigencia-asignacion-equipos-institucionales.md) |
+| [16-personal-externo-y-vigilante.md](16-personal-externo-y-vigilante.md) | Personal externo (VisitaExterno) y vigilante | **Implementado** — ejecución en [`planes/personal-externo-y-vigilante.md`](planes/personal-externo-y-vigilante.md) |
 | [walkthrough.md](walkthrough.md) | Walkthrough de implementación | Completado |
 
 ---
@@ -69,6 +72,10 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/seed-mvp-presentacion.md](planes/seed-mvp-presentacion.md) | Completado | Seed MVP presentación (`seed_data`) |
 | [planes/modulo-reportes-excel.md](planes/modulo-reportes-excel.md) | Completado | App reportes: 5 XLSX con xlsxwriter, permisos y auditoría |
 | [planes/dashboard-administrador.md](planes/dashboard-administrador.md) | **Completado** | Dashboard admin: KPIs, Chart.js, HTMX, caché |
+| [planes/asignacion-equipos-institucionales.md](planes/asignacion-equipos-institucionales.md) | **Completado** | Asignación institucional por Facultad/Programa/Área + badge kiosco |
+| [planes/vigencia-asignacion-equipos-institucionales.md](planes/vigencia-asignacion-equipos-institucionales.md) | **Completado** | Inventario sin persona + asignación con vigencia + cierre auto |
+| [planes/personal-externo-y-vigilante.md](planes/personal-externo-y-vigilante.md) | **Completado** | Personal externo + visitas + vigilante + badges kiosco |
+| [planes/area-post-registro-gestor.md](planes/area-post-registro-gestor.md) | **Completado** | Gestor se registra sin área; admin la asigna en panel |
 
 ---
 

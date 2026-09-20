@@ -329,6 +329,36 @@ class FiltroTipoAlerta:
         return {"tipo_alerta": self.resultados}
 
 
+@dataclass
+class FiltroMotivoAlerta:
+    """Filtra movimientos alerta por motivo_alerta tipificado (doc 15)."""
+
+    motivos: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_data(cls, data):
+        vals = data.getlist("motivo_alerta") if hasattr(data, "getlist") else data.get("motivo_alerta")
+        if not vals:
+            return cls(motivos=[])
+        if isinstance(vals, str):
+            vals = [v.strip() for v in vals.split(",") if v.strip()]
+        else:
+            vals = [str(v).strip() for v in vals if str(v).strip()]
+        permitidos = {c for c, _ in Movimiento.OPCIONES_MOTIVO_ALERTA}
+        for v in vals:
+            if v not in permitidos:
+                raise FiltroError(f"Motivo de alerta inválido: {v}")
+        return cls(motivos=vals)
+
+    def aplicar(self, qs: QuerySet) -> QuerySet:
+        if self.motivos:
+            qs = qs.filter(motivo_alerta__in=self.motivos)
+        return qs
+
+    def como_dict(self) -> dict:
+        return {"motivo_alerta": self.motivos}
+
+
 def fusionar_filtros(*filtros) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for f in filtros:

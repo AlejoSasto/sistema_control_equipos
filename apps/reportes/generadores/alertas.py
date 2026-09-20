@@ -12,6 +12,7 @@ from reportes.filtros import (
     FiltroFecha,
     FiltroSede,
     FiltroTipoAlerta,
+    FiltroMotivoAlerta,
     acotar_por_alcance,
     fusionar_filtros,
 )
@@ -34,6 +35,7 @@ def queryset_alertas(user, data):
     f_fecha = FiltroFecha.from_data(data, obligatorio=True)
     f_sede = FiltroSede.from_data(data, lookup="equipo__persona__sede_id")
     f_alerta = FiltroTipoAlerta.from_data(data)
+    f_motivo = FiltroMotivoAlerta.from_data(data)
 
     qs = Movimiento.objects.filter(
         ~Q(resultado=Movimiento.RESULTADO_OK)
@@ -45,8 +47,9 @@ def queryset_alertas(user, data):
     qs = f_fecha.aplicar(qs, campo="timestamp")
     qs = f_sede.aplicar(qs)
     qs = f_alerta.aplicar(qs)
+    qs = f_motivo.aplicar(qs)
     qs = acotar_por_alcance(user, qs)
-    filtros = fusionar_filtros(f_fecha, f_sede, f_alerta)
+    filtros = fusionar_filtros(f_fecha, f_sede, f_alerta, f_motivo)
     return qs.order_by("timestamp"), filtros
 
 
@@ -71,6 +74,7 @@ def generar(user, data) -> ResultadoReporte:
         "Serial",
         "Sede",
         "Resultado",
+        "Motivo alerta",
         "Celador",
         "Observación",
     ]
@@ -94,6 +98,7 @@ def generar(user, data) -> ResultadoReporte:
                 serial,
                 sede_nom,
                 RESULTADO_LABEL.get(m.resultado, m.resultado),
+                m.get_motivo_alerta_display() if m.motivo_alerta else "",
                 m.usuario_control.get_username() if m.usuario_control_id else "",
                 m.observacion or "",
             ]
@@ -113,6 +118,7 @@ def generar(user, data) -> ResultadoReporte:
             "texto",
             "celda",
             "texto",
+            "celda",
             "celda",
             "celda",
             "celda",

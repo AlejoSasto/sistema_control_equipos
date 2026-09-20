@@ -4,6 +4,9 @@
 {% block page_title %}Gestión de Personas{% endblock %}
 
 {% block topbar_actions %}
+<a href="{% url 'panel:vigilante_create' %}" class="btn btn-secondary">
+  <span>Alta vigilante</span>
+</a>
 <a href="{% url 'panel:persona_create' %}" class="btn btn-primary">
   <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
@@ -54,6 +57,13 @@
         <option value="inactivo" {% if estado_filtro == 'inactivo' %}selected{% endif %}>Inactivo</option>
       </select>
     </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_sin_area">Área (gestores)</label>
+      <select name="sin_area" id="filter_sin_area" class="form-select">
+        <option value="">Todas</option>
+        <option value="1" {% if sin_area_filtro == '1' %}selected{% endif %}>Sin área asignada</option>
+      </select>
+    </div>
     <button type="submit" class="btn btn-primary">Filtrar</button>
   </form>
 </div>
@@ -72,7 +82,7 @@
           <th>Documento</th>
           <th>Nombre</th>
           <th>Vínculo</th>
-          <th>Sede / Programa</th>
+          <th>Sede / Unidad</th>
           <th>Equipos</th>
           <th>Estado</th>
           <th>Acciones</th>
@@ -86,7 +96,9 @@
           <td><span class="badge badge-info">{{ p.tipo_vinculo.nombre }}</span></td>
           <td>
             {{ p.sede.nombre }}
-            {% if p.programa %}<br><small style="color: var(--color-text-secondary);">{{ p.programa.nombre }}</small>{% endif %}
+            {% if p.programa %}<br><small style="color: var(--color-text-secondary);">{{ p.programa.nombre }}</small>
+            {% elif p.area %}<br><small style="color: var(--color-text-secondary);">{{ p.area.nombre }}</small>
+            {% elif p.es_administrativo %}<br><span class="badge badge-warning">Sin área</span>{% endif %}
           </td>
           <td><span class="badge badge-subtle">{{ p.equipos_count }}</span></td>
           <td>

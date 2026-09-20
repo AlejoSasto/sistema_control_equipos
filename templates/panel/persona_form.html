@@ -75,9 +75,9 @@
           </select>
         </div>
         <div class="form-group" id="grupo-area" style="display:none;">
-          <label class="form-label" for="area">Área / Dependencia *</label>
+          <label class="form-label" for="area">Área / Dependencia</label>
           <select name="area" id="area" class="form-select">
-            <option value="">-- Seleccionar --</option>
+            <option value="">-- Pendiente / Sin asignar --</option>
             {% for a in areas %}
             <option value="{{ a.id }}" {% if data.area == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }} — {{ a.nombre }}</option>
             {% endfor %}
@@ -150,7 +150,7 @@
     const esAdmin = opt && opt.dataset.codigo === codigoAdmin;
     grupoPrograma.style.display = esAdmin ? "none" : "";
     grupoArea.style.display = esAdmin ? "" : "none";
-    area.required = esAdmin;
+    area.required = false;
     if (esAdmin) programa.value = "";
     else area.value = "";
   }

@@ -110,4 +110,57 @@
       btn.innerHTML = show ? ICON_EYE : ICON_EYE_OFF;
     });
   });
+
+  /* Selects con filtro por escritura (Tom Select) */
+  function initSearchableSelect(el) {
+    if (!el || el.tagName !== "SELECT") return;
+    if (typeof TomSelect === "undefined") return;
+    if (el.hasAttribute("data-no-search")) return;
+    if (el.multiple) return;
+    if (el.tomselect) return;
+    if (el.options.length === 0) return;
+
+    new TomSelect(el, {
+      allowEmptyOption: true,
+      create: false,
+      maxOptions: null,
+      placeholder: el.getAttribute("data-placeholder") || "Escriba para buscar…",
+      plugins: ["dropdown_input"],
+      render: {
+        no_results: function () {
+          return '<div class="no-results">Sin coincidencias</div>';
+        },
+      },
+    });
+  }
+
+  function initSearchableSelects(root) {
+    root = root || document;
+    root.querySelectorAll("select").forEach(initSearchableSelect);
+  }
+
+  window.initSearchableSelects = initSearchableSelects;
+  initSearchableSelects(document);
+
+  document.body.addEventListener("htmx:beforeSwap", function (evt) {
+    var t = evt.detail && evt.detail.target;
+    if (!t) return;
+    if (t.tagName === "SELECT" && t.tomselect) {
+      t.tomselect.destroy();
+    } else {
+      t.querySelectorAll("select").forEach(function (sel) {
+        if (sel.tomselect) sel.tomselect.destroy();
+      });
+    }
+  });
+
+  document.body.addEventListener("htmx:afterSwap", function (evt) {
+    var t = evt.detail && evt.detail.target;
+    if (!t) return;
+    if (t.tagName === "SELECT") {
+      initSearchableSelect(t);
+    } else {
+      initSearchableSelects(t);
+    }
+  });
 })();

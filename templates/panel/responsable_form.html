@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if instancia %}Editar{% else %}Nuevo{% endif %} responsable{% endblock %}
+{% block page_title %}{% if instancia %}Editar{% else %}Nuevo{% endif %} responsable de dependencia{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+  <div class="card card-white">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label" for="usuario">Usuario: *</label>
+        <select name="usuario" id="usuario" class="form-select" required>
+          <option value="">-- Seleccione --</option>
+          {% for u in usuarios %}
+          <option value="{{ u.id }}" {% if instancia and instancia.usuario_id == u.id %}selected{% endif %}>
+            {{ u.username }}{% if u.email %} ({{ u.email }}){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="unidad_tipo">Tipo de unidad: *</label>
+        <select name="unidad_tipo" id="unidad_tipo" class="form-select" required>
+          {% for cod, nom in opciones_unidad_tipo %}
+          <option value="{{ cod }}" {% if instancia and instancia.unidad_tipo == cod %}selected{% endif %}>{{ nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" id="grupo-facultad">
+        <label class="form-label" for="unidad_facultad">Facultad</label>
+        <select id="unidad_facultad" class="form-select js-unidad-select" data-tipo="facultad">
+          <option value="">-- Seleccione --</option>
+          {% for f in facultades %}
+          <option value="{{ f.id }}" {% if instancia and instancia.unidad_tipo == 'facultad' and instancia.unidad_id == f.id %}selected{% endif %}>
+            {{ f.nombre }} ({{ f.codigo }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" id="grupo-programa">
+        <label class="form-label" for="unidad_programa">Programa</label>
+        <select id="unidad_programa" class="form-select js-unidad-select" data-tipo="programa">
+          <option value="">-- Seleccione --</option>
+          {% for p in programas %}
+          <option value="{{ p.id }}" {% if instancia and instancia.unidad_tipo == 'programa' and instancia.unidad_id == p.id %}selected{% endif %}>
+            {{ p.nombre }} ({{ p.codigo }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" id="grupo-area">
+        <label class="form-label" for="unidad_area">Área</label>
+        <select id="unidad_area" class="form-select js-unidad-select" data-tipo="area">
+          <option value="">-- Seleccione --</option>
+          {% for a in areas %}
+          <option value="{{ a.id }}" {% if instancia and instancia.unidad_tipo == 'area' and instancia.unidad_id == a.id %}selected{% endif %}>
+            {{ a.codigo }} — {{ a.nombre }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <input type="hidden" name="unidad_id" id="unidad_id" value="{% if instancia %}{{ instancia.unidad_id }}{% endif %}">
+
+      <div class="form-group">
+        <label class="form-label" for="activo">Estado</label>
+        <select name="activo" id="activo" class="form-select">
+          <option value="1" {% if not instancia or instancia.activo %}selected{% endif %}>Activo</option>
+          <option value="0" {% if instancia and not instancia.activo %}selected{% endif %}>Inactivo</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2);">
+        <a href="{% url 'panel:responsables_list' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function() {
+  const tipo = document.getElementById("unidad_tipo");
+  const hidden = document.getElementById("unidad_id");
+  const grupos = {
+    facultad: document.getElementById("grupo-facultad"),
+    programa: document.getElementById("grupo-programa"),
+    area: document.getElementById("grupo-area"),
+  };
+  function sync() {
+    const t = tipo.value;
+    Object.keys(grupos).forEach(function(k) {
+      grupos[k].style.display = k === t ? "" : "none";
+    });
+    const sel = grupos[t] && grupos[t].querySelector("select");
+    if (sel) hidden.value = sel.value || "";
+  }
+  document.querySelectorAll(".js-unidad-select").forEach(function(sel) {
+    sel.addEventListener("change", function() {
+      if (sel.dataset.tipo === tipo.value) hidden.value = sel.value;
+    });
+  });
+  tipo.addEventListener("change", sync);
+  sync();
+})();
+</script>
+{% endblock %}

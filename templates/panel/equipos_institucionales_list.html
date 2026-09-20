@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Equipos institucionales{% endblock %}
+{% block page_title %}Equipos institucionales{% endblock %}
+
+{% block topbar_actions %}
+{% if puede_inventario %}
+<a href="{% url 'panel:equipos_inventario_nuevo' %}" class="btn btn-secondary">Alta inventario</a>
+{% endif %}
+{% if puede_asignar %}
+<a href="{% url 'panel:equipos_asignar_institucional' %}" class="btn btn-primary">Asignar</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="margin-bottom: var(--space-4);">
+  <form method="get" class="filters-grid filters-grid--3 js-filter-form">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_q">Buscar</label>
+      <input type="text" name="q" id="filter_q" value="{{ query }}" class="form-control" placeholder="Serial, marca o titular">
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_est">Inventario</label>
+      <select name="estado" id="filter_est" class="form-select">
+        <option value="">Todos</option>
+        <option value="disponible" {% if filtro_estado == 'disponible' %}selected{% endif %}>Disponible</option>
+        <option value="asignado" {% if filtro_estado == 'asignado' %}selected{% endif %}>Asignado</option>
+        <option value="de_baja" {% if filtro_estado == 'de_baja' %}selected{% endif %}>De baja</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label class="form-label" for="filter_vig">Vigencia</label>
+      <select name="vigencia" id="filter_vig" class="form-select">
+        <option value="">Todas</option>
+        <option value="vigente" {% if filtro_vigencia == 'vigente' %}selected{% endif %}>Vigente</option>
+        <option value="por_vencer" {% if filtro_vigencia == 'por_vencer' %}selected{% endif %}>Por vencer (15 días)</option>
+        <option value="vencida" {% if filtro_vigencia == 'vencida' %}selected{% endif %}>Vencida</option>
+        <option value="disponible" {% if filtro_vigencia == 'disponible' %}selected{% endif %}>Disponible</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filtrar</button>
+  </form>
+</div>
+
+<div class="card card-white">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Equipo</th>
+          <th>Serial</th>
+          <th>Titular</th>
+          <th>Unidad</th>
+          <th>Vigencia</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in filas %}
+        <tr>
+          <td>{{ fila.equipo.marca }} {{ fila.equipo.modelo }}</td>
+          <td><code>{{ fila.equipo.serial }}</code></td>
+          <td>{% if fila.equipo.persona %}{{ fila.equipo.persona.nombre_completo }}{% else %}—{% endif %}</td>
+          <td><span class="badge badge-info">{{ fila.unidad_nombre }}</span></td>
+          <td style="font-size: 0.8125rem;">
+            {% if fila.asignacion %}
+            {{ fila.asignacion.fecha_inicio }} → {{ fila.asignacion.fecha_fin }}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+          <td>
+            {% if fila.estado == 'de_baja' or fila.estado == 'inactivo' %}
+            <span class="badge badge-danger">De baja</span>
+            {% elif fila.estado == 'disponible' %}
+            <span class="badge badge-subtle">Disponible</span>
+            {% elif fila.estado == 'vencida' %}
+            <span class="badge badge-danger">Vencida</span>
+            {% elif fila.estado == 'por_vencer' %}
+            <span class="badge badge-warning">Por vencer</span>
+            {% elif fila.estado == 'no_vigente' %}
+            <span class="badge badge-subtle">Aún no vigente</span>
+            {% elif fila.estado == 'vigente' %}
+            <span class="badge badge-success">Vigente</span>
+            {% else %}
+            <span class="badge badge-subtle">{{ fila.estado }}</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            {% if fila.puede_gestionar and fila.equipo.activo and fila.equipo.estado_inventario != 'de_baja' %}
+              {% if fila.estado == 'disponible' and fila.puede_asignar %}
+              <a href="{% url 'panel:equipos_asignar_institucional' %}?equipo={{ fila.equipo.pk }}&unidad={{ fila.equipo.unidad_tipo }}:{{ fila.equipo.unidad_id }}" class="btn btn-primary btn-sm">Asignar</a>
+              {% endif %}
+              {% if fila.asignacion and fila.puede_asignar %}
+              <a href="{% url 'panel:equipo_renovar' fila.equipo.pk %}" class="btn btn-primary btn-sm">Renovar</a>
+              <a href="{% url 'panel:equipo_reasignar' fila.equipo.pk %}" class="btn btn-secondary btn-sm">Reasignar</a>
+              <form method="post" action="{% url 'panel:equipo_devolver' fila.equipo.pk %}" style="display: inline;"
+                onsubmit="return confirm('¿Devolver este equipo al inventario?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary btn-sm">Devolver</button>
+              </form>
+              {% endif %}
+              <form method="post" action="{% url 'panel:equipo_dar_de_baja' fila.equipo.pk %}" style="display: inline;"
+                onsubmit="return confirm('¿Dar de baja este equipo institucional?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">Dar de baja</button>
+              </form>
+            {% endif %}
+            <a href="{% url 'equipos:equipo_detail' fila.equipo.pk %}" class="btn btn-secondary btn-sm">Ficha</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--color-text-secondary); padding: var(--space-5);">
+            No hay equipos institucionales en su alcance.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_pagination.html" with page_obj=page_obj %}
+</div>
+{% endblock %}

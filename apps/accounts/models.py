@@ -25,7 +25,7 @@ class Rol(models.Model):
     nombre = models.CharField(
         max_length=50,
         unique=True,
-        help_text="Nombre del rol (ej. miembro_comunidad, celador, admin_sistema)",
+        help_text="Nombre del rol (ej. miembro_comunidad, vigilante, admin_sistema)",
     )
     descripcion = models.CharField(max_length=255, null=True, blank=True)
     permisos = models.ManyToManyField(
@@ -108,7 +108,12 @@ class Usuario(AbstractUser):
 
     @property
     def es_celador(self) -> bool:
+        """Alias legado: quien tiene permiso de escaneo en portería."""
         return self.tiene_permiso("control.escanear")
+
+    @property
+    def es_vigilante(self) -> bool:
+        return self.es_celador
 
     @property
     def es_admin(self) -> bool:
@@ -122,8 +127,23 @@ class Usuario(AbstractUser):
                 "permisos.ver",
                 "reportes.ver",
                 "reportes.exportar",
+                "equipos.asignar_institucional",
+                "equipos.inventario_institucional",
+                "equipos.gestionar_responsables",
             )
         )
+
+    @property
+    def puede_asignar_institucional(self) -> bool:
+        return self.is_superuser or self.tiene_permiso("equipos.asignar_institucional")
+
+    @property
+    def puede_inventario_institucional(self) -> bool:
+        return self.is_superuser or self.tiene_permiso("equipos.inventario_institucional")
+
+    @property
+    def puede_gestionar_responsables(self) -> bool:
+        return self.is_superuser or self.tiene_permiso("equipos.gestionar_responsables")
 
     @property
     def puede_administrar_personas(self) -> bool:

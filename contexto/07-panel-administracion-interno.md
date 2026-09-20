@@ -54,7 +54,7 @@ El permiso genérico `usuarios.administrar` definido en `01` se separa en permis
 6. **Todo cambio de rol o de permisos de un rol debe quedar registrado** (quién hizo el cambio, cuándo, qué cambió) — mínimo como texto plano en un log, idealmente en la tabla `auditoria_cambio` ya sugerida como mejora futura en `02`.
 7. **Las facultades son transversales** — no dependen de una sede. Se gestionan como catálogo independiente.
 8. **Un programa académico requiere sede y facultad** — representa la oferta de una carrera en una sede concreta bajo una facultad.
-9. **Persona administrativa:** sede obligatoria + área/dependencia obligatoria; **sin programa**.
+9. **Persona administrativa:** sede obligatoria + área/dependencia **opcional** (puede quedar pendiente tras autorregistro; la asigna quien tenga `personas.administrar`); **sin programa**.
 10. **Persona académica** (docente, estudiante, egresado): sede obligatoria + programa opcional según perfil; **sin área**.
 11. **Equipo institucional** (de dependencia) requiere indicar el **Área** que lo asigna al responsable.
 
@@ -127,5 +127,5 @@ Se inserta como **Fase 3.5 — Panel de administración interno**, después de l
 - [ ] Los permisos no se pueden crear ni editar desde el panel, solo consultar.
 - [ ] CRUD de áreas/dependencias funcional desde `/panel/organizacion/`.
 - [ ] Facultades se crean sin sede; programas exigen sede + facultad.
-- [ ] Persona administrativa: validación sede + área, sin programa.
+- [ ] Persona administrativa: validación sede + área opcional, sin programa.
 - [ ] Equipo institucional: validación de dependencia (Área) obligatoria al registrar.

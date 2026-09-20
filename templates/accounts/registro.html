@@ -83,11 +83,12 @@
       <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label" for="id_tipo_vinculo">Tipo de Vínculo: *</label>
-          <select name="tipo_vinculo" id="id_tipo_vinculo" class="form-select" required onchange="actualizarAyudaCorreo()">
+          <select name="tipo_vinculo" id="id_tipo_vinculo" class="form-select" required onchange="actualizarAyudaCorreo(); actualizarCamposPorVinculo();">
             <option value="">-- Seleccionar --</option>
             {% for tv in tipos_vinculo %}
             <option value="{{ tv.id }}"
                     data-dominio="{{ tv.dominio_correo_requerido|default:'' }}"
+                    data-codigo="{{ tv.codigo }}"
                     {% if form_data.tipo_vinculo == tv.id|stringformat:'s' %}selected{% endif %}>
               {{ tv.nombre }}
             </option>
@@ -96,7 +97,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="id_correo">Correo Institucional: *</label>
+          <label class="form-label" for="id_correo">Correo electrónico: *</label>
           <input type="email"
                  name="correo"
                  id="id_correo"
@@ -108,10 +109,48 @@
         </div>
       </div>
 
-      <!-- Sede y Programa -->
+      <!-- Campos solo personal externo -->
+      <div id="grupo_visita_externo" hidden>
+        <div class="form-group" style="margin-bottom: var(--space-3);">
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); margin: 0;">
+            Indique la sede y dependencia que visita, y la vigencia prevista de esta llegada.
+          </p>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="id_unidad_tipo">Tipo de dependencia: *</label>
+            <select name="unidad_tipo" id="id_unidad_tipo" class="form-select" onchange="actualizarUnidadesExternas()">
+              <option value="">-- Seleccionar --</option>
+              <option value="facultad" {% if form_data.unidad_tipo == 'facultad' %}selected{% endif %}>Facultad</option>
+              <option value="programa" {% if form_data.unidad_tipo == 'programa' %}selected{% endif %}>Programa</option>
+              <option value="area" {% if form_data.unidad_tipo == 'area' %}selected{% endif %}>Área / Dependencia</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="id_unidad_id">Dependencia destino: *</label>
+            <select name="unidad_id" id="id_unidad_id" class="form-select">
+              <option value="">-- Seleccionar --</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="id_fecha_inicio">Inicio de visita: *</label>
+            <input type="date" name="fecha_inicio" id="id_fecha_inicio" class="form-control"
+                   value="{{ form_data.fecha_inicio|default:'' }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="id_fecha_fin">Fin de visita: *</label>
+            <input type="date" name="fecha_fin" id="id_fecha_fin" class="form-control"
+                   value="{{ form_data.fecha_fin|default:'' }}">
+          </div>
+        </div>
+      </div>
+
+      <!-- Sede / Programa o Área según vínculo -->
       <div class="form-grid-2">
         <div class="form-group">
-          <label class="form-label" for="id_sede">Sede Asignada: *</label>
+          <label class="form-label" for="id_sede" id="label_sede">Sede Asignada: *</label>
           <select name="sede" id="id_sede" class="form-select" required>
             <option value="">-- Seleccionar Sede --</option>
             {% for s in sedes %}
@@ -122,7 +161,7 @@
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="grupo_programa">
           <label class="form-label" for="id_programa">Programa Académico:</label>
           <select name="programa" id="id_programa" class="form-select">
             <option value="">-- Opcional (N/A) --</option>
@@ -202,17 +241,74 @@
 </div>
 
 <script>
+  const FACULTADES = [
+    {% for f in facultades %}{id: "{{ f.id }}", nombre: "{{ f.nombre|escapejs }}"},{% endfor %}
+  ];
+  const PROGRAMAS = [
+    {% for p in programas %}{id: "{{ p.id }}", nombre: "{{ p.nombre|escapejs }}", sede: "{{ p.sede_id }}"},{% endfor %}
+  ];
+  const AREAS = [
+    {% for a in areas %}{id: "{{ a.id }}", nombre: "{{ a.codigo }} — {{ a.nombre|escapejs }}"},{% endfor %}
+  ];
+  const CODIGO_EXTERNO = "{{ codigo_vinculo_externo|default:'personal_externo' }}";
+  const UNIDAD_PRESEL = "{{ form_data.unidad_id|default:'' }}";
+
   function actualizarAyudaCorreo() {
     const select = document.getElementById('id_tipo_vinculo');
     const helpDiv = document.getElementById('correo-help');
+    const correo = document.getElementById('id_correo');
     if (!select || !helpDiv) return;
     const selectedOption = select.options[select.selectedIndex];
     const dominio = selectedOption.getAttribute('data-dominio');
     if (dominio) {
       helpDiv.textContent = 'Requiere dominio institucional: ' + dominio;
+      if (correo) correo.placeholder = 'usuario' + dominio;
     } else {
-      helpDiv.textContent = '';
+      helpDiv.textContent = 'Puede usar cualquier correo válido (no requiere dominio institucional).';
+      if (correo) correo.placeholder = 'correo@ejemplo.com';
     }
+  }
+  function actualizarUnidadesExternas() {
+    const tipo = document.getElementById('id_unidad_tipo')?.value;
+    const sel = document.getElementById('id_unidad_id');
+    const sedeId = document.getElementById('id_sede')?.value;
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+    let items = [];
+    if (tipo === 'facultad') items = FACULTADES;
+    else if (tipo === 'programa') items = PROGRAMAS.filter(p => !sedeId || p.sede === sedeId);
+    else if (tipo === 'area') items = AREAS;
+    items.forEach(it => {
+      const opt = document.createElement('option');
+      opt.value = it.id;
+      opt.textContent = it.nombre;
+      if (UNIDAD_PRESEL && String(it.id) === String(UNIDAD_PRESEL)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  function actualizarCamposPorVinculo() {
+    const select = document.getElementById('id_tipo_vinculo');
+    const grupoProg = document.getElementById('grupo_programa');
+    const grupoVisita = document.getElementById('grupo_visita_externo');
+    const programa = document.getElementById('id_programa');
+    const labelSede = document.getElementById('label_sede');
+    if (!select || !grupoProg) return;
+    const codigo = select.options[select.selectedIndex]?.getAttribute('data-codigo') || '';
+    const esAdmin = codigo === 'gestor_administrativo';
+    const esExterno = codigo === CODIGO_EXTERNO;
+    grupoProg.hidden = esAdmin || esExterno;
+    if (grupoVisita) grupoVisita.hidden = !esExterno;
+    if (labelSede) labelSede.textContent = esExterno ? 'Sede destino: *' : 'Sede Asignada: *';
+    if (programa) {
+      programa.required = false;
+      if (esAdmin || esExterno) programa.value = '';
+    }
+    const ut = document.getElementById('id_unidad_tipo');
+    const ui = document.getElementById('id_unidad_id');
+    const fi = document.getElementById('id_fecha_inicio');
+    const ff = document.getElementById('id_fecha_fin');
+    [ut, ui, fi, ff].forEach(el => { if (el) el.required = esExterno; });
+    if (esExterno) actualizarUnidadesExternas();
   }
   function filtrarProgramasPorSede() {
     const sede = document.getElementById('id_sede');
@@ -224,10 +320,12 @@
       opt.hidden = sedeId && opt.dataset.sede !== sedeId;
     });
     if (programa.selectedOptions[0]?.hidden) programa.value = '';
+    actualizarUnidadesExternas();
   }
   document.getElementById('id_sede')?.addEventListener('change', filtrarProgramasPorSede);
   document.addEventListener('DOMContentLoaded', function() {
     actualizarAyudaCorreo();
+    actualizarCamposPorVinculo();
     filtrarProgramasPorSede();
   });
 </script>

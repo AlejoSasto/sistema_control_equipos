@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Alta de vigilante — Panel{% endblock %}
+{% block page_title %}Alta de vigilante{% endblock %}
+
+{% block content %}
+<div class="card card-white" style="max-width: 640px; padding: var(--space-4);">
+  <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-4);">
+    Alta interna: crea Persona + Usuario con vínculo Vigilante, una sola sede y correo libre (sin dominio institucional).
+    No aparece en el autorregistro público.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="id_nombres">Nombres: *</label>
+        <input type="text" name="nombres" id="id_nombres" class="form-control" required
+               value="{{ data.nombres|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_apellidos">Apellidos: *</label>
+        <input type="text" name="apellidos" id="id_apellidos" class="form-control" required
+               value="{{ data.apellidos|default:'' }}">
+      </div>
+    </div>
+    <div class="form-grid-1-2">
+      <div class="form-group">
+        <label class="form-label" for="id_tipo_documento">Tipo Doc: *</label>
+        <select name="tipo_documento" id="id_tipo_documento" class="form-select">
+          <option value="CC" {% if data.tipo_documento == 'CC' or not data.tipo_documento %}selected{% endif %}>CC</option>
+          <option value="CE" {% if data.tipo_documento == 'CE' %}selected{% endif %}>CE</option>
+          <option value="TI" {% if data.tipo_documento == 'TI' %}selected{% endif %}>TI</option>
+          <option value="PAS" {% if data.tipo_documento == 'PAS' %}selected{% endif %}>PAS</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_numero_documento">Documento: *</label>
+        <input type="text" name="numero_documento" id="id_numero_documento" class="form-control" required
+               value="{{ data.numero_documento|default:'' }}" style="font-family: var(--font-mono);">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="id_sede">Sede de portería: *</label>
+      <select name="sede" id="id_sede" class="form-select" required>
+        <option value="">-- Seleccionar --</option>
+        {% for s in sedes %}
+        <option value="{{ s.id }}" {% if data.sede == s.id|stringformat:'s' %}selected{% endif %}>
+          {{ s.nombre }} ({{ s.codigo }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="id_correo">Correo: *</label>
+      <input type="email" name="correo" id="id_correo" class="form-control" required
+             placeholder="vigilante@ejemplo.com" value="{{ data.correo|default:'' }}">
+      <div style="font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 4px;">
+        Cualquier correo válido; no se exige dominio institucional.
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="id_password">Contraseña: *</label>
+        <input type="password" name="password" id="id_password" class="form-control" required minlength="8" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="id_password_confirm">Confirmar: *</label>
+        <input type="password" name="password_confirm" id="id_password_confirm" class="form-control" required minlength="8" autocomplete="new-password">
+      </div>
+    </div>
+    <div style="display: flex; gap: var(--space-2); margin-top: var(--space-4);">
+      <button type="submit" class="btn btn-primary">Crear vigilante</button>
+      <a href="{% url 'panel:personas_list' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

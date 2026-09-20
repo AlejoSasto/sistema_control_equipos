@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Responsables de dependencia{% endblock %}
+{% block page_title %}Responsables de dependencia{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'panel:responsable_create' %}" class="btn btn-primary">Nuevo responsable</a>
+{% endblock %}
+
+{% block content %}
+<div class="card card-white">
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Tipo</th>
+          <th>Unidad</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ item.fila.usuario.username }}</td>
+          <td>{{ item.fila.get_unidad_tipo_display }}</td>
+          <td>{{ item.unidad_nombre }}</td>
+          <td>
+            {% if item.fila.activo %}
+            <span class="badge badge-success">Activo</span>
+            {% else %}
+            <span class="badge badge-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td style="text-align: right; white-space: nowrap;">
+            <a href="{% url 'panel:responsable_edit' item.fila.pk %}" class="btn btn-secondary btn-sm">Editar</a>
+            <form method="post" action="{% url 'panel:responsable_toggle' item.fila.pk %}" style="display: inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-secondary btn-sm">
+                {% if item.fila.activo %}Desactivar{% else %}Activar{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--color-text-secondary); padding: var(--space-5);">
+            Aún no hay responsables designados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "components/_pagination.html" with page_obj=page_obj %}
+</div>
+{% endblock %}

@@ -11,6 +11,7 @@
     dona: null,
     sedes: null,
     top_alertas: null,
+    motivos_alerta: null,
   };
 
   var COLOR_PRIMARY = "#007B3E";
@@ -38,15 +39,14 @@
 
   function setEmpty(name, isEmpty) {
     var emptyEl = document.querySelector('.js-chart-empty[data-chart="' + name + '"]');
-    var canvasId =
-      name === "linea"
-        ? "chart-linea"
-        : name === "dona"
-          ? "chart-dona"
-          : name === "sedes"
-            ? "chart-sedes"
-            : "chart-top-alertas";
-    var canvas = document.getElementById(canvasId);
+    var canvasIds = {
+      linea: "chart-linea",
+      dona: "chart-dona",
+      sedes: "chart-sedes",
+      top_alertas: "chart-top-alertas",
+      motivos_alerta: "chart-motivos-alerta",
+    };
+    var canvas = document.getElementById(canvasIds[name] || "");
     if (emptyEl) emptyEl.hidden = !isEmpty;
     if (canvas) canvas.style.display = isEmpty ? "none" : "block";
   }
@@ -79,6 +79,7 @@
     setEmpty("dona", !!(data.dona && data.dona.vacio));
     setEmpty("sedes", !!(data.sedes && data.sedes.vacio));
     setEmpty("top_alertas", !!(data.top_alertas && data.top_alertas.vacio));
+    setEmpty("motivos_alerta", !!(data.motivos_alerta && data.motivos_alerta.vacio));
 
     var elLinea = document.getElementById("chart-linea");
     if (elLinea && data.linea && !data.linea.vacio) {
@@ -184,6 +185,31 @@
         }),
       });
     }
+
+    var elMotivos = document.getElementById("chart-motivos-alerta");
+    if (elMotivos && data.motivos_alerta && !data.motivos_alerta.vacio) {
+      charts.motivos_alerta = new Chart(elMotivos, {
+        type: "bar",
+        data: {
+          labels: data.motivos_alerta.labels,
+          datasets: [
+            {
+              label: "Alertas",
+              data: data.motivos_alerta.values,
+              backgroundColor: COLOR_DANGER,
+            },
+          ],
+        },
+        options: Object.assign({}, baseOptions, {
+          indexAxis: "y",
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: axisTicks() },
+            y: { ticks: axisTicks() },
+          },
+        }),
+      });
+    }
   }
 
   function loadCharts() {
@@ -200,6 +226,7 @@
         setEmpty("dona", true);
         setEmpty("sedes", true);
         setEmpty("top_alertas", true);
+        setEmpty("motivos_alerta", true);
       });
   }
 

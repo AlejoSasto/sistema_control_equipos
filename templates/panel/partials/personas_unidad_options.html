@@ -1,0 +1,8 @@
+<option value="">-- Seleccione persona --</option>
+{% for p in personas %}
+<option value="{{ p.id }}">
+  {{ p.nombre_completo }} — {{ p.tipo_documento }} {{ p.numero_documento }}
+</option>
+{% empty %}
+<option value="" disabled>No hay personas en esta unidad</option>
+{% endfor %}

@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Asignar equipo institucional{% endblock %}
+{% block page_title %}Asignar equipo institucional{% endblock %}
+
+{% block content %}
+<div style="max-width: 760px; margin: 0 auto;">
+  <div class="card card-white">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Asignar desde inventario</h2>
+        <p class="card-subtitle">
+          Elija un equipo <strong>disponible</strong> de su unidad y una persona con fechas de vigencia.
+        </p>
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label" for="unidad">Unidad: *</label>
+        <select name="unidad" id="unidad" class="form-select" required
+          onchange="this.form.method='get'; this.form.submit();">
+          <option value="">-- Seleccione unidad --</option>
+          {% for u in unidades %}
+          <option value="{{ u.clave }}" {% if unidad_clave == u.clave %}selected{% endif %}>
+            {{ u.tipo|title }} — {{ u.etiqueta }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="equipo">Equipo disponible: *</label>
+        <select name="equipo" id="equipo" class="form-select" required data-tom-select>
+          <option value="">-- Seleccione equipo --</option>
+          {% for e in equipos_disponibles %}
+          <option value="{{ e.pk }}" {% if equipo_pre == e.pk|stringformat:'s' %}selected{% endif %}>
+            {{ e.marca }} {{ e.modelo }} — {{ e.serial }}
+          </option>
+          {% empty %}
+          {% endfor %}
+        </select>
+        {% if unidad_clave and not equipos_disponibles %}
+        <small style="color: var(--color-text-secondary);">
+          No hay equipos disponibles.
+          <a href="{% url 'panel:equipos_inventario_nuevo' %}?unidad={{ unidad_clave }}">Dar de alta uno</a>.
+        </small>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="filtro_persona">Buscar persona (documento o nombre)</label>
+        <input type="text" id="filtro_persona" name="q" class="form-control" placeholder="Documento o nombre"
+          hx-get="{% url 'panel:equipos_buscar_personas' %}"
+          hx-trigger="keyup changed delay:300ms"
+          hx-target="#persona"
+          hx-include="#unidad">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="persona">Persona destino: *</label>
+        <select name="persona" id="persona" class="form-select" required>
+          {% include 'panel/partials/personas_unidad_options.html' %}
+        </select>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="fecha_inicio">Fecha inicio: *</label>
+          <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" required value="{{ fecha_inicio }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fecha_fin">Fecha fin: *</label>
+          <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" required value="{{ fecha_fin }}">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4);">
+        <a href="{% url 'panel:equipos_institucionales' %}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Asignar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function() {
+  var persona = document.getElementById("persona");
+  var inicio = document.getElementById("fecha_inicio");
+  var fin = document.getElementById("fecha_fin");
+  var url = "{% url 'panel:equipos_sugerir_fecha_fin' %}";
+  function sugerir() {
+    if (!persona.value || !inicio.value) return;
+    fetch(url + "?persona=" + encodeURIComponent(persona.value) + "&fecha_inicio=" + encodeURIComponent(inicio.value))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.fecha_fin) fin.value = data.fecha_fin;
+      })
+      .catch(function() {});
+  }
+  persona.addEventListener("change", sugerir);
+  inicio.addEventListener("change", sugerir);
+})();
+</script>
+{% endblock %}

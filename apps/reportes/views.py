@@ -35,6 +35,7 @@ def _catalogos_contexto():
             (Movimiento.RESULTADO_ALERTA, "Alerta de seguridad"),
             (Movimiento.RESULTADO_NO_ENCONTRADO, "No encontrado"),
         ],
+        "opciones_motivo_alerta": Movimiento.OPCIONES_MOTIVO_ALERTA,
         "celadores": Usuario.objects.filter(
             roles__permisos__codigo="control.escanear",
             is_active=True,

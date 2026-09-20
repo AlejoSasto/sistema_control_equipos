@@ -10,6 +10,7 @@ from accounts.decorators import requiere_permiso
 from organizacion.models import Area
 from config.pagination import paginate_queryset
 from .models import Equipo
+from .services import asignacion_activa, nombre_unidad, vigencia_asignacion
 from personas.models import Persona
 
 
@@ -22,7 +23,6 @@ def mis_equipos(request):
     """
     persona = getattr(request.user, "persona", None)
     if not persona:
-        # Si el usuario es administrador sin ficha de persona, mostrar listado general
         if request.user.tiene_permiso("equipos.ver_todos"):
             return redirect("equipos:equipos_list")
         messages.warning(
@@ -33,9 +33,32 @@ def mis_equipos(request):
     else:
         equipos = Equipo.objects.filter(persona=persona, activo=True)
 
+    equipos_ctx = []
+    for e in equipos:
+        unidad_nombre = ""
+        vigencia = ""
+        if e.propiedad == Equipo.PROPIEDAD_INSTITUCIONAL:
+            from equipos.services import unidad_de_equipo
+
+            ut, uid = unidad_de_equipo(e)
+            unidad_nombre = nombre_unidad(ut, uid)
+            asig = asignacion_activa(e)
+            if asig:
+                vigencia = vigencia_asignacion(asig)
+            elif e.estado_inventario == Equipo.ESTADO_DISPONIBLE:
+                vigencia = "disponible"
+        equipos_ctx.append(
+            {
+                "equipo": e,
+                "unidad_nombre": unidad_nombre,
+                "vigencia": vigencia,
+            }
+        )
+
     context = {
         "persona": persona,
         "equipos": equipos,
+        "equipos_ctx": equipos_ctx,
     }
     return render(request, "equipos/mis_equipos.html", context)
 
@@ -119,12 +142,29 @@ def equipo_detail(request, pk):
 @login_required
 @requiere_permiso("equipos.registrar")
 def equipo_create(request):
-    """Vista para registrar equipos personales o institucionales."""
+    """Autoregistro de equipos personales únicamente (doc 14: R1/R5)."""
     persona_usuario = getattr(request.user, "persona", None)
+    es_admin_inventario = request.user.tiene_permiso("equipos.ver_todos")
+
+    # Los institucionales solo se crean desde el panel de asignación
+    if es_admin_inventario and request.method == "GET":
+        messages.info(
+            request,
+            "Los equipos institucionales se asignan desde el panel: "
+            "Asignar equipo institucional.",
+        )
 
     if request.method == "POST":
-        # Si es admin, puede elegir la persona; si no, es su propia persona
-        if request.user.tiene_permiso("equipos.ver_todos"):
+        propiedad = request.POST.get("propiedad", Equipo.PROPIEDAD_PERSONAL)
+        if propiedad == Equipo.PROPIEDAD_INSTITUCIONAL:
+            messages.error(
+                request,
+                "No puede registrar un equipo institucional desde este formulario. "
+                "Use la asignación por dependencia en el panel.",
+            )
+            return redirect("equipos:equipo_create")
+
+        if es_admin_inventario:
             persona_id = request.POST.get("persona")
             persona = get_object_or_404(Persona, id=persona_id)
         else:
@@ -137,62 +177,45 @@ def equipo_create(request):
         marca = request.POST.get("marca", "").strip()
         modelo = request.POST.get("modelo", "").strip()
         serial = request.POST.get("serial", "").strip()
-        propiedad = request.POST.get("propiedad", Equipo.PROPIEDAD_PERSONAL)
-        dependencia_id = request.POST.get("dependencia", "").strip()
 
         if not (marca and modelo and serial):
             messages.error(request, "Por favor diligencie todos los campos obligatorios.")
         elif Equipo.objects.filter(serial__iexact=serial).exists():
             messages.error(request, f"Ya existe un equipo registrado con el serial {serial}.")
-        elif propiedad == Equipo.PROPIEDAD_INSTITUCIONAL and not dependencia_id:
-            messages.error(request, "Debe seleccionar la dependencia que asigna el equipo institucional.")
         else:
-            dependencia = (
-                get_object_or_404(Area, id=dependencia_id, activo=True)
-                if propiedad == Equipo.PROPIEDAD_INSTITUCIONAL
-                else None
-            )
             equipo = Equipo(
                 persona=persona,
                 tipo=tipo,
                 marca=marca,
                 modelo=modelo,
                 serial=serial,
-                propiedad=propiedad,
-                dependencia=dependencia,
+                propiedad=Equipo.PROPIEDAD_PERSONAL,
                 activo=True,
             )
             try:
                 equipo.save()
             except ValidationError as exc:
-                for err in exc.message_dict.get("dependencia", exc.messages):
+                msgs = getattr(exc, "messages", None) or [str(exc)]
+                for err in msgs:
                     messages.error(request, err)
-                return render(
-                    request,
-                    "equipos/equipo_form.html",
-                    {
-                        "persona_usuario": persona_usuario,
-                        "personas": Persona.objects.filter(activo=True).select_related("sede")
-                        if request.user.tiene_permiso("equipos.ver_todos")
-                        else [],
-                        "tipos_equipo": Equipo.OPCIONES_TIPO,
-                        "propiedades": Equipo.OPCIONES_PROPIEDAD,
-                        "areas": Area.objects.filter(activo=True).order_by("nombre"),
-                        "es_admin": request.user.tiene_permiso("equipos.ver_todos"),
-                    },
-                )
-            messages.success(request, f"Equipo {marca} {modelo} registrado exitosamente.")
-            return redirect("equipos:equipo_detail", pk=equipo.pk)
+            else:
+                messages.success(request, f"Equipo {marca} {modelo} registrado exitosamente.")
+                return redirect("equipos:equipo_detail", pk=equipo.pk)
 
-    personas = Persona.objects.filter(activo=True).select_related("sede") if request.user.tiene_permiso("equipos.ver_todos") else []
+    personas = (
+        Persona.objects.filter(activo=True).select_related("sede")
+        if es_admin_inventario
+        else []
+    )
 
     context = {
         "persona_usuario": persona_usuario,
         "personas": personas,
         "tipos_equipo": Equipo.OPCIONES_TIPO,
-        "propiedades": Equipo.OPCIONES_PROPIEDAD,
-        "areas": Area.objects.filter(activo=True).order_by("nombre"),
-        "es_admin": request.user.tiene_permiso("equipos.ver_todos"),
+        "propiedades": [(Equipo.PROPIEDAD_PERSONAL, "Personal (Propiedad del Miembro)")],
+        "areas": [],
+        "es_admin": es_admin_inventario,
+        "solo_personal": True,
     }
     return render(request, "equipos/equipo_form.html", context)
 

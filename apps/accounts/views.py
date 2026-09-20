@@ -12,14 +12,21 @@ from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from django_otp import match_token
+from datetime import datetime
 import base64
 from io import BytesIO
 import qrcode
 
 from .models import Usuario, UsuarioRol
 from .decorators import requiere_permiso
-from personas.models import Persona, TipoVinculo
-from organizacion.models import Sede, Programa
+from personas.models import (
+    Persona,
+    TipoVinculo,
+    CODIGO_VINCULO_ADMINISTRATIVO,
+    CODIGO_VINCULO_EXTERNO,
+)
+from personas.services import registrar_visita, visita_activa, nombre_dependencia_visita
+from organizacion.models import Sede, Programa, Area, Decanatura
 from equipos.models import Equipo
 from control_acceso.models import Movimiento
 
@@ -75,11 +82,32 @@ class CustomLogoutView(LogoutView):
     next_page = reverse_lazy("accounts:login")
 
 
+def _contexto_registro(form_data=None):
+    return {
+        "tipos_vinculo": TipoVinculo.objects.filter(activo=True, permite_autoregistro=True).order_by("nombre"),
+        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
+        "programas": Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre"),
+        "areas": Area.objects.filter(activo=True).order_by("nombre"),
+        "facultades": Decanatura.objects.filter(activo=True).order_by("nombre"),
+        "form_data": form_data or {},
+        "contacto_arco": settings.DATOS_PERSONALES_CONTACTO,
+        "codigo_vinculo_externo": CODIGO_VINCULO_EXTERNO,
+        "codigo_vinculo_admin": CODIGO_VINCULO_ADMINISTRATIVO,
+    }
+
+
+def _parse_fecha(valor: str):
+    valor = (valor or "").strip()
+    if not valor:
+        return None
+    try:
+        return datetime.strptime(valor, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def registro_externo_view(request):
-    """
-    Vista pública de autorregistro para la comunidad académica (Documento 06).
-    Crea atómicamente la Persona, el Usuario y asigna el Rol definido en TipoVinculo.
-    """
+    """Autorregistro (docs 06 + 16). Personal externo crea también la primera VisitaExterno."""
     if request.user.is_authenticated:
         return redirect("accounts:mi_perfil")
 
@@ -95,6 +123,10 @@ def registro_externo_view(request):
         password = request.POST.get("password", "")
         password_confirm = request.POST.get("password_confirm", "")
         acepta_tratamiento = request.POST.get("acepta_tratamiento") in ("on", "true", "1")
+        unidad_tipo = request.POST.get("unidad_tipo", "").strip()
+        unidad_id = request.POST.get("unidad_id", "").strip()
+        fecha_inicio = _parse_fecha(request.POST.get("fecha_inicio", ""))
+        fecha_fin = _parse_fecha(request.POST.get("fecha_fin", ""))
 
         errors = []
 
@@ -116,14 +148,32 @@ def registro_externo_view(request):
             except ValidationError as exc:
                 errors.extend(exc.messages)
 
-        if numero_documento and Persona.objects.filter(numero_documento=numero_documento).exists():
-            errors.append(f"Ya existe una persona registrada con el documento de identidad {numero_documento}.")
+        if numero_documento:
+            persona_existente = (
+                Persona.objects.filter(numero_documento=numero_documento)
+                .select_related("tipo_vinculo")
+                .first()
+            )
+            if persona_existente:
+                if (
+                    persona_existente.tipo_vinculo
+                    and persona_existente.tipo_vinculo.codigo == CODIGO_VINCULO_EXTERNO
+                ):
+                    errors.append(
+                        "Ya tiene una cuenta como personal externo. Inicie sesión y use "
+                        "«Registrar nueva visita» para declarar esta llegada."
+                    )
+                else:
+                    errors.append(
+                        f"Ya existe una persona registrada con el documento de identidad {numero_documento}."
+                    )
 
         if correo:
             if Usuario.objects.filter(username__iexact=correo).exists() or Usuario.objects.filter(email__iexact=correo).exists():
-                errors.append(f"Ya existe una cuenta registrada con el correo institucional {correo}.")
+                errors.append(f"Ya existe una cuenta registrada con el correo {correo}.")
 
         tipo_vinculo = None
+        es_externo = False
         if tipo_vinculo_id:
             tipo_vinculo = (
                 TipoVinculo.objects.filter(id=tipo_vinculo_id, activo=True, permite_autoregistro=True)
@@ -132,12 +182,14 @@ def registro_externo_view(request):
             )
             if not tipo_vinculo:
                 errors.append("El tipo de vínculo seleccionado no es válido o no permite autorregistro público.")
-            elif tipo_vinculo.dominio_correo_requerido:
-                dominio = tipo_vinculo.dominio_correo_requerido.strip().lower()
-                if not correo.endswith(dominio):
-                    errors.append(
-                        f"Para el perfil '{tipo_vinculo.nombre}', el correo electrónico debe pertenecer al dominio institucional ({dominio})."
-                    )
+            else:
+                es_externo = tipo_vinculo.codigo == CODIGO_VINCULO_EXTERNO
+                if tipo_vinculo.dominio_correo_requerido:
+                    dominio = tipo_vinculo.dominio_correo_requerido.strip().lower()
+                    if not correo.endswith(dominio):
+                        errors.append(
+                            f"Para el perfil '{tipo_vinculo.nombre}', el correo electrónico debe pertenecer al dominio institucional ({dominio})."
+                        )
 
         sede = None
         if sede_id:
@@ -145,74 +197,161 @@ def registro_externo_view(request):
             if not sede:
                 errors.append("La sede seleccionada no es válida.")
 
+        es_administrativo = bool(
+            tipo_vinculo and tipo_vinculo.codigo == CODIGO_VINCULO_ADMINISTRATIVO
+        )
+
         programa = None
-        if programa_id:
-            programa = Programa.objects.filter(id=programa_id, activo=True).first()
-            if programa and sede and programa.sede_id != sede.id:
-                errors.append("El programa seleccionado no pertenece a la sede indicada.")
+        area = None
+        if es_externo:
+            programa = None
+            area = None
+            if not unidad_tipo or not unidad_id:
+                errors.append(
+                    "Como personal externo debe indicar la dependencia destino (facultad, programa o área)."
+                )
+            if not fecha_inicio or not fecha_fin:
+                errors.append(
+                    "Como personal externo debe indicar la vigencia de la visita (fecha inicio y fin)."
+                )
+            elif fecha_fin < fecha_inicio:
+                errors.append("La fecha fin de la visita debe ser mayor o igual a la fecha inicio.")
+        elif es_administrativo:
+            # Área la asigna después un admin con personas.administrar
+            programa = None
+            area = None
+        else:
+            if programa_id:
+                programa = Programa.objects.filter(id=programa_id, activo=True).first()
+                if programa and sede and programa.sede_id != sede.id:
+                    errors.append("El programa seleccionado no pertenece a la sede indicada.")
+            area = None
 
         if errors:
             for err in errors:
                 messages.error(request, err)
-            tipos_vinculo = TipoVinculo.objects.filter(activo=True, permite_autoregistro=True).order_by("nombre")
-            sedes = Sede.objects.filter(activo=True).order_by("nombre")
-            programas = Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre")
-            return render(
-                request,
-                "accounts/registro.html",
-                {
-                    "tipos_vinculo": tipos_vinculo,
-                    "sedes": sedes,
-                    "programas": programas,
-                    "form_data": request.POST,
-                    "contacto_arco": settings.DATOS_PERSONALES_CONTACTO,
-                },
-            )
+            return render(request, "accounts/registro.html", _contexto_registro(request.POST))
 
-        with transaction.atomic():
-            persona = Persona.objects.create(
-                tipo_documento=tipo_documento,
-                numero_documento=numero_documento,
-                nombres=nombres,
-                apellidos=apellidos,
-                tipo_vinculo=tipo_vinculo,
-                sede=sede,
-                programa=programa,
-                activo=True,
-            )
+        try:
+            with transaction.atomic():
+                persona = Persona.objects.create(
+                    tipo_documento=tipo_documento,
+                    numero_documento=numero_documento,
+                    nombres=nombres,
+                    apellidos=apellidos,
+                    tipo_vinculo=tipo_vinculo,
+                    sede=sede,
+                    programa=programa,
+                    area=area,
+                    activo=True,
+                )
 
-            usuario = Usuario.objects.create_user(
-                username=correo,
-                email=correo,
-                first_name=nombres,
-                last_name=apellidos,
-                password=password,
-                persona=persona,
-                activo=True,
-            )
+                usuario = Usuario.objects.create_user(
+                    username=correo,
+                    email=correo,
+                    first_name=nombres,
+                    last_name=apellidos,
+                    password=password,
+                    persona=persona,
+                    activo=True,
+                )
 
-            if tipo_vinculo.rol_asignado:
-                UsuarioRol.objects.create(usuario=usuario, rol=tipo_vinculo.rol_asignado)
+                if tipo_vinculo.rol_asignado:
+                    UsuarioRol.objects.create(usuario=usuario, rol=tipo_vinculo.rol_asignado)
 
+                if es_externo:
+                    registrar_visita(
+                        persona=persona,
+                        sede=sede,
+                        unidad_tipo=unidad_tipo,
+                        unidad_id=int(unidad_id),
+                        fecha_inicio=fecha_inicio,
+                        fecha_fin=fecha_fin,
+                    )
+        except (ValidationError, ValueError) as exc:
+            if hasattr(exc, "messages"):
+                for msg in exc.messages:
+                    messages.error(request, msg)
+            elif hasattr(exc, "message_dict"):
+                for errs in exc.message_dict.values():
+                    for msg in errs:
+                        messages.error(request, msg)
+            else:
+                messages.error(request, str(exc))
+            return render(request, "accounts/registro.html", _contexto_registro(request.POST))
+
+        msg_correo = "correo" if es_externo else "correo institucional"
         messages.success(
             request,
-            f"¡Registro exitoso, {nombres}! Su cuenta ha sido creada correctamente. Ya puede iniciar sesión con su correo institucional.",
+            f"¡Registro exitoso, {nombres}! Su cuenta ha sido creada correctamente. "
+            f"Ya puede iniciar sesión con su {msg_correo}.",
         )
         return redirect("accounts:login")
 
-    tipos_vinculo = TipoVinculo.objects.filter(activo=True, permite_autoregistro=True).order_by("nombre")
-    sedes = Sede.objects.filter(activo=True).order_by("nombre")
-    programas = Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre")
+    return render(request, "accounts/registro.html", _contexto_registro())
 
+
+@login_required
+@requiere_permiso("perfil.ver_propio")
+def registrar_visita_view(request):
+    """Nueva VisitaExterno para personal externo ya autenticado (doc 16)."""
+    persona = getattr(request.user, "persona", None)
+    if not persona or not persona.es_personal_externo:
+        messages.error(request, "Solo el personal externo puede registrar visitas.")
+        return redirect("accounts:mi_perfil")
+
+    if request.method == "POST":
+        sede_id = request.POST.get("sede", "").strip()
+        unidad_tipo = request.POST.get("unidad_tipo", "").strip()
+        unidad_id = request.POST.get("unidad_id", "").strip()
+        fecha_inicio = _parse_fecha(request.POST.get("fecha_inicio", ""))
+        fecha_fin = _parse_fecha(request.POST.get("fecha_fin", ""))
+        errors = []
+
+        sede = Sede.objects.filter(id=sede_id, activo=True).first() if sede_id else None
+        if not sede:
+            errors.append("Seleccione una sede destino válida.")
+        if not unidad_tipo or not unidad_id:
+            errors.append("Indique la dependencia destino.")
+        if not fecha_inicio or not fecha_fin:
+            errors.append("Indique la vigencia de la visita.")
+        elif fecha_fin < fecha_inicio:
+            errors.append("La fecha fin debe ser mayor o igual a la fecha inicio.")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+        else:
+            try:
+                visita = registrar_visita(
+                    persona=persona,
+                    sede=sede,
+                    unidad_tipo=unidad_tipo,
+                    unidad_id=int(unidad_id),
+                    fecha_inicio=fecha_inicio,
+                    fecha_fin=fecha_fin,
+                )
+                messages.success(
+                    request,
+                    f"Visita registrada: {visita.sede.nombre} hasta {visita.fecha_fin.isoformat()}.",
+                )
+                return redirect("accounts:mi_perfil")
+            except (ValidationError, ValueError) as exc:
+                messages.error(request, str(exc))
+
+    visita = visita_activa(persona)
     return render(
         request,
-        "accounts/registro.html",
+        "accounts/registrar_visita.html",
         {
-            "tipos_vinculo": tipos_vinculo,
-            "sedes": sedes,
-            "programas": programas,
-            "form_data": {},
-            "contacto_arco": settings.DATOS_PERSONALES_CONTACTO,
+            "persona": persona,
+            "visita_actual": visita,
+            "nombre_dependencia": nombre_dependencia_visita(visita) if visita else "",
+            "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
+            "programas": Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre"),
+            "areas": Area.objects.filter(activo=True).order_by("nombre"),
+            "facultades": Decanatura.objects.filter(activo=True).order_by("nombre"),
+            "form_data": request.POST if request.method == "POST" else {},
         },
     )
 
@@ -242,6 +381,12 @@ def mi_perfil_view(request):
         ).count() if persona else 0,
     }
 
+    visita_actual = None
+    nombre_dep = ""
+    if persona and persona.es_personal_externo:
+        visita_actual = visita_activa(persona)
+        nombre_dep = nombre_dependencia_visita(visita_actual)
+
     return render(
         request,
         "accounts/mi_perfil.html",
@@ -252,6 +397,8 @@ def mi_perfil_view(request):
             "metricas": metricas,
             "requiere_mfa": _usuario_requiere_mfa(request.user),
             "mfa_configurado": TOTPDevice.objects.filter(user=request.user, confirmed=True).exists(),
+            "visita_actual": visita_actual,
+            "nombre_dependencia_visita": nombre_dep,
         },
     )
 

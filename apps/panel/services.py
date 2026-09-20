@@ -16,6 +16,7 @@ MODULOS_PERMISO = {
     "roles": "Roles",
     "permisos": "Permisos",
     "perfil": "Perfil personal",
+    "reportes": "Reportes",
 }
 
 

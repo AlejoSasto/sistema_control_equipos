@@ -243,6 +243,23 @@ def series_graficos(user, filtros: DashboardFiltros) -> dict[str, Any]:
             )
             valores_top.append(row["n"])
 
+        # Desglose por motivo_alerta (doc 15)
+        por_motivo = (
+            alertas_qs.exclude(motivo_alerta__isnull=True)
+            .exclude(motivo_alerta="")
+            .values("motivo_alerta")
+            .annotate(n=Count("id"))
+            .order_by("-n")
+        )
+        motivo_labels_map = dict(Movimiento.OPCIONES_MOTIVO_ALERTA)
+        labels_motivo = []
+        valores_motivo = []
+        for row in por_motivo:
+            labels_motivo.append(
+                motivo_labels_map.get(row["motivo_alerta"], row["motivo_alerta"])
+            )
+            valores_motivo.append(row["n"])
+
         return {
             "agrupacion": "hora" if un_dia else "dia",
             "linea": {
@@ -263,6 +280,11 @@ def series_graficos(user, filtros: DashboardFiltros) -> dict[str, Any]:
                 "labels": labels_top,
                 "values": valores_top,
                 "vacio": not valores_top,
+            },
+            "motivos_alerta": {
+                "labels": labels_motivo,
+                "values": valores_motivo,
+                "vacio": not valores_motivo,
             },
         }
 

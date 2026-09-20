@@ -12,7 +12,7 @@ from accounts.models import Permiso, Rol, RolPermiso, Usuario, UsuarioRol
 from auditoria.models import AuditoriaCambio
 from config.pagination import paginate_queryset
 from organizacion.models import Area, Programa, Sede
-from personas.models import CODIGO_VINCULO_ADMINISTRATIVO, Persona, TipoVinculo
+from personas.models import CODIGO_VINCULO_ADMINISTRATIVO, CODIGO_VINCULO_VIGILANTE, Persona, TipoVinculo
 from personas.validators import validar_y_procesar_foto
 
 from .services import (
@@ -55,6 +55,7 @@ def personas_list(request):
     sede_filtro = request.GET.get("sede", "").strip()
     estado_filtro = request.GET.get("estado", "").strip()
     programa_filtro = request.GET.get("programa", "").strip()
+    sin_area_filtro = request.GET.get("sin_area", "").strip()
 
     personas = Persona.objects.select_related("sede", "programa", "area", "tipo_vinculo").annotate(
         equipos_count=Count("equipos")
@@ -76,6 +77,11 @@ def personas_list(request):
         personas = personas.filter(activo=True)
     elif estado_filtro == "inactivo":
         personas = personas.filter(activo=False)
+    if sin_area_filtro == "1":
+        personas = personas.filter(
+            tipo_vinculo__codigo=CODIGO_VINCULO_ADMINISTRATIVO,
+            area__isnull=True,
+        )
 
     page = paginate_queryset(request, personas.order_by("apellidos", "nombres"))
 
@@ -87,6 +93,7 @@ def personas_list(request):
         "sede_filtro": sede_filtro,
         "estado_filtro": estado_filtro,
         "programa_filtro": programa_filtro,
+        "sin_area_filtro": sin_area_filtro,
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
         "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
         "programas": Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre"),
@@ -618,3 +625,110 @@ def permisos_list(request):
         "panel/permisos_list.html",
         {"grupos": permisos_agrupados(), "permisos": permisos},
     )
+
+
+# -------------------------------------------------------------------------
+# Vigilantes (alta interna — doc 16)
+# -------------------------------------------------------------------------
+
+@requiere_permiso("personas.administrar")
+def vigilante_create(request):
+    """Crea Persona + Usuario con tipo_vinculo=vigilante (sin autorregistro)."""
+    vinculo = TipoVinculo.objects.filter(codigo=CODIGO_VINCULO_VIGILANTE, activo=True).select_related(
+        "rol_asignado"
+    ).first()
+    context_base = {
+        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
+        "vinculo": vinculo,
+        "data": {},
+    }
+    if not vinculo:
+        messages.error(request, "No existe el tipo de vínculo 'vigilante' en el catálogo. Ejecute seed_data.")
+        return redirect("panel:personas_list")
+
+    if request.method == "POST":
+        nombres = request.POST.get("nombres", "").strip()
+        apellidos = request.POST.get("apellidos", "").strip()
+        tipo_documento = request.POST.get("tipo_documento", "CC").strip()
+        numero_documento = request.POST.get("numero_documento", "").strip()
+        sede_id = request.POST.get("sede", "").strip()
+        correo = request.POST.get("correo", "").strip().lower()
+        password = request.POST.get("password", "")
+        password_confirm = request.POST.get("password_confirm", "")
+        data = {
+            "nombres": nombres,
+            "apellidos": apellidos,
+            "tipo_documento": tipo_documento,
+            "numero_documento": numero_documento,
+            "sede": sede_id,
+            "correo": correo,
+        }
+        errors = []
+        if not all([nombres, apellidos, numero_documento, sede_id, correo, password]):
+            errors.append("Complete todos los campos obligatorios.")
+        if password != password_confirm:
+            errors.append("Las contraseñas no coinciden.")
+        elif password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                errors.extend(exc.messages)
+        if numero_documento and Persona.objects.filter(numero_documento=numero_documento).exists():
+            errors.append(f"Ya existe una persona con el documento {numero_documento}.")
+        if correo and (
+            Usuario.objects.filter(username__iexact=correo).exists()
+            or Usuario.objects.filter(email__iexact=correo).exists()
+        ):
+            errors.append(f"Ya existe un usuario con el correo {correo}.")
+        sede = Sede.objects.filter(id=sede_id, activo=True).first() if sede_id else None
+        if not sede:
+            errors.append("Seleccione una sede válida.")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return render(request, "panel/vigilante_form.html", {**context_base, "data": data})
+
+        with transaction.atomic():
+            persona = Persona.objects.create(
+                tipo_documento=tipo_documento,
+                numero_documento=numero_documento,
+                nombres=nombres,
+                apellidos=apellidos,
+                tipo_vinculo=vinculo,
+                sede=sede,
+                programa=None,
+                area=None,
+                activo=True,
+            )
+            usuario = Usuario.objects.create_user(
+                username=correo,
+                email=correo,
+                first_name=nombres,
+                last_name=apellidos,
+                password=password,
+                persona=persona,
+                activo=True,
+            )
+            if vinculo.rol_asignado:
+                UsuarioRol.objects.create(usuario=usuario, rol=vinculo.rol_asignado)
+            else:
+                rol_vig = Rol.objects.filter(nombre="vigilante", activo=True).first()
+                if rol_vig:
+                    UsuarioRol.objects.create(usuario=usuario, rol=rol_vig)
+
+        registrar_cambio(
+            request.user,
+            f"Creó vigilante '{persona.nombre_completo}' (sede {sede.codigo}).",
+            request=request,
+            entidad="persona",
+            entidad_id=persona.pk,
+            accion=AuditoriaCambio.ACCION_CREAR,
+        )
+        messages.success(
+            request,
+            f"Vigilante {persona.nombre_completo} creado. Puede iniciar sesión con {correo}.",
+        )
+        return redirect("panel:persona_edit", pk=persona.pk)
+
+    return render(request, "panel/vigilante_form.html", context_base)

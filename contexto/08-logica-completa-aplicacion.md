@@ -121,7 +121,7 @@ Registro de una persona física. **No inicia sesión por sí sola.**
 - `tipo_vinculo` → FK a `TipoVinculo`
 - `sede` (obligatoria)
 - `programa` (opcional, perfiles académicos)
-- `area` (opcional, solo administrativo — obligatoria si es `gestor_administrativo`)
+- `area` (opcional, solo administrativo — puede quedar pendiente hasta asignación en panel)
 - `activo` (borrado lógico)
 
 Relación: **1 Persona → N Equipos**.
@@ -382,7 +382,7 @@ Dos flujos:
 | R10 | Tipo de vínculo ≠ rol de acceso (son capas distintas) |
 | R11 | Facultad no depende de sede — es catálogo transversal |
 | R12 | Programa requiere sede + facultad; debe coincidir con la sede de la persona |
-| R13 | Persona administrativa: sede + área, sin programa |
+| R13 | Persona administrativa: sede + área opcional (pendiente post-registro), sin programa |
 | R14 | Equipo institucional requiere dependencia (Área) asignada |
 
 ---

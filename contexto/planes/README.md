@@ -15,6 +15,10 @@ Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especif
 | [seed-mvp-presentacion.md](seed-mvp-presentacion.md) | Completado | 2026-09-19 | — |
 | [modulo-reportes-excel.md](modulo-reportes-excel.md) | Completado | 2026-09-19 | [`../12-modulo-reportes-excel.md`](../12-modulo-reportes-excel.md) |
 | [dashboard-administrador.md](dashboard-administrador.md) | Completado | 2026-09-19 | [`../13-dashboard-administrador.md`](../13-dashboard-administrador.md) |
+| [asignacion-equipos-institucionales.md](asignacion-equipos-institucionales.md) | Completado | 2026-09-20 | [`../14-asignacion-equipos-institucionales.md`](../14-asignacion-equipos-institucionales.md) |
+| [vigencia-asignacion-equipos-institucionales.md](vigencia-asignacion-equipos-institucionales.md) | Completado | 2026-09-20 | [`../15-vigencia-asignacion-equipos-institucionales.md`](../15-vigencia-asignacion-equipos-institucionales.md) |
+| [personal-externo-y-vigilante.md](personal-externo-y-vigilante.md) | Completado | 2026-09-20 | [`../16-personal-externo-y-vigilante.md`](../16-personal-externo-y-vigilante.md) |
+| [area-post-registro-gestor.md](area-post-registro-gestor.md) | Completado | 2026-09-20 | — |
 
 ## Convención
 

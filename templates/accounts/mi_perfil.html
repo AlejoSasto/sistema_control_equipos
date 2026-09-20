@@ -45,6 +45,18 @@
         {% if persona.activo %}<span class="badge badge-success">Activo</span>
         {% else %}<span class="badge badge-danger">Inactivo</span>{% endif %}
       </div>
+      {% if persona.es_personal_externo %}
+      <div style="margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--color-border);">
+        {% if visita_actual %}
+        <div><strong>Visita activa:</strong> {{ visita_actual.sede.nombre }}
+          {% if nombre_dependencia_visita %} — {{ nombre_dependencia_visita }}{% endif %}
+          (hasta {{ visita_actual.fecha_fin|date:"Y-m-d" }})</div>
+        {% else %}
+        <div class="badge badge-warning">Sin visita activa</div>
+        {% endif %}
+        <a href="{% url 'accounts:registrar_visita' %}" class="btn btn-secondary btn-sm" style="margin-top: var(--space-2);">Registrar nueva visita</a>
+      </div>
+      {% endif %}
     </div>
   </div>
 

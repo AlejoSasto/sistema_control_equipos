@@ -1,7 +1,11 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from organizacion.models import OPCIONES_UNIDAD_TIPO
+
 CODIGO_VINCULO_ADMINISTRATIVO = "gestor_administrativo"
+CODIGO_VINCULO_EXTERNO = "personal_externo"
+CODIGO_VINCULO_VIGILANTE = "vigilante"
 
 
 class TipoVinculo(models.Model):
@@ -129,13 +133,87 @@ class Persona(models.Model):
         if self.es_administrativo:
             if self.programa_id:
                 raise ValidationError({"programa": "El personal administrativo no debe tener programa asignado."})
-            if not self.area_id:
-                raise ValidationError({"area": "El personal administrativo debe tener un área asignada."})
+            # area puede ser null: se asigna después desde el panel (personas.administrar)
         else:
             if self.area_id:
                 raise ValidationError({"area": "Solo el personal administrativo puede tener un área asignada."})
             if self.programa_id and self.sede_id and self.programa.sede_id != self.sede_id:
                 raise ValidationError({"programa": "El programa debe pertenecer a la sede seleccionada."})
+
+    @property
+    def es_personal_externo(self):
+        return self.tipo_vinculo_id and self.tipo_vinculo.codigo == CODIGO_VINCULO_EXTERNO
+
+    @property
+    def es_vigilante(self):
+        return self.tipo_vinculo_id and self.tipo_vinculo.codigo == CODIGO_VINCULO_VIGILANTE
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class VisitaExterno(models.Model):
+    """Llegada puntual de personal externo — independiente de la cuenta (doc 16)."""
+
+    ESTADO_ACTIVA = "activa"
+    ESTADO_FINALIZADA = "finalizada"
+    ESTADO_CANCELADA = "cancelada"
+
+    OPCIONES_ESTADO = [
+        (ESTADO_ACTIVA, "Activa"),
+        (ESTADO_FINALIZADA, "Finalizada"),
+        (ESTADO_CANCELADA, "Cancelada"),
+    ]
+
+    persona = models.ForeignKey(
+        Persona,
+        on_delete=models.CASCADE,
+        related_name="visitas_externo",
+        help_text="Persona con tipo_vinculo=personal_externo",
+    )
+    sede = models.ForeignKey(
+        "organizacion.Sede",
+        on_delete=models.RESTRICT,
+        related_name="visitas_externo",
+    )
+    unidad_tipo = models.CharField(max_length=20, choices=OPCIONES_UNIDAD_TIPO)
+    unidad_id = models.PositiveBigIntegerField()
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    estado = models.CharField(
+        max_length=20,
+        choices=OPCIONES_ESTADO,
+        default=ESTADO_ACTIVA,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "visita_externo"
+        verbose_name = "Visita de personal externo"
+        verbose_name_plural = "Visitas de personal externo"
+        ordering = ["-fecha_inicio", "-created_at"]
+        indexes = [
+            models.Index(fields=["persona", "estado"]),
+            models.Index(fields=["fecha_fin", "estado"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"Visita {self.persona_id} {self.sede_id} "
+            f"{self.fecha_inicio}–{self.fecha_fin} ({self.estado})"
+        )
+
+    def clean(self):
+        super().clean()
+        if self.fecha_inicio and self.fecha_fin and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({"fecha_fin": "La fecha fin debe ser mayor o igual a la fecha inicio."})
+        if self.persona_id and self.persona.tipo_vinculo_id:
+            if self.persona.tipo_vinculo.codigo != CODIGO_VINCULO_EXTERNO:
+                raise ValidationError(
+                    {"persona": "Solo personal externo puede tener visitas registradas."}
+                )
 
     def save(self, *args, **kwargs):
         self.full_clean()
