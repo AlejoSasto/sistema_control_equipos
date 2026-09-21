@@ -127,23 +127,28 @@ Render generará `SECRET_KEY` solo. Tú debes completar:
 
 ## Paso 5 — Datos iniciales (`seed_data`)
 
-Las migraciones ya corren solas en el `entrypoint`. El catálogo institucional (sedes, roles, admin) se carga con el comando de seed.
+El `entrypoint` del contenedor ejecuta automáticamente, en cada arranque:
 
-1. En el servicio web de Render: **Shell** (si tu plan lo ofrece).
-2. Ejecuta:
+1. `migrate`
+2. **`seed_data`** (catálogos, roles, vínculos canónicos, sedes, admin)
+3. `collectstatic`
+4. Gunicorn
+
+No hace falta Shell para el primer login. Tras un deploy **Live**:
+
+1. Abre la URL del servicio.
+2. Entra con:
+   - Usuario: `admin`
+   - Contraseña: `Udec2026!Admin` (solo la primera vez que se crea el admin; re-deploys posteriores **no** la resetean).
+3. En un entorno real, **cambia la contraseña** del administrador desde el panel.
+
+El seed desactiva tipos de vínculo legado de migraciones antiguas (`estudiante`, `graduado`, `administrativo`, `docente`) y deja solo el catálogo canónico.
+
+Si necesitas forzar el seed a mano (Shell o local):
 
 ```bash
 python manage.py seed_data
 ```
-
-3. Entra a la app con el usuario del seed documentado en el `README` del repo.
-4. **Cambia de inmediato** la contraseña del administrador (no dejes la del seed en un entorno real).
-
-Si no tienes Shell en el plan Free:
-
-- Sube temporalmente el plan, o
-- Usa un one-off / job si Render lo muestra en tu cuenta, o
-- Ejecuta el seed desde una máquina local conectada con el *External Database URL* (solo redes confiables; cierra el acceso después).
 
 ---
 
@@ -160,7 +165,7 @@ git push origin main
 2. Render detecta el push a `main` y vuelve a construir el Docker (auto-deploy).
 3. Para forzar: servicio → **Manual Deploy** → **Deploy latest commit**.
 
-Cada arranque vuelve a ejecutar `migrate` y `collectstatic` (idempotente).
+Cada arranque vuelve a ejecutar `migrate`, `seed_data` y `collectstatic` (idempotente; la contraseña de `admin` no se resetea si ya existe).
 
 ---
 
@@ -169,7 +174,8 @@ Cada arranque vuelve a ejecutar `migrate` y `collectstatic` (idempotente).
 - [ ] La URL responde por **HTTPS**
 - [ ] Login funciona (CSRF y `ALLOWED_HOSTS` correctos)
 - [ ] Estáticos (CSS) se ven bien (WhiteNoise)
-- [ ] `seed_data` ejecutado y contraseña del admin cambiada
+- [ ] Login `admin` / `Udec2026!Admin` OK (seed automático en entrypoint); cambiar contraseña en entorno real
+- [ ] Registro muestra sedes y tipos canónicos (no Estudiante/Graduado legado)
 - [ ] Backups: ver [checklist-backup-restauracion.md](checklist-backup-restauracion.md)
 - [ ] Incidentes: ver [procedimiento-incidentes-seguridad.md](procedimiento-incidentes-seguridad.md)
 
@@ -188,7 +194,7 @@ docker compose up --build
 
 3. Abre [http://localhost:8000](http://localhost:8000).
 4. Postgres local queda en el puerto `5432` (usuario/clave `postgres` / `postgres` según `docker-compose.yml`).
-5. Para cargar datos:
+5. El seed ya corre en el `entrypoint` al subir el contenedor. Si quieres repetirlo:
 
 ```bash
 docker compose exec web python manage.py seed_data
@@ -210,7 +216,8 @@ docker compose exec web python manage.py seed_data
 | App no arranca / migrate error | `DATABASE_URL` enlazada a la DB del Blueprint; DB en estado Available |
 | Estáticos 404 / sin CSS | Logs de `collectstatic`; WhiteNoise activo con `DEBUG=False` |
 | Tarda mucho o “duerme” | Plan Free: el servicio puede dormir tras inactividad; la primera petición despierta (frío) |
-| Shell no disponible | Limitación del plan; usa alternativa del Paso 5 |
+| Login falla / sedes vacías / tipos "Estudiante" | Redeploy con seed en entrypoint; en logs debe aparecer `Cargando catálogos institucionales` |
+| Avisos CSP de `*.map` en consola | Cosmético (source maps); no bloquean login. `connect-src` ya incluye jsdelivr |
 
 ---
 

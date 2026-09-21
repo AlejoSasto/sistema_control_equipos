@@ -41,6 +41,7 @@ class Command(BaseCommand):
             permisos_objs = self._cargar_permisos()
             roles_objs = self._cargar_roles(permisos_objs)
             self._cargar_tipos_vinculo(roles_objs)
+            self._desactivar_tipos_vinculo_legado()
             org = self._cargar_organizacion()
             areas_n = self._cargar_areas()
             self._asegurar_admin(roles_objs)
@@ -238,14 +239,26 @@ class Command(BaseCommand):
                     tipo_vinculo=tipos_objs[destino]
                 )
 
-        # Eliminar de la BD todo lo que no esté en el catálogo vigente
-        eliminados, _ = TipoVinculo.objects.exclude(
+        # Borrado lógico de todo lo que no esté en el catálogo vigente
+        desactivados = TipoVinculo.objects.exclude(
             codigo__in=tipos_objs.keys()
-        ).delete()
+        ).update(activo=False, permite_autoregistro=False)
         self.stdout.write(self.style.SUCCESS(
-            f"[OK] {len(tipos_objs)} tipos de vínculo activos (eliminados otros: {eliminados})"
+            f"[OK] {len(tipos_objs)} tipos de vínculo activos "
+            f"(desactivados otros: {desactivados})"
         ))
         return tipos_objs["gestor_administrativo"]
+
+    def _desactivar_tipos_vinculo_legado(self):
+        """Desactiva códigos de la migración 0002 (MVP) por si quedaron activos."""
+        legacy_codes = ("estudiante", "graduado", "administrativo", "docente")
+        n = TipoVinculo.objects.filter(codigo__in=legacy_codes).update(
+            activo=False,
+            permite_autoregistro=False,
+        )
+        self.stdout.write(self.style.WARNING(
+            f"[LIMPIEZA] Tipos de vínculo legado desactivados: {n}"
+        ))
 
     def _cargar_organizacion(self):
         """Sedes, facultades y programas del catálogo institucional (todos activos)."""
@@ -330,9 +343,11 @@ class Command(BaseCommand):
                 first_name="Administrador",
                 last_name="Sistema",
             )
-            self.stdout.write(self.style.SUCCESS("[OK] Usuario administrador creado"))
+            self.stdout.write(self.style.SUCCESS(
+                "[OK] Usuario administrador creado (admin / Udec2026!Admin)"
+            ))
         else:
-            admin.set_password(password)
+            # No resetear contraseña en re-seed (p. ej. cada deploy en Render)
             admin.email = "admin@ucundinamarca.edu.co"
             admin.first_name = "Administrador"
             admin.last_name = "Sistema"
@@ -340,8 +355,13 @@ class Command(BaseCommand):
             admin.is_staff = True
             admin.activo = True
             admin.is_active = True
-            admin.save()
-            self.stdout.write(self.style.SUCCESS("[OK] Usuario administrador actualizado"))
+            admin.save(update_fields=[
+                "email", "first_name", "last_name",
+                "is_superuser", "is_staff", "activo", "is_active",
+            ])
+            self.stdout.write(self.style.SUCCESS(
+                "[OK] Usuario administrador verificado (contraseña sin cambios)"
+            ))
 
         UsuarioRol.objects.filter(usuario=admin).exclude(rol=roles_objs["admin_sistema"]).delete()
         UsuarioRol.objects.get_or_create(usuario=admin, rol=roles_objs["admin_sistema"])

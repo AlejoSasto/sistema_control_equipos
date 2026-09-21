@@ -428,13 +428,15 @@ Referencia visual: [`09-guia-diseno-ux-ui.md`](09-guia-diseno-ux-ui.md) + `stati
 python manage.py seed_data
 ```
 
+En Docker/Render el `entrypoint.sh` ejecuta `migrate` → **`seed_data`** → `collectstatic` → Gunicorn en cada arranque.
+
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
 | Administrador | `admin` | `Udec2026!Admin` | Dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
 
-Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Elimina demos (`celador1`, `docente1`, equipos demo) y deja `celador` inactivo (legado).
+Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
 
-> Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales.
+> Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales. Guía deploy: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).
 
 ---
 

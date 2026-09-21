@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-21 (despliegue Render Docker)
+**Última actualización:** 2026-09-21 (seed automático en Render)
 
 ---
 
@@ -77,6 +77,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/personal-externo-y-vigilante.md](planes/personal-externo-y-vigilante.md) | **Completado** | Personal externo + visitas + vigilante + badges kiosco |
 | [planes/area-post-registro-gestor.md](planes/area-post-registro-gestor.md) | **Completado** | Gestor se registra sin área; admin la asigna en panel |
 | [planes/despliegue-render-docker.md](planes/despliegue-render-docker.md) | **Completado** | Dockerfile, compose, render.yaml, gunicorn, instructivo Render |
+| [planes/seed-automatico-render.md](planes/seed-automatico-render.md) | **Completado** | Seed en entrypoint; desactiva vínculos MVP legado |
 
 ---
 

@@ -4,6 +4,9 @@ set -e
 echo "Aplicando migraciones..."
 python manage.py migrate --noinput
 
+echo "Cargando catálogos institucionales (seed_data)..."
+python manage.py seed_data
+
 echo "Recolectando estáticos..."
 python manage.py collectstatic --noinput
 
