@@ -1,0 +1,31 @@
+databases:
+  - name: sistema-control-db
+    plan: free
+    databaseName: sistema_control
+    user: sistema_control
+
+services:
+  - type: web
+    name: sistema-control-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /accounts/login/
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sistema-control-db
+          property: connectionString
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: DATOS_PERSONALES_CONTACTO
+        value: protecciondatos@ucundinamarca.edu.co

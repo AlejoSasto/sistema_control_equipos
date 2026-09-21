@@ -69,4 +69,4 @@ Cada documento es autocontenido: se puede pegar en una tarea nueva de Antigravit
 | Base de datos | PostgreSQL | Relacional, soporta bien FKs múltiples (sede→decanatura→programa), UUIDs nativos |
 | Frontend | Django templates + htmx | Evita levantar un frontend SPA separado; interacciones dinámicas (escaneo, alertas) sin JS pesado |
 | QR | librería `qrcode` (Python) | Generación server-side desde `token_qr` |
-| Despliegue | Railway o Render | Postgres + app en un solo servicio, mínima fricción para MVP |
+| Despliegue | Render (Docker + Gunicorn) | Postgres + app monolito; Blueprint en `render.yaml`; guía en `contexto/operaciones/despliegue-render.md` |

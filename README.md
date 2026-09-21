@@ -16,6 +16,7 @@ Aplicación web para registrar equipos de cómputo de la comunidad académica, g
 | QR | `qrcode` + Pillow |
 | Reportes Excel | XlsxWriter (gráficos nativos) |
 | Estáticos en producción | WhiteNoise |
+| Despliegue | Render (Docker + Gunicorn) — [instructivo](contexto/operaciones/despliegue-render.md) |
 
 ---
 
@@ -120,6 +121,9 @@ sistema de control/
 ├── templates/            # Plantillas Django
 ├── static/               # CSS / JS fuente
 ├── contexto/             # Documentación y planes del proyecto
+├── Dockerfile            # Imagen de producción
+├── docker-compose.yml    # Prueba local (web + Postgres)
+├── render.yaml           # Blueprint Render
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -137,7 +141,16 @@ python manage.py seed_data
 python manage.py createsuperuser
 python manage.py collectstatic
 python manage.py test
+docker compose up --build   # prueba local del stack de producción
 ```
+
+---
+
+## Despliegue (Render)
+
+Guía paso a paso (cuenta, GitHub, Blueprint, base de datos, variables, seed):
+
+**[`contexto/operaciones/despliegue-render.md`](contexto/operaciones/despliegue-render.md)**
 
 ---
 
@@ -157,7 +170,7 @@ La interfaz incluye navegación offcanvas en móvil (≤1023px), grids adaptativ
 | `contexto/00`–`12` | Arquitectura, negocio, datos, UX, registro, panel, lógica, seguridad, reportes |
 | `contexto/walkthrough.md` | Resumen de implementación |
 | [`contexto/planes/`](contexto/planes/) | Planes de ejecución (features / refactors) |
-| [`contexto/operaciones/`](contexto/operaciones/) | Procedimientos (incidentes) y checklists (backups) |
+| [`contexto/operaciones/`](contexto/operaciones/) | Procedimientos (incidentes), backups y [despliegue Render](contexto/operaciones/despliegue-render.md) |
 
 ---
 

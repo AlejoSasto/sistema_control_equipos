@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-20 (área del gestor: asignación post-registro)
+**Última actualización:** 2026-09-21 (despliegue Render Docker)
 
 ---
 
@@ -76,6 +76,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/vigencia-asignacion-equipos-institucionales.md](planes/vigencia-asignacion-equipos-institucionales.md) | **Completado** | Inventario sin persona + asignación con vigencia + cierre auto |
 | [planes/personal-externo-y-vigilante.md](planes/personal-externo-y-vigilante.md) | **Completado** | Personal externo + visitas + vigilante + badges kiosco |
 | [planes/area-post-registro-gestor.md](planes/area-post-registro-gestor.md) | **Completado** | Gestor se registra sin área; admin la asigna en panel |
+| [planes/despliegue-render-docker.md](planes/despliegue-render-docker.md) | **Completado** | Dockerfile, compose, render.yaml, gunicorn, instructivo Render |
 
 ---
 
@@ -87,6 +88,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 |-----------|--------|---------|
 | [operaciones/procedimiento-incidentes-seguridad.md](operaciones/procedimiento-incidentes-seguridad.md) | Vigente | Procedimiento mínimo de incidentes |
 | [operaciones/checklist-backup-restauracion.md](operaciones/checklist-backup-restauracion.md) | Vigente | Checklist backups PostgreSQL + restauración |
+| [operaciones/despliegue-render.md](operaciones/despliegue-render.md) | Vigente | Instructivo despliegue en Render (Blueprint + Docker) |
 
 ---
 

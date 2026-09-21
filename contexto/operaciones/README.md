@@ -6,5 +6,6 @@ Documentos operativos (no son planes de features ni especificación de producto)
 |-----------|--------|---------|
 | [procedimiento-incidentes-seguridad.md](procedimiento-incidentes-seguridad.md) | Vigente | Quién se entera, contención, notificación (Ley 1581) |
 | [checklist-backup-restauracion.md](checklist-backup-restauracion.md) | Vigente | Backups PostgreSQL + prueba de restauración |
+| [despliegue-render.md](despliegue-render.md) | Vigente | Paso a paso: cuenta Render, Blueprint, DB, variables, seed |
 
 Índice maestro: [`../README.md`](../README.md).

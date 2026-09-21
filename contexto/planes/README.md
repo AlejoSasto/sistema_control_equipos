@@ -19,6 +19,7 @@ Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especif
 | [vigencia-asignacion-equipos-institucionales.md](vigencia-asignacion-equipos-institucionales.md) | Completado | 2026-09-20 | [`../15-vigencia-asignacion-equipos-institucionales.md`](../15-vigencia-asignacion-equipos-institucionales.md) |
 | [personal-externo-y-vigilante.md](personal-externo-y-vigilante.md) | Completado | 2026-09-20 | [`../16-personal-externo-y-vigilante.md`](../16-personal-externo-y-vigilante.md) |
 | [area-post-registro-gestor.md](area-post-registro-gestor.md) | Completado | 2026-09-20 | — |
+| [despliegue-render-docker.md](despliegue-render-docker.md) | Completado | 2026-09-21 | Instructivo: [`../operaciones/despliegue-render.md`](../operaciones/despliegue-render.md) |
 
 ## Convención
 

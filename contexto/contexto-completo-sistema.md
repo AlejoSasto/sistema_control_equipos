@@ -3,7 +3,7 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-20  
+**Fecha:** 2026-09-21  
 
 > **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`15` siguen como detalle; ver sección 14.
 
@@ -33,6 +33,7 @@ No hay control de ingreso. Cada escaneo genera un `Movimiento` (auditoría), inc
 | Reportes | `xlsxwriter` (Excel) + Chart.js (dashboard en pantalla) |
 | Auth extra | django-axes, Argon2, django-otp (MFA), django-ratelimit |
 | Caché | LocMemCache (agregados del dashboard) |
+| Despliegue | Render (Docker + Gunicorn + WhiteNoise + PostgreSQL); ver `contexto/operaciones/despliegue-render.md` |
 
 ```
 sistema de control/
@@ -48,6 +49,9 @@ sistema de control/
 │   └── reportes/           # Excel + dashboard (KPIs/Chart.js)
 ├── templates/
 ├── static/
+├── Dockerfile              # Imagen de producción (Render / compose)
+├── docker-compose.yml      # Prueba local web + Postgres
+├── render.yaml             # Blueprint Render (DB + web)
 ├── contexto/               # Documentación (este archivo = entrada)
 └── manage.py
 ```
@@ -58,6 +62,7 @@ Comandos habituales:
 python manage.py migrate
 python manage.py seed_data
 python manage.py runserver
+# Producción local (Docker): docker compose up --build
 ```
 
 ---

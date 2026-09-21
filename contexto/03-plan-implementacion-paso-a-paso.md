@@ -90,7 +90,7 @@
 2. Comparar resultados: ¿el sistema detectó todos los movimientos? ¿hubo falsos positivos/negativos?
 3. Capacitar al personal de portería (10–15 minutos, flujo simple: pedir QR, escanear, verificar en pantalla).
 4. Ajustes finales de UI/UX según feedback del piloto.
-5. Desplegar en Railway/Render con la base de datos de producción.
+5. Desplegar en Render con Docker (`render.yaml` + instructivo en `contexto/operaciones/despliegue-render.md`).
 
 **Entregable:** MVP desplegado y validado con uso real, listo para reemplazar el proceso en papel.
 

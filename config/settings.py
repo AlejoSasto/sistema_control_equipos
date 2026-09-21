@@ -6,6 +6,8 @@ Universidad de Cundinamarca
 from pathlib import Path
 import os
 import sys
+from urllib.parse import parse_qs, unquote, urlparse
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -13,6 +15,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 sys.path.insert(0, str(BASE_DIR / "apps"))
+
+
+def _database_from_url(url: str) -> dict:
+    """Convierte DATABASE_URL (Render/Docker) al dict de Django."""
+    parsed = urlparse(url)
+    name = unquote(parsed.path.lstrip("/"))
+    if not name:
+        raise RuntimeError("DATABASE_URL no incluye nombre de base de datos.")
+    config = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": name,
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or "5432"),
+    }
+    query = parse_qs(parsed.query)
+    sslmode = (query.get("sslmode") or [None])[0]
+    if sslmode:
+        config["OPTIONS"] = {"sslmode": sslmode}
+    return config
+
 
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
 
@@ -37,10 +61,13 @@ elif DEBUG:
 else:
     raise RuntimeError(
         "ALLOWED_HOSTS es obligatorio cuando DEBUG=False. "
-        "Ejemplo: ALLOWED_HOSTS=app.ucundinamarca.edu.co"
+        "Ejemplo: ALLOWED_HOSTS=sistema-control-web.onrender.com"
     )
 if DEBUG and "testserver" not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append("testserver")
+
+_csrf_raw = os.environ.get("CSRF_TRUSTED_ORIGINS", "").strip()
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_raw.split(",") if o.strip()]
 
 ADMIN_URL = os.environ.get("ADMIN_URL", "admin/").strip().strip("/") + "/"
 
@@ -100,20 +127,25 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-_db_password = os.environ.get("DB_PASSWORD", "")
-if not DEBUG and not _db_password:
-    raise RuntimeError("DB_PASSWORD es obligatorio cuando DEBUG=False.")
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DB_NAME", "sistema_control"),
-        "USER": os.environ.get("DB_USER", "postgres"),
-        "PASSWORD": _db_password if _db_password else ("12345678" if DEBUG else ""),
-        "HOST": os.environ.get("DB_HOST", "localhost"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
+_database_url = os.environ.get("DATABASE_URL", "").strip()
+if _database_url:
+    DATABASES = {"default": _database_from_url(_database_url)}
+else:
+    _db_password = os.environ.get("DB_PASSWORD", "")
+    if not DEBUG and not _db_password:
+        raise RuntimeError(
+            "Defina DATABASE_URL o DB_PASSWORD cuando DEBUG=False."
+        )
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("DB_NAME", "sistema_control"),
+            "USER": os.environ.get("DB_USER", "postgres"),
+            "PASSWORD": _db_password if _db_password else ("12345678" if DEBUG else ""),
+            "HOST": os.environ.get("DB_HOST", "localhost"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
     }
-}
 
 AUTH_USER_MODEL = "accounts.Usuario"
 
@@ -145,6 +177,16 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        },
+    }
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
