@@ -152,7 +152,7 @@ AUTH_USER_MODEL = "accounts.Usuario"
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    "accounts.backends.DocumentoOUsuarioBackend",
 ]
 
 PASSWORD_HASHERS = [

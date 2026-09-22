@@ -311,16 +311,17 @@ Cada escaneo crea un registro:
 ### 9.1 Autorregistro (`/registro/` → `/accounts/registro/`)
 
 Público. Elige `TipoVinculo` con `permite_autoregistro=true` → crea atómicamente Persona + Usuario + `UsuarioRol` (nunca elige su rol).  
+Si el vínculo exige `dominio_correo_requerido` (hoy `@ucundinamarca.edu.co`), el **username** es la parte local del correo (`juan.perez` para `juan.perez@ucundinamarca.edu.co`); el `email` queda completo. Sin dominio requerido (`personal_externo`), username = correo completo.  
 Si el vínculo es **Gestor Administrativo**, el formulario **no** pide área ni programa (el área la asigna después un admin con `personas.administrar`); para el resto de comunidad, programa es opcional y no se asigna área.  
 Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → también crea la primera `VisitaExterno`. Documento ya registrado como externo → hint de login + «Registrar nueva visita».
 
 ### 9.1b Vigilante (alta interna)
 
-`/panel/personas/vigilante/nuevo/` (`personas.administrar`): Persona + Usuario + rol vigilante, una sede, correo libre. No aparece en `/registro/`. Al crearse recibe `AlcanceUsuario(nivel=sede)` de su sede.
+`/panel/personas/vigilante/nuevo/` (`personas.administrar`): Persona + Usuario + rol vigilante, una sede, correo libre (username = correo completo). No aparece en `/registro/`. Al crearse recibe `AlcanceUsuario(nivel=sede)` de su sede.
 
 ### 9.2 Login + MFA
 
-`/accounts/login/` → Axes + rate limit. Si es `admin_sistema`: configurar o verificar TOTP antes de abrir sesión. Redirect post-login:
+`/accounts/login/` → Axes + rate limit. Identificador: **username**, **correo** o **número de documento** (cédula) vía `DocumentoOUsuarioBackend`. Si es `admin_sistema`: configurar o verificar TOTP antes de abrir sesión. Redirect post-login:
 
 1. `control.escanear` → kiosco  
 2. `equipos.ver_propios` → Mis equipos  
@@ -466,6 +467,8 @@ python manage.py seed_data
 
 En Docker/Render el `entrypoint.sh` ejecuta `migrate` → **`seed_data`** → `collectstatic` → Gunicorn en cada arranque.
 
+`seed_data` es **idempotente y no destructivo** respecto a datos reales: upsert de catálogos; no resetea password de `admin`; no desactiva sedes/programas/áreas/vínculos ajenos al seed; solo limpia demos fijos del MVP. Login admite **username**, **correo** o **documento**; perfiles con `@ucundinamarca.edu.co` usan username = parte local del correo.
+
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
 | Administrador | `admin` | `Udec2026!Admin` | Alcance **GLOBAL**; dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
@@ -505,6 +508,7 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos 
 | URLs raíz | `config/urls.py` |
 | Settings / seguridad | `config/settings.py`, `config/middleware.py` |
 | Seed | `apps/accounts/management/commands/seed_data.py` |
+| Login (cédula / correo / usuario) | `apps/accounts/backends.py`, `apps/accounts/auth_utils.py` |
 | Alcance jerárquico | `apps/accounts/alcance.py`, `apps/organizacion/models.py` (`AlcanceUsuario`); UI `templates/panel/usuario_detail.html` |
 | Login / MFA / registro | `apps/accounts/views.py` |
 | QR firmado | `apps/equipos/models.py` |

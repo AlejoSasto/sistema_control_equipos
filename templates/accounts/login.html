@@ -35,14 +35,15 @@
     <form method="post" action="{% url 'accounts:login' %}">
       {% csrf_token %}
       <div class="form-group">
-        <label class="form-label" for="id_username">Usuario Institucional / Documento</label>
+        <label class="form-label" for="id_username">Usuario, correo o documento</label>
         <input type="text"
                name="username"
                autofocus
                required
                id="id_username"
                class="form-control"
-               placeholder="Usuario o correo institucional">
+               placeholder="Usuario, correo o número de documento"
+               autocomplete="username">
       </div>
 
       <div class="form-group">

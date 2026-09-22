@@ -37,19 +37,21 @@ Introducir alcance jerárquico (GLOBAL / SEDE / FACULTAD / PROGRAMA / DEPENDENCI
 El `entrypoint.sh` ya ejecuta `migrate` → `seed_data` → `collectstatic`. Al desplegar este cambio:
 
 1. Push a `main` (o Manual Deploy en Render).
-2. En logs del arranque deben aparecer:
+2. En logs del arranque deben aparecer (si aún no aplicadas):
    - `Applying organizacion.0005_alcance_usuario`
-   - `Applying organizacion.0006_alcance_usuario_indexes` (si aplica)
+   - `Applying organizacion.0006_alcance_usuario_indexes`
    - `Applying accounts.0011_usuarios_gestionar_alcance_permission`
-   - `Cargando catálogos institucionales` (seed: 18 permisos + alcance GLOBAL de `admin`)
-3. Post-deploy: login `admin` → ficha de otro usuario → sección **Alcance**; topbar muestra badge «Alcance: Global».
+   - `Cargando catálogos institucionales` (seed upsert; **no** borra usuarios/personas reales)
+3. Post-deploy: login `admin` → ficha de otro usuario → sección **Alcance**; topbar «Alcance: Global».
 4. Checklist: un admin con solo `SEDE` no ve personas/equipos/reportes de otra sede.
 
-Migración de datos en `0005`:
+Migración de datos en `0005` (aditiva):
 
-- Usuarios con rol `admin_sistema` → `AlcanceUsuario(nivel=global)`.
+- Usuarios con rol `admin_sistema` → `AlcanceUsuario(nivel=global)` si no tienen.
 - Filas activas de `ResponsableDependencia` → alcance facultad/programa/área.
 - Vigilantes con `persona.sede` → alcance `sede`.
+
+No elimina filas de negocio existentes.
 
 ## Notas de diseño
 

@@ -16,23 +16,35 @@ class RegistroExternoTestCase(TestCase):
             codigo="IS-UBATE", nombre="Ingeniería de Sistemas", sede=self.sede, facultad=self.facultad, nivel="pregrado"
         )
 
-        # Roles y Permisos
-        self.perm_registrar = Permiso.objects.create(codigo="equipos.registrar", descripcion="Registrar equipos")
-        self.perm_ver_propios = Permiso.objects.create(codigo="equipos.ver_propios", descripcion="Ver QR propios")
+        # Roles y Permisos (pueden existir por migraciones de catálogo)
+        self.perm_registrar, _ = Permiso.objects.get_or_create(
+            codigo="equipos.registrar", defaults={"descripcion": "Registrar equipos"}
+        )
+        self.perm_ver_propios, _ = Permiso.objects.get_or_create(
+            codigo="equipos.ver_propios", defaults={"descripcion": "Ver QR propios"}
+        )
         self.perm_perfil, _ = Permiso.objects.get_or_create(
             codigo="perfil.ver_propio", defaults={"descripcion": "Ver perfil propio"}
         )
-        self.perm_admin_cat = Permiso.objects.create(codigo="catalogos.administrar", descripcion="Administrar catálogos")
+        self.perm_admin_cat, _ = Permiso.objects.get_or_create(
+            codigo="catalogos.administrar", defaults={"descripcion": "Administrar catálogos"}
+        )
 
-        self.rol_miembro = Rol.objects.create(nombre="miembro_comunidad", descripcion="Miembro de la comunidad")
-        RolPermiso.objects.create(rol=self.rol_miembro, permiso=self.perm_registrar)
-        RolPermiso.objects.create(rol=self.rol_miembro, permiso=self.perm_ver_propios)
-        RolPermiso.objects.create(rol=self.rol_miembro, permiso=self.perm_perfil)
+        self.rol_miembro, _ = Rol.objects.get_or_create(
+            nombre="miembro_comunidad", defaults={"descripcion": "Miembro de la comunidad"}
+        )
+        RolPermiso.objects.get_or_create(rol=self.rol_miembro, permiso=self.perm_registrar)
+        RolPermiso.objects.get_or_create(rol=self.rol_miembro, permiso=self.perm_ver_propios)
+        RolPermiso.objects.get_or_create(rol=self.rol_miembro, permiso=self.perm_perfil)
 
-        self.rol_admin = Rol.objects.create(nombre="admin_sistema", descripcion="Administrador")
-        RolPermiso.objects.create(rol=self.rol_admin, permiso=self.perm_admin_cat)
+        self.rol_admin, _ = Rol.objects.get_or_create(
+            nombre="admin_sistema", defaults={"descripcion": "Administrador"}
+        )
+        RolPermiso.objects.get_or_create(rol=self.rol_admin, permiso=self.perm_admin_cat)
 
-        self.rol_celador = Rol.objects.create(nombre="celador", descripcion="Celador")
+        self.rol_celador, _ = Rol.objects.get_or_create(
+            nombre="celador", defaults={"descripcion": "Celador"}
+        )
 
         # Tipos de Vínculo:
         # Note: migration 0002 already created standard records, so get_or_create ensures no duplicate error
@@ -103,10 +115,10 @@ class RegistroExternoTestCase(TestCase):
         self.assertEqual(persona.tipo_vinculo, self.vinculo_estudiante)
         self.assertTrue(persona.activo)
 
-        # Validar creación de Usuario con username = correo
+        # Validar creación de Usuario: username = parte local del correo institucional
         usuario = Usuario.objects.filter(email="ana.gomez@ucundinamarca.edu.co").first()
         self.assertIsNotNone(usuario)
-        self.assertEqual(usuario.username, "ana.gomez@ucundinamarca.edu.co")
+        self.assertEqual(usuario.username, "ana.gomez")
         self.assertEqual(usuario.persona, persona)
 
         # Validar asignación de Rol según TipoVinculo.rol_asignado
@@ -116,9 +128,20 @@ class RegistroExternoTestCase(TestCase):
         self.assertFalse(usuario.tiene_permiso("personas.administrar"))
         self.assertFalse(usuario.tiene_permiso("catalogos.administrar"))
 
-        # Validar autenticación
-        login_ok = self.client.login(username="ana.gomez@ucundinamarca.edu.co", password="PasswordSegura123!")
-        self.assertTrue(login_ok)
+        # Login por username local, correo y cédula
+        self.assertTrue(
+            self.client.login(username="ana.gomez", password="PasswordSegura123!")
+        )
+        self.client.logout()
+        self.assertTrue(
+            self.client.login(
+                username="ana.gomez@ucundinamarca.edu.co", password="PasswordSegura123!"
+            )
+        )
+        self.client.logout()
+        self.assertTrue(
+            self.client.login(username="1010202303", password="PasswordSegura123!")
+        )
 
     def test_registro_rechazado_por_dominio_no_institucional(self):
         """Se rechaza el registro si el correo no termina en @ucundinamarca.edu.co."""
@@ -266,6 +289,9 @@ class RegistroExternoTestCase(TestCase):
         self.assertEqual(persona.tipo_vinculo, self.vinculo_admin)
         self.assertIsNone(persona.area_id)
         self.assertIsNone(persona.programa_id)
+        usuario = persona.usuario
+        self.assertEqual(usuario.username, "luis.admin")
+        self.assertEqual(usuario.email, "luis.admin@ucundinamarca.edu.co")
 
     def test_registro_gestor_administrativo_ignora_area_en_post(self):
         """Si alguien envía área en el POST de autorregistro, se ignora."""

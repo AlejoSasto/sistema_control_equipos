@@ -43,9 +43,15 @@ class Decanatura(models.Model):
 
 
 class Area(models.Model):
-    """Dependencia administrativa (CGCA, ISU, CTeI, etc.)."""
+    """Dependencia administrativa (CGCA, ISU, CTeI, etc.) — siempre ligada a una sede."""
 
-    codigo = models.CharField(max_length=20, unique=True, help_text="Código corto (ej. CGCA, ISU, CTeI)")
+    sede = models.ForeignKey(
+        Sede,
+        on_delete=models.RESTRICT,
+        related_name="areas",
+        help_text="Sede a la que pertenece esta dependencia",
+    )
+    codigo = models.CharField(max_length=20, help_text="Código corto (ej. CGCA, ISU, CTeI)")
     nombre = models.CharField(max_length=150, help_text="Nombre descriptivo de la dependencia")
     activo = models.BooleanField(default=True, help_text="Borrado lógico")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -55,10 +61,20 @@ class Area(models.Model):
         db_table = "area"
         verbose_name = "Área / Dependencia"
         verbose_name_plural = "Áreas / Dependencias"
-        ordering = ["nombre"]
+        ordering = ["sede__nombre", "nombre"]
+        indexes = [
+            models.Index(fields=["sede", "activo"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sede", "codigo"],
+                name="uniq_area_sede_codigo",
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.codigo} — {self.nombre}"
+        sede_cod = self.sede.codigo if self.sede_id else "?"
+        return f"{self.codigo} — {self.nombre} ({sede_cod})"
 
 
 class Programa(models.Model):

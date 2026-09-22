@@ -19,6 +19,7 @@ import qrcode
 
 from .models import Usuario, UsuarioRol
 from .decorators import requiere_permiso
+from .auth_utils import username_desde_correo
 from personas.models import (
     Persona,
     TipoVinculo,
@@ -169,7 +170,7 @@ def registro_externo_view(request):
                     )
 
         if correo:
-            if Usuario.objects.filter(username__iexact=correo).exists() or Usuario.objects.filter(email__iexact=correo).exists():
+            if Usuario.objects.filter(email__iexact=correo).exists():
                 errors.append(f"Ya existe una cuenta registrada con el correo {correo}.")
 
         tipo_vinculo = None
@@ -190,6 +191,16 @@ def registro_externo_view(request):
                         errors.append(
                             f"Para el perfil '{tipo_vinculo.nombre}', el correo electrónico debe pertenecer al dominio institucional ({dominio})."
                         )
+
+        username_candidato = ""
+        if correo and tipo_vinculo and not any(
+            e.startswith("Ya existe una cuenta") for e in errors
+        ):
+            username_candidato = username_desde_correo(correo, tipo_vinculo)
+            if Usuario.objects.filter(username__iexact=username_candidato).exists():
+                errors.append(
+                    f"Ya existe una cuenta registrada con el usuario '{username_candidato}'."
+                )
 
         sede = None
         if sede_id:
@@ -246,8 +257,9 @@ def registro_externo_view(request):
                     activo=True,
                 )
 
+                username = username_desde_correo(correo, tipo_vinculo)
                 usuario = Usuario.objects.create_user(
-                    username=correo,
+                    username=username,
                     email=correo,
                     first_name=nombres,
                     last_name=apellidos,
@@ -280,12 +292,19 @@ def registro_externo_view(request):
                 messages.error(request, str(exc))
             return render(request, "accounts/registro.html", _contexto_registro(request.POST))
 
-        msg_correo = "correo" if es_externo else "correo institucional"
-        messages.success(
-            request,
-            f"¡Registro exitoso, {nombres}! Su cuenta ha sido creada correctamente. "
-            f"Ya puede iniciar sesión con su {msg_correo}.",
-        )
+        if tipo_vinculo and tipo_vinculo.dominio_correo_requerido:
+            messages.success(
+                request,
+                f"¡Registro exitoso, {nombres}! Su cuenta ha sido creada correctamente. "
+                f"Ya puede iniciar sesión con su documento, usuario institucional "
+                f"({username_desde_correo(correo, tipo_vinculo)}) o correo.",
+            )
+        else:
+            messages.success(
+                request,
+                f"¡Registro exitoso, {nombres}! Su cuenta ha sido creada correctamente. "
+                f"Ya puede iniciar sesión con su documento o correo.",
+            )
         return redirect("accounts:login")
 
     return render(request, "accounts/registro.html", _contexto_registro())

@@ -19,6 +19,7 @@ from accounts.alcance import (
     sedes_visibles,
     usuarios_visibles,
 )
+from accounts.auth_utils import DOMINIO_INSTITUCIONAL, username_desde_correo
 from accounts.decorators import requiere_permiso
 from accounts.models import Permiso, Rol, RolPermiso, Usuario, UsuarioRol
 from auditoria.models import AuditoriaCambio
@@ -383,6 +384,10 @@ def usuario_create(request):
         first_name = request.POST.get("first_name", "").strip()
         last_name = request.POST.get("last_name", "").strip()
 
+        # Correo institucional → username = parte local (coherente con autorregistro)
+        if email and email.endswith(DOMINIO_INSTITUCIONAL):
+            username = username_desde_correo(email)
+
         data = {
             "sin_persona": sin_persona,
             "persona": persona_id or "",
@@ -403,7 +408,7 @@ def usuario_create(request):
                 validate_password(password)
             except ValidationError as exc:
                 errors.extend(exc.messages)
-        if Usuario.objects.filter(username__iexact=username).exists():
+        if username and Usuario.objects.filter(username__iexact=username).exists():
             errors.append(f"Ya existe un usuario con el nombre '{username}'.")
         if email and Usuario.objects.filter(email__iexact=email).exists():
             errors.append(f"Ya existe un usuario con el correo '{email}'.")

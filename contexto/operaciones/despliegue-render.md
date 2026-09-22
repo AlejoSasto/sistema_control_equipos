@@ -165,7 +165,17 @@ git push origin main
 2. Render detecta el push a `main` y vuelve a construir el Docker (auto-deploy).
 3. Para forzar: servicio → **Manual Deploy** → **Deploy latest commit**.
 
-Cada arranque vuelve a ejecutar `migrate`, `seed_data` y `collectstatic` (idempotente; la contraseña de `admin` no se resetea si ya existe).
+Cada arranque vuelve a ejecutar `migrate`, `seed_data` y `collectstatic`.
+
+**Seed seguro en producción:**
+
+- Upsert de catálogos (sedes, facultades, programas, áreas, permisos, roles, vínculos canónicos).
+- **No** resetea la contraseña de `admin` si ya existe.
+- **No** desactiva sedes/programas/áreas/vínculos creados fuera del seed.
+- Solo borra filas de **demo MVP** (listas fijas de username/documento/serial).
+- Asegura alcance `GLOBAL` y permisos nuevos (p. ej. `usuarios.gestionar_alcance`) para `admin`.
+
+Migraciones de alcance (`organizacion.0005`–`0006`, `accounts.0011`) son aditivas: crean tablas/permisos y asignan GLOBAL a admins existentes; no eliminan personas, equipos ni movimientos.
 
 ---
 

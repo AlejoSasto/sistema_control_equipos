@@ -31,7 +31,10 @@ DEMO_SERIALES = (
 
 
 class Command(BaseCommand):
-    help = "Carga catálogos institucionales UCundinamarca y limpia datos de demostración"
+    help = (
+        "Upsert catálogos institucionales UCundinamarca (idempotente). "
+        "No borra usuarios/personas/equipos reales; solo limpia demos fijos del MVP."
+    )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Cargando datos institucionales..."))
@@ -52,10 +55,12 @@ class Command(BaseCommand):
                 f"{org['programas']} programas, {areas_n} áreas | 6 vínculos"
             ))
             self.stdout.write(self.style.SUCCESS(
-                "Acceso administrador: usuario 'admin' / contraseña 'Udec2026!Admin'"
+                "Acceso administrador: usuario 'admin' / contraseña 'Udec2026!Admin' "
+                "(solo al crear admin; redeploy no resetea contraseña)"
             ))
 
     def _limpiar_datos_demostracion(self):
+        """Solo elimina filas del MVP de demo (listas fijas). No toca datos reales."""
         personas_demo = Persona.objects.filter(numero_documento__in=DEMO_DOCUMENTOS)
         usuarios_demo = Usuario.objects.filter(username__in=DEMO_USERNAMES)
         equipos_qs = Equipo.objects.filter(Q(serial__in=DEMO_SERIALES) | Q(persona__in=personas_demo))
@@ -65,10 +70,13 @@ class Command(BaseCommand):
         eliminados_eq = equipos_qs.delete()[0]
         eliminados_per = personas_demo.delete()[0]
         eliminados_usr = usuarios_demo.delete()[0]
-        self.stdout.write(self.style.WARNING(
-            f"[LIMPIEZA] Demostración eliminada — movimientos:{movs} equipos:{eliminados_eq} "
-            f"personas:{eliminados_per} usuarios:{eliminados_usr}"
-        ))
+        if movs or eliminados_eq or eliminados_per or eliminados_usr:
+            self.stdout.write(self.style.WARNING(
+                f"[LIMPIEZA] Demostración eliminada — movimientos:{movs} equipos:{eliminados_eq} "
+                f"personas:{eliminados_per} usuarios:{eliminados_usr}"
+            ))
+        else:
+            self.stdout.write(self.style.SUCCESS("[OK] Sin datos de demostración que limpiar"))
 
     def _cargar_permisos(self):
         permisos_data = [
@@ -247,13 +255,10 @@ class Command(BaseCommand):
                     tipo_vinculo=tipos_objs[destino]
                 )
 
-        # Borrado lógico de todo lo que no esté en el catálogo vigente
-        desactivados = TipoVinculo.objects.exclude(
-            codigo__in=tipos_objs.keys()
-        ).update(activo=False, permite_autoregistro=False)
+        # No desactivar vínculos creados fuera del seed (preserva datos en producción).
+        # Solo se desactivan códigos legado conocidos en _desactivar_tipos_vinculo_legado.
         self.stdout.write(self.style.SUCCESS(
-            f"[OK] {len(tipos_objs)} tipos de vínculo activos "
-            f"(desactivados otros: {desactivados})"
+            f"[OK] {len(tipos_objs)} tipos de vínculo canónicos asegurados"
         ))
         return tipos_objs["gestor_administrativo"]
 
@@ -264,12 +269,15 @@ class Command(BaseCommand):
             activo=False,
             permite_autoregistro=False,
         )
-        self.stdout.write(self.style.WARNING(
-            f"[LIMPIEZA] Tipos de vínculo legado desactivados: {n}"
-        ))
+        if n:
+            self.stdout.write(self.style.WARNING(
+                f"[LIMPIEZA] Tipos de vínculo legado desactivados: {n}"
+            ))
+        else:
+            self.stdout.write(self.style.SUCCESS("[OK] Sin tipos de vínculo legado activos"))
 
     def _cargar_organizacion(self):
-        """Sedes, facultades y programas del catálogo institucional (todos activos)."""
+        """Upsert sedes/facultades/programas del catálogo. No desactiva filas ajenas al seed."""
         sede_objs = {}
         for data in SEDES:
             sede, _ = Sede.objects.update_or_create(
@@ -281,7 +289,6 @@ class Command(BaseCommand):
                 },
             )
             sede_objs[data["codigo"]] = sede
-        Sede.objects.exclude(codigo__in=sede_objs.keys()).update(activo=False)
 
         fac_objs = {}
         for data in FACULTADES:
@@ -290,7 +297,6 @@ class Command(BaseCommand):
                 defaults={"nombre": data["nombre"], "activo": True},
             )
             fac_objs[data["codigo"]] = fac
-        Decanatura.objects.exclude(codigo__in=fac_objs.keys()).update(activo=False)
 
         prog_codes = set()
         for data in PROGRAMAS:
@@ -306,21 +312,20 @@ class Command(BaseCommand):
             )
             prog_codes.add(data["codigo"])
 
-        # Alias legado del MVP anterior
+        # Alias legado del MVP anterior (solo código IS-UBATE → ISC-UBATE)
         if "IS-UBATE" not in prog_codes and "ISC-UBATE" in prog_codes:
             legado = Programa.objects.filter(codigo="IS-UBATE").first()
-            if legado:
+            if legado and legado.activo:
                 Persona.objects.filter(programa=legado).update(
                     programa_id=Programa.objects.get(codigo="ISC-UBATE").pk
                 )
                 legado.activo = False
                 legado.save(update_fields=["activo"])
 
-        Programa.objects.exclude(codigo__in=prog_codes).update(activo=False)
-
         self.stdout.write(self.style.SUCCESS(
-            f"[OK] Organización: {len(sede_objs)} sedes · "
-            f"{len(fac_objs)} facultades · {len(prog_codes)} programas (activos)"
+            f"[OK] Organización upsert: {len(sede_objs)} sedes · "
+            f"{len(fac_objs)} facultades · {len(prog_codes)} programas "
+            f"(no se desactivan sedes/programas fuera del catálogo)"
         ))
         return {
             "sedes": len(sede_objs),
@@ -329,6 +334,7 @@ class Command(BaseCommand):
         }
 
     def _cargar_areas(self):
+        """Upsert áreas del catálogo. No desactiva áreas creadas fuera del seed."""
         codes = set()
         for data in AREAS:
             Area.objects.update_or_create(
@@ -336,8 +342,9 @@ class Command(BaseCommand):
                 defaults={"nombre": data["nombre"], "activo": True},
             )
             codes.add(data["codigo"])
-        Area.objects.exclude(codigo__in=codes).update(activo=False)
-        self.stdout.write(self.style.SUCCESS(f"[OK] {len(codes)} áreas / dependencias activas"))
+        self.stdout.write(self.style.SUCCESS(
+            f"[OK] {len(codes)} áreas / dependencias upsert (sin desactivar otras)"
+        ))
         return len(codes)
 
     def _asegurar_admin(self, roles_objs):
