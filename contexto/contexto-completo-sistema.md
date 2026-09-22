@@ -3,7 +3,7 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-22 (Resend + Celery; Área→sede; alcance + login cédula)  
+**Fecha:** 2026-09-22 (Resend + Celery; recuperación de contraseña §9.2b; Área→sede; alcance + login cédula)  
 
 > **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`17` siguen como detalle; ver sección 14.
 
@@ -359,12 +359,32 @@ Tras el commit exitoso se encola correo **welcome** (no bloquea el acceso: la cu
 
 ### 9.2 Login + MFA
 
-`/accounts/login/` → Axes + rate limit. Identificador: **username**, **correo** o **número de documento** (cédula) vía `DocumentoOUsuarioBackend`. Enlace **«¿Olvidó su contraseña?»** → `/accounts/password-reset/` (throttle + mensaje anti-enumeración). Si es `admin_sistema`: configurar o verificar TOTP antes de abrir sesión. Redirect post-login:
+`/accounts/login/` → Axes + rate limit. Identificador: **username**, **correo** o **número de documento** (cédula) vía `DocumentoOUsuarioBackend`. Enlace **«¿Olvidó su contraseña?»** → `/accounts/password-reset/` (ver §9.2b). Si es `admin_sistema`: configurar o verificar TOTP antes de abrir sesión. Redirect post-login:
 
 1. `control.escanear` → kiosco  
 2. `equipos.ver_propios` → Mis equipos  
 3. `perfil.ver_propio` → Mi perfil  
 4. (otros permisos de panel…)
+
+### 9.2b Recuperación de contraseña (olvidé / restablecer)
+
+Flujo **self-service** (distinto del reset que un admin hace en la ficha de usuario del panel).
+
+| Paso | Ruta / acción | Detalle |
+|------|---------------|---------|
+| 1 | Login → «¿Olvidó su contraseña?» | Template `templates/accounts/password_reset_request.html` |
+| 2 | `POST /accounts/password-reset/` | Identificador: username, correo o documento. Rate limit **5/m**. Mensaje genérico anti-enumeración (siempre el mismo éxito). |
+| 3 | Si hay usuario activo con email | `EmailToken` purpose `password_reset` (hash HMAC; vigencia **~2 h**); correo `password_reset` con enlace |
+| 4 | Enlace | `{PUBLIC_BASE_URL}/accounts/password-reset/confirmar/?token=…` |
+| 5 | `POST /accounts/password-reset/confirmar/` | Nueva contraseña + confirmación; valida con `validate_password`; rate limit **10/m**. Token de un solo uso; inválido/expirado → pedir uno nuevo. |
+| 6 | Éxito | Redirect a login; el usuario entra con la nueva clave |
+
+**No confundir con:**
+
+- **Cuenta bloqueada (Axes):** ~5 fallos → cooloff ~1 h; admin con `usuarios.desbloquear` libera; puede enviarse correo `account_unlocked` (no cambia la contraseña).
+- **Reset desde panel:** admin cambia/restablece clave en ficha de usuario (`usuarios.administrar`); no usa el flujo de correo self-service.
+
+Código: `password_reset_request_view` / `password_reset_confirm_view` en `apps/accounts/views.py`; tokens en `notifications.services.token_service`.
 
 ### 9.3 Miembro: equipos y QR
 
@@ -428,13 +448,17 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 
 El **front nunca llama a Resend**. Flujo: vista → `EmailService` → `EmailLog(queued)` → task Celery cola `emails` → `ResendAdapter` → API. Webhook `POST /webhooks/resend/` (Svix) actualiza delivered/bounced/complained.
 
-| Evento | Correo `email_type` |
-|--------|---------------------|
-| Registro OK | `welcome` |
-| Olvidé / restablecer contraseña | `password_reset` (token HMAC, ~2 h) |
-| Admin desbloquea Axes | `account_unlocked` |
+| Evento | Correo `email_type` | Notas UX |
+|--------|---------------------|----------|
+| Registro OK | `welcome` | Informativo; **no** bloquea el acceso |
+| Olvidé / restablecer (§9.2b) | `password_reset` | Token HMAC ~2 h; enlace usa `PUBLIC_BASE_URL` |
+| Admin desbloquea Axes | `account_unlocked` | Aviso; no cambia la contraseña |
 
-Local: `RESEND_MOCK_MODE=True` (default con `DEBUG`) + `CELERY_TASK_ALWAYS_EAGER`. Producción: mock off, Redis + worker, API key y webhook secret. Detalle: [`17-integracion-resend.md`](17-integracion-resend.md).
+Plantillas HTML+TXT: `apps/notifications/templates/emails/` (marca verde `#007B3E`).  
+Local: `RESEND_MOCK_MODE=True` (default con `DEBUG`) + `CELERY_TASK_ALWAYS_EAGER`.  
+Producción: mock off, Redis + worker, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (dominio verificado), `RESEND_WEBHOOK_SECRET`, `PUBLIC_BASE_URL` HTTPS.  
+Webhook productivo (ejemplo): `https://<servicio>.onrender.com/webhooks/resend/`.  
+Detalle y checklist: [`17-integracion-resend.md`](17-integracion-resend.md).
 
 ---
 
@@ -588,7 +612,7 @@ Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `Alc
 | Login (cédula / correo / usuario) | `apps/accounts/backends.py`, `apps/accounts/auth_utils.py` |
 | Alcance jerárquico | `apps/accounts/alcance.py`, `apps/organizacion/models.py` (`AlcanceUsuario`); UI `templates/panel/usuario_detail.html` |
 | Área ↔ sede | `apps/organizacion/models.py` (`Area`); migración `0007_area_sede.py`; panel `views_organizacion.py` |
-| Login / MFA / registro / reset password | `apps/accounts/views.py` |
+| Login / MFA / registro / reset password | `apps/accounts/views.py`; UI `templates/accounts/password_reset_*.html` |
 | Correos / Celery / webhook | `apps/notifications/`, `apps/integrations/resend/`, `config/celery.py` |
 | QR firmado | `apps/equipos/models.py` |
 | Asignación / inventario institucional | `apps/equipos/services.py`, `apps/equipos/models.py`, `apps/panel/views_equipos.py`; command `cerrar_asignaciones_vencidas` |

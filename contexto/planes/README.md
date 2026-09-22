@@ -26,12 +26,12 @@ Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especif
 | [alcance-jerarquico-usuarios.md](alcance-jerarquico-usuarios.md) | Completado | 2026-09-21 | Alcance jerárquico + `accounts/alcance.py` |
 | [login-cedula-username-institucional.md](login-cedula-username-institucional.md) | Completado | 2026-09-21 | Login por cédula + username local institucional |
 | [area-pertenece-sede.md](area-pertenece-sede.md) | Completado | 2026-09-22 | Área FK a Sede; unicidad (sede, codigo); migración 0007; seed × sede; UI/alcance |
-| [integracion-resend.md](integracion-resend.md) | Completado | 2026-09-22 | [`../17-integracion-resend.md`](../17-integracion-resend.md) |
+| [integracion-resend.md](integracion-resend.md) | Completado | 2026-09-22 | [`../17-integracion-resend.md`](../17-integracion-resend.md) — welcome, password reset, unlock, webhook |
 
 ## Convención
 
 1. Nombre en `kebab-case.md`.
 2. Cabecera con **Estado** (`Pendiente` / `En progreso` / `Completado`) y fecha.
 3. Checklist de tareas con `[x]` al cerrar.
-4. Si el plan detalla un módulo o dominio nuevo, el documento rector numerado vive en `contexto/` (`00`–`13`); este archivo solo trackea la ejecución.
+4. Si el plan detalla un módulo o dominio nuevo, el documento rector numerado vive en `contexto/` (`00`–`17`); este archivo solo trackea la ejecución.
 5. Actualizar este índice y `contexto/README.md` en el mismo cambio.

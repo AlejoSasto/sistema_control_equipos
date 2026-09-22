@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-22 (plan 17 Resend completado)
+**Última actualización:** 2026-09-22 (plan 17 Resend: docs §9.2b recuperación de contraseña + brief manual 1.2)
 
 ---
 
@@ -15,7 +15,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 | **[`contexto-completo-sistema.md`](contexto-completo-sistema.md)** | Síntesis vigente autocontenida (onboarding e IA). **Gana** si hay conflicto con docs antiguos. |
 | [`brief-manual-usuario-claude.md`](brief-manual-usuario-claude.md) | Prompt maestro para generar el **manual de usuario** (Word) con Claude |
 
-Los `00`–`13` son detalle/histórico; no sustituyen al contexto completo.
+Los `00`–`17` son detalle/histórico; no sustituyen al contexto completo.
 
 ---
 
@@ -24,7 +24,7 @@ Los `00`–`13` son detalle/histórico; no sustituyen al contexto completo.
 | Ubicación | Contenido |
 |-----------|-----------|
 | [`contexto-completo-sistema.md`](contexto-completo-sistema.md) | Contexto único vigente del sistema |
-| `00`–`13` + `walkthrough.md` | Documentos rectores (arquitectura, negocio, datos, UX, seguridad, módulos) |
+| `00`–`17` + `walkthrough.md` | Documentos rectores (arquitectura, negocio, datos, UX, seguridad, módulos, correos) |
 | [`planes/`](planes/) | Planes de ejecución concretos (features / refactors) con estado |
 | [`operaciones/`](operaciones/) | Procedimientos y checklists operativos (incidentes, backups) |
 
@@ -85,7 +85,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/alcance-jerarquico-usuarios.md](planes/alcance-jerarquico-usuarios.md) | **Completado** | Alcance GLOBAL/SEDE/FACULTAD/PROGRAMA/ÁREA + filtrado central |
 | [planes/login-cedula-username-institucional.md](planes/login-cedula-username-institucional.md) | **Completado** | Login por cédula + username = parte local del correo institucional |
 | [planes/area-pertenece-sede.md](planes/area-pertenece-sede.md) | **Completado** | Área FK a Sede; unicidad (sede, codigo); seed × sede; hotfix deploy |
-| [planes/integracion-resend.md](planes/integracion-resend.md) | **Completado** | Resend + Celery/Redis; welcome, reset password, webhook |
+| [planes/integracion-resend.md](planes/integracion-resend.md) | **Completado** | Resend + Celery/Redis; welcome, **recuperación de contraseña**, unlock, webhook |
 
 ---
 

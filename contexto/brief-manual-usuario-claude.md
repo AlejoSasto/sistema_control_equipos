@@ -2,7 +2,7 @@
 
 **Propósito de este archivo:** ser el **prompt maestro** que le das a Claude (u otro LLM) para que redacte el **Manual de usuario** del *Sistema de Control de Salida de Equipos de Cómputo* (Universidad de Cundinamarca) listo para pegar/exportar a **Microsoft Word**.
 
-**Fuente de verdad del producto:** [`contexto-completo-sistema.md`](contexto-completo-sistema.md) (vigente 2026-09-22, incluye correos de bienvenida / recuperación de contraseña / aviso de desbloqueo). Si hay conflicto con docs antiguos, gana ese archivo.
+**Fuente de verdad del producto:** [`contexto-completo-sistema.md`](contexto-completo-sistema.md) (vigente 2026-09-22: correos bienvenida / **recuperación de contraseña** / aviso de desbloqueo; §9.2b y §9.8). Si hay conflicto con docs antiguos, gana ese archivo.
 
 **Cómo usar:** copia desde la sección «PROMPT PARA CLAUDE» hasta el final y pégalo en Claude. Adjunta también (si puedes) el archivo `contexto-completo-sistema.md` completo como contexto adicional.
 
@@ -143,7 +143,7 @@ Explique en lenguaje no técnico:
 PORTADA
 - Título: Manual de usuario — Sistema de Control de Salida de Equipos de Cómputo
 - Subtítulo: Universidad de Cundinamarca
-- Versión del documento: 1.1
+- Versión del documento: 1.2
 - Fecha: [usar fecha actual al generar]
 - Clasificación: Uso interno / comunidad universitaria
 
@@ -151,6 +151,7 @@ CONTROL DE CAMBIOS
 | Versión | Fecha | Descripción |
 | 1.0 | … | Versión inicial del manual |
 | 1.1 | … | Correo de bienvenida; olvidé / restablecer contraseña; aviso al desbloquear cuenta |
+| 1.2 | … | Procedimiento detallado de recuperación de contraseña; tabla de correos; diferencias vs bloqueo Axes y vs reset por admin |
 
 ÍNDICE (generable en Word)
 
@@ -257,14 +258,22 @@ CONTROL DE CAMBIOS
 - En la pantalla de inicio de sesión hay el enlace «¿Olvidó su contraseña?».
 
 ### Olvidé / restablecer contraseña (flujo del usuario)
-- Ruta: /accounts/password-reset/ (desde el enlace del login).
-- El usuario indica usuario, correo o documento.
-- El sistema muestra un mensaje genérico de éxito (por seguridad no confirma si la cuenta existe).
-- Si hay cuenta activa con correo, se envía un mensaje con un enlace para definir nueva contraseña.
-- El enlace lleva a /accounts/password-reset/confirmar/ (con token); el usuario escribe y confirma la nueva contraseña.
-- El enlace tiene tiempo limitado (del orden de horas); si expiró o ya se usó, debe solicitar uno nuevo.
-- Hay límite de intentos por minuto en la solicitud (evitar abuso); si bloquea, esperar e intentar de nuevo.
-- Tras cambiar la contraseña, vuelve al login.
+
+Redacte un procedimiento numerado completo (sección 3.5 del manual), con [CAPTURA] en cada pantalla:
+
+1. En Iniciar sesión, pulse «¿Olvidó su contraseña?».
+2. En /accounts/password-reset/ escriba su usuario, correo o número de documento y envíe.
+3. Verá un mensaje de confirmación genérico (por seguridad el sistema no dice si la cuenta existe).
+4. Revise el correo registrado (incluida carpeta de spam). El mensaje incluye un enlace para restablecer.
+5. Abra el enlace (/accounts/password-reset/confirmar/…). Si el enlace expiró o ya se usó, vuelva al paso 1.
+6. Escriba la nueva contraseña dos veces (debe cumplir las reglas de seguridad del sistema) y confirme.
+7. Vuelva a Iniciar sesión con la nueva contraseña.
+
+Reglas que debe mencionar el manual:
+- El enlace caduca en pocas horas (aprox. 2 h).
+- Hay límite de intentos seguidos; si el sistema lo frena, espere un minuto y reintente.
+- Esto NO es lo mismo que «cuenta bloqueada por intentos fallidos» (allí la contraseña no cambia; hay que esperar o pedir desbloqueo a un administrador).
+- Un administrador también puede restablecer la contraseña desde el panel; ese camino es distinto al enlace por correo.
 
 ### Correo de bienvenida
 - Se envía automáticamente tras un autorregistro exitoso.
@@ -275,6 +284,14 @@ CONTROL DE CAMBIOS
 - Desde la ficha del usuario en el panel: acción de desbloquear (tras bloqueo por intentos fallidos).
 - El usuario puede recibir un correo corto avisando que la cuenta quedó desbloqueada y puede entrar.
 - Distinto del restablecimiento de contraseña: desbloquear no cambia la clave; solo libera el bloqueo temporal.
+
+### Tabla de correos (anexo D — obligatoria en el manual)
+
+| Correo | Cuándo llega | Qué debe hacer el usuario |
+|--------|--------------|---------------------------|
+| Bienvenida | Tras registrarse | Informativo; ya puede entrar |
+| Restablecer contraseña | Tras «¿Olvidó su contraseña?» | Abrir el enlace y definir nueva clave |
+| Cuenta desbloqueada | Tras desbloqueo por un admin | Puede volver a iniciar sesión (misma clave, salvo que también le hayan cambiado la contraseña) |
 
 ### Autorregistro
 - Ruta pública /registro/
@@ -373,5 +390,5 @@ Empiece por la portada y continúe en orden hasta los anexos. Sea exhaustivo.
 | [`17-integracion-resend.md`](17-integracion-resend.md) | Detalle técnico de correos (no pegar al usuario final) |
 | `00`–`16`, `planes/` | Detalle técnico; **no** pegar crudo al usuario final |
 
-**Versión del brief:** 1.1 — 2026-09-22  
-**Basado en:** contexto completo (Área→Sede, alcance, login por cédula, institucionales, externo/vigilante, **correos: bienvenida / restablecer contraseña / desbloqueo**).
+**Versión del brief:** 1.2 — 2026-09-22  
+**Basado en:** contexto completo §9.2b / §9.8 y doc [`17-integracion-resend.md`](17-integracion-resend.md) (bienvenida, recuperación de contraseña self-service, desbloqueo, webhook — sin exponer stack al usuario final).
