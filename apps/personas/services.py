@@ -50,16 +50,22 @@ def nombre_dependencia_visita(visita: VisitaExterno | None) -> str:
     return nombre_unidad(visita.unidad_tipo, visita.unidad_id)
 
 
-def _validar_unidad(unidad_tipo: str, unidad_id: int) -> None:
+def _validar_unidad(unidad_tipo: str, unidad_id: int, sede: Sede | None = None) -> None:
     if unidad_tipo == "facultad":
         if not Decanatura.objects.filter(pk=unidad_id, activo=True).exists():
             raise ValidationError("La facultad seleccionada no es válida.")
     elif unidad_tipo == "programa":
-        if not Programa.objects.filter(pk=unidad_id, activo=True).exists():
+        programa = Programa.objects.filter(pk=unidad_id, activo=True).first()
+        if not programa:
             raise ValidationError("El programa seleccionado no es válido.")
+        if sede and programa.sede_id != sede.id:
+            raise ValidationError("El programa seleccionado no pertenece a la sede indicada.")
     elif unidad_tipo == "area":
-        if not Area.objects.filter(pk=unidad_id, activo=True).exists():
+        area = Area.objects.filter(pk=unidad_id, activo=True).first()
+        if not area:
             raise ValidationError("El área seleccionada no es válida.")
+        if sede and area.sede_id != sede.id:
+            raise ValidationError("El área seleccionada no pertenece a la sede indicada.")
     else:
         raise ValidationError("Tipo de dependencia no válido.")
 
@@ -78,7 +84,7 @@ def registrar_visita(
         raise ValidationError("Solo el personal externo puede registrar visitas.")
     if fecha_fin < fecha_inicio:
         raise ValidationError("La fecha fin debe ser mayor o igual a la fecha inicio.")
-    _validar_unidad(unidad_tipo, unidad_id)
+    _validar_unidad(unidad_tipo, unidad_id, sede=sede)
 
     VisitaExterno.objects.filter(
         persona=persona, estado=VisitaExterno.ESTADO_ACTIVA

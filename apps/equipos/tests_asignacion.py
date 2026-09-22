@@ -43,7 +43,7 @@ class ServiciosAsignacionTestCase(TestCase):
             nivel="pregrado",
         )
         self.area, _ = Area.objects.get_or_create(
-            codigo="AREA-ASIG", defaults={"nombre": "Área Asig"}
+            sede=self.sede, codigo="AREA-ASIG", defaults={"nombre": "Área Asig"}
         )
         self.vinculo, _ = TipoVinculo.objects.get_or_create(
             codigo="gestor_conocimiento",

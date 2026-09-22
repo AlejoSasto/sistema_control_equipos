@@ -159,7 +159,7 @@
             {% for p in programas_alcance %}<option value="{{ p.pk }}" data-nivel="programa">{{ p.nombre }}</option>{% endfor %}
           </optgroup>
           <optgroup label="Áreas">
-            {% for a in areas_alcance %}<option value="{{ a.pk }}" data-nivel="area">{{ a.codigo }} — {{ a.nombre }}</option>{% endfor %}
+            {% for a in areas_alcance %}<option value="{{ a.pk }}" data-nivel="area">{{ a.codigo }} — {{ a.nombre }} ({{ a.sede.codigo }})</option>{% endfor %}
           </optgroup>
         </select>
       </div>

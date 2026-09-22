@@ -334,18 +334,27 @@ class Command(BaseCommand):
         }
 
     def _cargar_areas(self):
-        """Upsert áreas del catálogo. No desactiva áreas creadas fuera del seed."""
-        codes = set()
-        for data in AREAS:
-            Area.objects.update_or_create(
-                codigo=data["codigo"],
-                defaults={"nombre": data["nombre"], "activo": True},
-            )
-            codes.add(data["codigo"])
+        """Upsert áreas del catálogo por (sede, codigo). No desactiva áreas ajenas."""
+        sedes = list(Sede.objects.filter(activo=True))
+        if not sedes:
+            self.stdout.write(self.style.WARNING(
+                "[AVISO] Sin sedes activas; no se cargan áreas"
+            ))
+            return 0
+        n = 0
+        for sede in sedes:
+            for data in AREAS:
+                Area.objects.update_or_create(
+                    sede=sede,
+                    codigo=data["codigo"],
+                    defaults={"nombre": data["nombre"], "activo": True},
+                )
+                n += 1
         self.stdout.write(self.style.SUCCESS(
-            f"[OK] {len(codes)} áreas / dependencias upsert (sin desactivar otras)"
+            f"[OK] {n} áreas upsert ({len(sedes)} sedes × {len(AREAS)} códigos, "
+            f"sin desactivar otras)"
         ))
-        return len(codes)
+        return n
 
     def _asegurar_admin(self, roles_objs):
         password = "Udec2026!Admin"

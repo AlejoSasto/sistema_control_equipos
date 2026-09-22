@@ -7,7 +7,7 @@ from django.utils import timezone
 from accounts.models import Usuario, Rol, Permiso, RolPermiso, UsuarioRol
 from control_acceso.models import Movimiento
 from equipos.models import Equipo
-from organizacion.models import Sede, Decanatura, Programa, Area
+from organizacion.models import AlcanceUsuario, Area, Decanatura, Programa, Sede
 from personas.models import (
     Persona,
     TipoVinculo,
@@ -35,7 +35,12 @@ class PersonalExternoVisitaTestCase(TestCase):
             facultad=self.facultad,
             nivel="pregrado",
         )
-        self.area = Area.objects.create(codigo="CGCA-T16", nombre="Control T16")
+        self.area = Area.objects.create(
+            sede=self.sede, codigo="CGCA-T16", nombre="Control T16"
+        )
+        self.area2 = Area.objects.create(
+            sede=self.sede2, codigo="CGCA-T16", nombre="Control T16 Fusa"
+        )
 
         self.perm_perfil, _ = Permiso.objects.get_or_create(
             codigo="perfil.ver_propio", defaults={"descripcion": "perfil"}
@@ -212,7 +217,7 @@ class PersonalExternoVisitaTestCase(TestCase):
             {
                 "sede": str(self.sede2.id),
                 "unidad_tipo": "area",
-                "unidad_id": str(self.area.id),
+                "unidad_id": str(self.area2.id),
                 "fecha_inicio": self.hoy.isoformat(),
                 "fecha_fin": self.fin.isoformat(),
             },
@@ -236,6 +241,9 @@ class PersonalExternoVisitaTestCase(TestCase):
             password="PasswordSegura123!",
         )
         UsuarioRol.objects.create(usuario=admin, rol=self.rol_admin)
+        AlcanceUsuario.objects.create(
+            usuario=admin, nivel=AlcanceUsuario.NIVEL_GLOBAL, objeto_id=None
+        )
         self.client.login(username="admin_vig", password="PasswordSegura123!")
         response = self.client.post(
             reverse("panel:vigilante_create"),

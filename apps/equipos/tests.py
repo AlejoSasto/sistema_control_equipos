@@ -16,7 +16,9 @@ class EquiposModelTestCase(TestCase):
         self.programa = Programa.objects.create(
             codigo="IS-UBATE", nombre="Ingeniería de Sistemas", sede=self.sede, facultad=self.facultad, nivel="pregrado"
         )
-        self.area, _ = Area.objects.get_or_create(codigo="CGCA", defaults={"nombre": "Biblioteca"})
+        self.area, _ = Area.objects.get_or_create(
+            sede=self.sede, codigo="CGCA", defaults={"nombre": "Biblioteca"}
+        )
         self.vinculo_docente, _ = TipoVinculo.objects.get_or_create(
             codigo="gestor_conocimiento", defaults={"nombre": "Gestor del Conocimiento"}
         )

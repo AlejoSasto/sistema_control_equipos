@@ -15,22 +15,35 @@ def backfill_area_sede(apps, schema_editor):
 
     sedes = list(Sede.objects.order_by("pk"))
     if not sedes:
-        return
+        # Fresh migrate: equipos.0002 puede haber creado Area (CGCA) sin ninguna Sede.
+        if not Area.objects.exists():
+            return
+        sedes = [
+            Sede.objects.create(
+                codigo="TMP-MIG",
+                nombre="Sede temporal (migración)",
+                ciudad="N/A",
+                activo=True,
+            )
+        ]
 
-    areas_orig = list(Area.objects.all())
     # codigo -> {sede_id -> area_id}
     mapa: dict[str, dict[int, int]] = {}
+    for area in Area.objects.all():
+        if area.sede_id:
+            mapa.setdefault(area.codigo, {})[area.sede_id] = area.pk
 
-    for area in areas_orig:
+    # Asignar sede a filas sin sede y clonar por cada sede restante
+    for area in list(Area.objects.filter(sede_id__isnull=True)):
         codigo = area.codigo
         mapa.setdefault(codigo, {})
-        # Asignar original a la primera sede
         primera = sedes[0]
         area.sede_id = primera.pk
         area.save(update_fields=["sede_id"])
         mapa[codigo][primera.pk] = area.pk
-
         for sede in sedes[1:]:
+            if sede.pk in mapa[codigo]:
+                continue
             clone = Area.objects.create(
                 sede_id=sede.pk,
                 codigo=codigo,
@@ -38,6 +51,22 @@ def backfill_area_sede(apps, schema_editor):
                 activo=area.activo,
             )
             mapa[codigo][sede.pk] = clone.pk
+
+    # Completar clones faltantes para códigos ya con sede
+    for codigo, por_sede in list(mapa.items()):
+        plantilla = Area.objects.filter(pk__in=por_sede.values()).first()
+        if not plantilla:
+            continue
+        for sede in sedes:
+            if sede.pk in por_sede:
+                continue
+            clone = Area.objects.create(
+                sede_id=sede.pk,
+                codigo=codigo,
+                nombre=plantilla.nombre,
+                activo=plantilla.activo,
+            )
+            por_sede[sede.pk] = clone.pk
 
     def area_para(codigo: str, sede_id: int | None) -> int | None:
         if not codigo:
@@ -50,7 +79,7 @@ def backfill_area_sede(apps, schema_editor):
         return None
 
     # Remap Persona.area
-    for persona in Persona.objects.exclude(area_id=None).select_related("area"):
+    for persona in Persona.objects.exclude(area_id=None):
         old = Area.objects.filter(pk=persona.area_id).first()
         if not old:
             continue
@@ -72,11 +101,13 @@ def backfill_area_sede(apps, schema_editor):
         nuevo_id = area_para(old.codigo, sede_id)
         if nuevo_id and nuevo_id != equipo.dependencia_id:
             equipo.dependencia_id = nuevo_id
+            update_fields = ["dependencia_id"]
             if equipo.unidad_tipo == "area":
                 equipo.unidad_id = nuevo_id
-            equipo.save(update_fields=["dependencia_id", "unidad_id"] if equipo.unidad_tipo == "area" else ["dependencia_id"])
+                update_fields.append("unidad_id")
+            equipo.save(update_fields=update_fields)
 
-    # Remap Equipo.unidad_id cuando unidad_tipo=area sin dependencia
+    # Remap Equipo.unidad_id cuando unidad_tipo=area
     for equipo in Equipo.objects.filter(unidad_tipo="area").exclude(unidad_id=None):
         old = Area.objects.filter(pk=equipo.unidad_id).first()
         if not old:

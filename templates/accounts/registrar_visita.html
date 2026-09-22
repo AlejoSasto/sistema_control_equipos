@@ -70,7 +70,7 @@
 <script>
   const FACULTADES = [{% for f in facultades %}{id:"{{ f.id }}",nombre:"{{ f.nombre|escapejs }}"},{% endfor %}];
   const PROGRAMAS = [{% for p in programas %}{id:"{{ p.id }}",nombre:"{{ p.nombre|escapejs }}",sede:"{{ p.sede_id }}"},{% endfor %}];
-  const AREAS = [{% for a in areas %}{id:"{{ a.id }}",nombre:"{{ a.codigo }} — {{ a.nombre|escapejs }}"},{% endfor %}];
+  const AREAS = [{% for a in areas %}{id:"{{ a.id }}",nombre:"{{ a.codigo }} — {{ a.nombre|escapejs }}",sede:"{{ a.sede_id }}"},{% endfor %}];
   const PRE = "{{ form_data.unidad_id|default:'' }}";
   function actualizarUnidades() {
     const tipo = document.getElementById('id_unidad_tipo').value;
@@ -80,7 +80,7 @@
     let items = [];
     if (tipo === 'facultad') items = FACULTADES;
     else if (tipo === 'programa') items = PROGRAMAS.filter(p => !sedeId || p.sede === sedeId);
-    else if (tipo === 'area') items = AREAS;
+    else if (tipo === 'area') items = AREAS.filter(a => !sedeId || a.sede === sedeId);
     items.forEach(it => {
       const o = document.createElement('option');
       o.value = it.id; o.textContent = it.nombre;
@@ -88,6 +88,8 @@
       sel.appendChild(o);
     });
   }
+  document.getElementById('id_sede')?.addEventListener('change', actualizarUnidades);
+  document.getElementById('id_unidad_tipo')?.addEventListener('change', actualizarUnidades);
   document.addEventListener('DOMContentLoaded', actualizarUnidades);
 </script>
 {% endblock %}

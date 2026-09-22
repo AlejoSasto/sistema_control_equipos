@@ -63,7 +63,7 @@ class Area(models.Model):
         verbose_name_plural = "Áreas / Dependencias"
         ordering = ["sede__nombre", "nombre"]
         indexes = [
-            models.Index(fields=["sede", "activo"]),
+            models.Index(fields=["sede", "activo"], name="area_sede_id_activo_idx"),
         ]
         constraints = [
             models.UniqueConstraint(

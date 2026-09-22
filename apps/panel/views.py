@@ -122,7 +122,7 @@ def personas_list(request):
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
         "sedes": sedes_visibles(request.user).order_by("nombre"),
         "programas": programas_visibles(request.user).order_by("nombre"),
-        "areas": areas_visibles(request.user).order_by("nombre"),
+        "areas": areas_visibles(request.user).select_related("sede").order_by("sede__nombre", "nombre"),
     }
     return render(request, "panel/personas_list.html", context)
 
@@ -134,7 +134,7 @@ def _persona_form_context(user, persona=None, data=None):
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
         "sedes": sedes_visibles(user).order_by("nombre"),
         "programas": programas_visibles(user).order_by("nombre"),
-        "areas": areas_visibles(user).order_by("nombre"),
+        "areas": areas_visibles(user).select_related("sede").order_by("sede__nombre", "nombre"),
         "codigo_vinculo_admin": CODIGO_VINCULO_ADMINISTRATIVO,
     }
 
@@ -170,6 +170,8 @@ def _apply_persona_fields(user, persona, data):
             area = get_object_or_404(Area, id=data["area"])
             if not puede_ver_objeto(user, area):
                 raise ValidationError("El área seleccionada está fuera de su alcance.")
+            if area.sede_id != sede.id:
+                raise ValidationError("El área seleccionada no pertenece a la sede indicada.")
             persona.area = area
         else:
             persona.area = None

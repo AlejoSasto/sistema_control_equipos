@@ -47,7 +47,7 @@
       <select name="dependencia" id="filter_dep" class="form-select">
         <option value="">-- Todas --</option>
         {% for a in areas %}
-        <option value="{{ a.id }}" {% if dependencia_filtro == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }}</option>
+        <option value="{{ a.id }}" {% if dependencia_filtro == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }} ({{ a.sede.codigo }})</option>
         {% endfor %}
       </select>
     </div>

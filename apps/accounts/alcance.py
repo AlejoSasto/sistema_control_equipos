@@ -192,9 +192,12 @@ def _q_facultad(alcance: AlcanceEfectivo) -> Q:
 
 
 def _q_area(alcance: AlcanceEfectivo) -> Q:
+    q = Q()
+    if alcance.sedes:
+        q |= Q(sede_id__in=alcance.sedes)
     if alcance.areas:
-        return Q(pk__in=alcance.areas)
-    return Q(pk__in=[])
+        q |= Q(pk__in=alcance.areas)
+    return q
 
 
 def _q_visita_externo(alcance: AlcanceEfectivo) -> Q:
@@ -365,7 +368,9 @@ def programas_visibles(user):
 
 
 def areas_visibles(user):
-    return aplicar_alcance(user, Area.objects.filter(activo=True))
+    return aplicar_alcance(
+        user, Area.objects.filter(activo=True).select_related("sede")
+    )
 
 
 def visitas_visibles(user):

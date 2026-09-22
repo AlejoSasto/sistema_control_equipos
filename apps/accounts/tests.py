@@ -73,7 +73,9 @@ class RegistroExternoTestCase(TestCase):
         self.vinculo_docente.permite_autoregistro = False
         self.vinculo_docente.save()
 
-        self.area = Area.objects.create(codigo="CGCA-TEST", nombre="Área Test Registro")
+        self.area = Area.objects.create(
+            sede=self.sede, codigo="CGCA-TEST", nombre="Área Test Registro"
+        )
         self.vinculo_admin, _ = TipoVinculo.objects.get_or_create(
             codigo="gestor_administrativo",
             defaults={

@@ -248,7 +248,7 @@
     {% for p in programas %}{id: "{{ p.id }}", nombre: "{{ p.nombre|escapejs }}", sede: "{{ p.sede_id }}"},{% endfor %}
   ];
   const AREAS = [
-    {% for a in areas %}{id: "{{ a.id }}", nombre: "{{ a.codigo }} — {{ a.nombre|escapejs }}"},{% endfor %}
+    {% for a in areas %}{id: "{{ a.id }}", nombre: "{{ a.codigo }} — {{ a.nombre|escapejs }}", sede: "{{ a.sede_id }}"},{% endfor %}
   ];
   const CODIGO_EXTERNO = "{{ codigo_vinculo_externo|default:'personal_externo' }}";
   const UNIDAD_PRESEL = "{{ form_data.unidad_id|default:'' }}";
@@ -277,7 +277,7 @@
     let items = [];
     if (tipo === 'facultad') items = FACULTADES;
     else if (tipo === 'programa') items = PROGRAMAS.filter(p => !sedeId || p.sede === sedeId);
-    else if (tipo === 'area') items = AREAS;
+    else if (tipo === 'area') items = AREAS.filter(a => !sedeId || a.sede === sedeId);
     items.forEach(it => {
       const opt = document.createElement('option');
       opt.value = it.id;

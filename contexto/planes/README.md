@@ -25,6 +25,7 @@ Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especif
 | [desbloqueo-login-axes.md](desbloqueo-login-axes.md) | Completado | 2026-09-21 | Lockout UX + `usuarios.desbloquear` |
 | [alcance-jerarquico-usuarios.md](alcance-jerarquico-usuarios.md) | Completado | 2026-09-21 | Alcance jerárquico + `accounts/alcance.py` |
 | [login-cedula-username-institucional.md](login-cedula-username-institucional.md) | Completado | 2026-09-21 | Login por cédula + username local institucional |
+| [area-pertenece-sede.md](area-pertenece-sede.md) | Completado | 2026-09-22 | Área FK a Sede; unicidad (sede, codigo); seed por sede |
 
 ## Convención
 

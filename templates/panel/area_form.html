@@ -9,6 +9,13 @@
       <input name="codigo" class="form-control" value="{{ data.codigo }}" required style="font-family:var(--font-mono);" placeholder="CGCA, ISU, CTeI"></div>
     <div class="form-group"><label class="form-label">Nombre *</label>
       <input name="nombre" class="form-control" value="{{ data.nombre }}" required placeholder="Biblioteca, Interacción Social Universitaria"></div>
+    <div class="form-group"><label class="form-label">Sede *</label>
+      <select name="sede" class="form-select" required>
+        <option value="">-- Seleccionar --</option>
+        {% for s in sedes %}
+        <option value="{{ s.id }}" {% if data.sede == s.id|stringformat:'s' %}selected{% endif %}>{{ s.nombre }} ({{ s.codigo }})</option>
+        {% endfor %}
+      </select></div>
     <label style="display:flex;gap:8px;align-items:center;margin:var(--space-2) 0;">
       <input type="checkbox" name="activo" {% if data.activo %}checked{% endif %}> Activa
     </label>

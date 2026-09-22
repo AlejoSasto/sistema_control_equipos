@@ -645,7 +645,7 @@ def responsable_form(request, pk=None):
             "opciones_unidad_tipo": OPCIONES_UNIDAD_TIPO,
             "facultades": Decanatura.objects.filter(activo=True).order_by("nombre"),
             "programas": Programa.objects.filter(activo=True).select_related("sede").order_by("nombre"),
-            "areas": Area.objects.filter(activo=True).order_by("nombre"),
+            "areas": Area.objects.filter(activo=True).select_related("sede").order_by("sede__nombre", "nombre"),
         },
     )
 

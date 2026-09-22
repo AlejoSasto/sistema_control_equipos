@@ -79,7 +79,7 @@
           <select name="area" id="area" class="form-select">
             <option value="">-- Pendiente / Sin asignar --</option>
             {% for a in areas %}
-            <option value="{{ a.id }}" {% if data.area == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }} — {{ a.nombre }}</option>
+            <option value="{{ a.id }}" data-sede="{{ a.sede_id }}" {% if data.area == a.id|stringformat:'s' %}selected{% endif %}>{{ a.codigo }} — {{ a.nombre }} ({{ a.sede.codigo }})</option>
             {% endfor %}
           </select>
         </div>
@@ -145,6 +145,15 @@
     if (programa.selectedOptions[0]?.hidden) programa.value = "";
   }
 
+  function filtrarAreasPorSede() {
+    const sedeId = sede.value;
+    Array.from(area.options).forEach(opt => {
+      if (!opt.value) return;
+      opt.hidden = sedeId && opt.dataset.sede !== sedeId;
+    });
+    if (area.selectedOptions[0]?.hidden) area.value = "";
+  }
+
   function toggleVinculo() {
     const opt = tipoVinculo.selectedOptions[0];
     const esAdmin = opt && opt.dataset.codigo === codigoAdmin;
@@ -156,9 +165,13 @@
   }
 
   tipoVinculo.addEventListener("change", toggleVinculo);
-  sede.addEventListener("change", filtrarProgramasPorSede);
+  sede.addEventListener("change", function() {
+    filtrarProgramasPorSede();
+    filtrarAreasPorSede();
+  });
   toggleVinculo();
   filtrarProgramasPorSede();
+  filtrarAreasPorSede();
 })();
 </script>
 {% endblock %}

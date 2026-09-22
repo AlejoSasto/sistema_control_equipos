@@ -21,7 +21,7 @@ def organizacion_list(request):
         "sedes": sedes_visibles(request.user).order_by("nombre"),
         "facultades": facultades_visibles(request.user).order_by("nombre"),
         "programas": programas_visibles(request.user).order_by("nombre"),
-        "areas": areas_visibles(request.user).order_by("nombre"),
+        "areas": areas_visibles(request.user).select_related("sede").order_by("sede__nombre", "nombre"),
         "alcance_global": alcance_es_global(request.user),
     }
     return render(request, "panel/organizacion_list.html", context)
@@ -213,7 +213,9 @@ def programa_toggle(request, pk):
 @requiere_permiso("catalogos.administrar")
 def area_form(request, pk=None):
     if pk:
-        area = get_object_or_404(areas_visibles(request.user), pk=pk)
+        area = get_object_or_404(
+            areas_visibles(request.user).select_related("sede"), pk=pk
+        )
     else:
         if not alcance_es_global(request.user):
             messages.error(request, "Solo usuarios con alcance global pueden crear áreas.")
@@ -222,27 +224,46 @@ def area_form(request, pk=None):
     data = {
         "codigo": area.codigo if area else "",
         "nombre": area.nombre if area else "",
+        "sede": str(area.sede_id) if area else "",
         "activo": area.activo if area else True,
     }
     if request.method == "POST":
         codigo = request.POST.get("codigo", "").strip().upper()
         nombre = request.POST.get("nombre", "").strip()
+        sede_id = request.POST.get("sede", "").strip()
         activo = request.POST.get("activo") in ("on", "true", "1")
-        data = {"codigo": codigo, "nombre": nombre, "activo": activo}
-        if not (codigo and nombre):
-            messages.error(request, "Código y nombre son obligatorios.")
-        elif Area.objects.filter(codigo=codigo).exclude(pk=pk).exists():
-            messages.error(request, f"Ya existe un área con el código '{codigo}'.")
+        data = {"codigo": codigo, "nombre": nombre, "sede": sede_id, "activo": activo}
+        if not (codigo and nombre and sede_id):
+            messages.error(request, "Código, nombre y sede son obligatorios.")
+        elif Area.objects.filter(sede_id=sede_id, codigo=codigo).exclude(pk=pk).exists():
+            messages.error(
+                request,
+                f"Ya existe un área con el código '{codigo}' en esa sede.",
+            )
         else:
+            sede = get_object_or_404(sedes_visibles(request.user), id=sede_id)
             if area:
-                area.codigo, area.nombre, area.activo = codigo, nombre, activo
+                area.codigo = codigo
+                area.nombre = nombre
+                area.sede = sede
+                area.activo = activo
                 area.save()
                 messages.success(request, f"Área '{area.codigo}' actualizada.")
             else:
-                Area.objects.create(codigo=codigo, nombre=nombre, activo=activo)
+                Area.objects.create(
+                    codigo=codigo, nombre=nombre, sede=sede, activo=activo
+                )
                 messages.success(request, f"Área '{codigo}' creada exitosamente.")
             return redirect("panel:organizacion_list")
-    return render(request, "panel/area_form.html", {"area": area, "data": data})
+    return render(
+        request,
+        "panel/area_form.html",
+        {
+            "area": area,
+            "data": data,
+            "sedes": sedes_visibles(request.user).order_by("nombre"),
+        },
+    )
 
 
 @require_POST

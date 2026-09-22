@@ -162,7 +162,9 @@ class PanelOrganizacionTestCase(TestCase):
 
         self.sede = Sede.objects.create(codigo="UBATE", nombre="Ubaté", ciudad="Ubaté")
         self.facultad = Decanatura.objects.create(codigo="FAC-ING", nombre="Facultad de Ingeniería")
-        self.area = Area.objects.create(codigo="ISU", nombre="Interacción Social Universitaria")
+        self.area = Area.objects.create(
+            sede=self.sede, codigo="ISU", nombre="Interacción Social Universitaria"
+        )
         self.vinculo_admin, _ = TipoVinculo.objects.get_or_create(
             codigo="gestor_administrativo", defaults={"nombre": "Administrativo"}
         )
@@ -246,6 +248,48 @@ class PanelOrganizacionTestCase(TestCase):
         self.assertContains(response, "11223344")
         self.assertNotContains(response, "55667788")
         self.assertContains(response, "Sin área")
+
+    def test_persona_rechaza_area_de_otra_sede(self):
+        sede_otra = Sede.objects.create(codigo="FUSA", nombre="Fusagasugá", ciudad="Fusagasugá")
+        area_otra = Area.objects.create(
+            sede=sede_otra, codigo="ISU", nombre="ISU Fusa"
+        )
+        self.client.login(username="org_admin", password="adminpass123")
+        response = self.client.post(
+            reverse("panel:persona_create"),
+            {
+                "tipo_documento": "CC",
+                "numero_documento": "77889900",
+                "nombres": "Cruz",
+                "apellidos": "Sede",
+                "tipo_vinculo": str(self.vinculo_admin.id),
+                "sede": str(self.sede.id),
+                "area": str(area_otra.id),
+                "programa": "",
+                "activo": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Persona.objects.filter(numero_documento="77889900").exists())
+
+    def test_mismo_codigo_area_en_sedes_distintas(self):
+        sede_otra = Sede.objects.create(codigo="FUSA", nombre="Fusagasugá", ciudad="Fusagasugá")
+        Area.objects.create(sede=sede_otra, codigo="ISU", nombre="ISU Fusa")
+        self.assertEqual(Area.objects.filter(codigo="ISU").count(), 2)
+        self.client.login(username="org_admin", password="adminpass123")
+        response = self.client.post(
+            reverse("panel:area_create"),
+            {
+                "codigo": "CGCA",
+                "nombre": "Biblioteca Ubaté",
+                "sede": str(self.sede.id),
+                "activo": "on",
+            },
+        )
+        self.assertRedirects(response, reverse("panel:organizacion_list"))
+        self.assertTrue(
+            Area.objects.filter(sede=self.sede, codigo="CGCA").exists()
+        )
 
 
 class PanelDesbloqueoAxesTestCase(TestCase):

@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-21 (seed seguro + login cédula listos para deploy)
+**Última actualización:** 2026-09-22 (Área pertenece a sede; seed por sede)
 
 ---
 
@@ -82,6 +82,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/desbloqueo-login-axes.md](planes/desbloqueo-login-axes.md) | **Completado** | Feedback lockout + permiso `usuarios.desbloquear` en panel |
 | [planes/alcance-jerarquico-usuarios.md](planes/alcance-jerarquico-usuarios.md) | **Completado** | Alcance GLOBAL/SEDE/FACULTAD/PROGRAMA/ÁREA + filtrado central |
 | [planes/login-cedula-username-institucional.md](planes/login-cedula-username-institucional.md) | **Completado** | Login por cédula + username = parte local del correo institucional |
+| [planes/area-pertenece-sede.md](planes/area-pertenece-sede.md) | **Completado** | Área FK a Sede; unicidad (sede, codigo); seed × sede |
 
 ---
 

@@ -123,10 +123,10 @@ flowchart LR
 ## 5. Organización institucional
 
 ```
-Sede ──────────────┐
-Facultad (indep.) ─┼──► Programa (sede + facultad)
-Área (indep.) ─────┤
-                   ├──► Persona (sede + programa | área)
+Sede ──────────────┬──► Programa (sede + facultad)
+                   └──► Área / Dependencia (sede + codigo único por sede)
+Facultad (indep.) ─┘
+                   ├──► Persona (sede + programa | área de la misma sede)
                    ├──► Equipo personal (persona obligatoria)
                    └──► Equipo institucional (unidad propietaria +
                         estado_inventario; AsignacionEquipo opcional)
@@ -137,9 +137,9 @@ Facultad (indep.) ─┼──► Programa (sede + facultad)
 | **Sede** | Ubicación física | 7 sedes/seccionales/extensiones (seed) |
 | **Facultad** (`Decanatura`) | Unidad académica transversal (no depende de sede) | 7 facultades (seed) |
 | **Programa** | Carrera en una sede bajo una facultad | 45 programas (seed) |
-| **Área** | Dependencia administrativa | 8 áreas (CGCA, ISU, CTeI, …) |
+| **Área** | Dependencia administrativa **de una sede**; unicidad `(sede, codigo)` | 8 códigos × 7 sedes (p. ej. CGCA en Ubaté y Fusa) |
 
-**Persona:** sede obligatoria; perfiles académicos pueden tener programa; `gestor_administrativo` **no** elige área al autorregistrarse (queda pendiente); un admin con `personas.administrar` la asigna después en el panel (sin programa).
+**Persona:** sede obligatoria; perfiles académicos pueden tener programa; `gestor_administrativo` **no** elige área al autorregistrarse (queda pendiente); un admin con `personas.administrar` la asigna después en el panel (sin programa), y el área debe pertenecer a la misma sede de la persona.
 
 > Nota: docs antiguos `01`/`02` describían `Sede → Decanatura → Programa`. El modelo vigente trata Facultad como independiente.
 
@@ -473,7 +473,7 @@ En Docker/Render el `entrypoint.sh` ejecuta `migrate` → **`seed_data`** → `c
 |--------|---------|------------|-----|
 | Administrador | `admin` | `Udec2026!Admin` | Alcance **GLOBAL**; dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
 
-Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **18 permisos**, **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `AlcanceUsuario(nivel=global)`. Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
+Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 códigos de área × cada sede activa** (upsert por `(sede, codigo)`), **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **18 permisos**, **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `AlcanceUsuario(nivel=global)`. Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
 
 > Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales. Guía deploy: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).
 

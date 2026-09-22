@@ -59,7 +59,7 @@
           <option value="">-- Seleccione --</option>
           {% for a in areas %}
           <option value="{{ a.id }}" {% if instancia and instancia.unidad_tipo == 'area' and instancia.unidad_id == a.id %}selected{% endif %}>
-            {{ a.codigo }} — {{ a.nombre }}
+            {{ a.codigo }} — {{ a.nombre }} ({{ a.sede.codigo }})
           </option>
           {% endfor %}
         </select>
