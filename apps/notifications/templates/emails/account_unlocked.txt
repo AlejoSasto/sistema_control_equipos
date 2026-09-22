@@ -1,0 +1,7 @@
+Hola, {{ user_name }}!
+
+Un administrador ha desbloqueado su cuenta tras el bloqueo por intentos fallidos de inicio de sesión.
+
+Inicie sesión aquí: {{ login_url }}
+
+— {{ app_name }}

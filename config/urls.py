@@ -29,6 +29,7 @@ urlpatterns = [
     path("acceso/", include("control_acceso.urls")),
     path("panel/", include("panel.urls")),
     path("reportes/", include("reportes.urls")),
+    path("webhooks/", include("notifications.urls")),
 ]
 
 if settings.DEBUG:

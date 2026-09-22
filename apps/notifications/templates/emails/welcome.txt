@@ -1,0 +1,9 @@
+Hola, {{ user_name }}!
+
+Su cuenta en el Sistema de Control de Salida de Equipos de Cómputo ha sido creada correctamente.
+
+Ya puede iniciar sesión con su documento, usuario o correo:
+{{ login_url }}
+
+— {{ app_name }}
+Universidad de Cundinamarca

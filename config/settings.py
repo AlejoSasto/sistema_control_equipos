@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "panel",
     "auditoria",
     "reportes",
+    "notifications.apps.NotificationsConfig",
 ]
 
 MIDDLEWARE = [
@@ -239,6 +240,44 @@ DATOS_PERSONALES_CONTACTO = os.environ.get(
     "DATOS_PERSONALES_CONTACTO",
     "protecciondatos@ucundinamarca.edu.co",
 )
+
+# --- Resend / correos transaccionales (doc 17) ---
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM_EMAIL = os.environ.get(
+    "RESEND_FROM_EMAIL", "onboarding@resend.dev"
+)
+RESEND_FROM_NAME = os.environ.get(
+    "RESEND_FROM_NAME", "Control de Equipos UCundinamarca"
+)
+_resend_mock = os.environ.get("RESEND_MOCK_MODE", "").strip().lower()
+if _resend_mock:
+    RESEND_MOCK_MODE = _resend_mock in ("true", "1", "yes", "t")
+else:
+    RESEND_MOCK_MODE = DEBUG
+RESEND_WEBHOOK_SECRET = os.environ.get("RESEND_WEBHOOK_SECRET", "")
+EMAIL_TOKEN_SECRET = os.environ.get("EMAIL_TOKEN_SECRET", "") or SECRET_KEY
+PUBLIC_BASE_URL = os.environ.get(
+    "PUBLIC_BASE_URL", "http://localhost:8000"
+).rstrip("/")
+
+# --- Celery ---
+_redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0").strip()
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", _redis_url)
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_TASK_ROUTES = {
+    "notifications.tasks.*": {"queue": "emails"},
+}
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+_celery_eager = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "").strip().lower()
+if _celery_eager:
+    CELERY_TASK_ALWAYS_EAGER = _celery_eager in ("true", "1", "yes", "t")
+else:
+    # Sin worker local: ejecutar en proceso (tests y runserver)
+    CELERY_TASK_ALWAYS_EAGER = DEBUG
+CELERY_TASK_EAGER_PROPAGATES = True
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True

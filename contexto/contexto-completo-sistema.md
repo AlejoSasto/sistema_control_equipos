@@ -3,9 +3,9 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-22 (Área pertenece a sede; seed por sede; alcance + login cédula)  
+**Fecha:** 2026-09-22 (Resend + Celery; Área→sede; alcance + login cédula)  
 
-> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`16` siguen como detalle; ver sección 14.
+> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`17` siguen como detalle; ver sección 14.
 
 ---
 
@@ -32,26 +32,30 @@ No hay control de ingreso. Cada escaneo genera un `Movimiento` (auditoría), inc
 | QR | `qrcode` + Pillow; exhibición con token firmado TTL |
 | Reportes | `xlsxwriter` (Excel) + Chart.js (dashboard en pantalla) |
 | Auth extra | django-axes, Argon2, django-otp (MFA), django-ratelimit |
+| Correo | Resend (API) + adapter/mock; plantillas en `notifications` |
+| Cola | Celery + Redis (cola `emails`); en DEBUG, eager + mock |
 | Caché | LocMemCache (agregados del dashboard) |
-| Despliegue | Render (Docker + Gunicorn + WhiteNoise + PostgreSQL); ver `contexto/operaciones/despliegue-render.md` |
+| Despliegue | Render (Docker web + worker + Redis Key Value + PostgreSQL); ver `contexto/operaciones/despliegue-render.md` |
 
 ```
 sistema de control/
-├── config/                 # settings, urls, middleware, wsgi
+├── config/                 # settings, urls, middleware, wsgi, celery
 ├── apps/
-│   ├── accounts/           # Usuario, Rol, Permiso, login, registro, MFA
+│   ├── accounts/           # Usuario, Rol, Permiso, login, registro, MFA, reset password
 │   ├── organizacion/       # Sede, Facultad, Programa, Área→Sede, AlcanceUsuario
 │   ├── personas/           # Persona, TipoVinculo, VisitaExterno
 │   ├── equipos/            # Equipo, QR, AsignacionEquipo
 │   ├── control_acceso/     # Kiosco, Movimiento
 │   ├── panel/              # Administración interna /panel/ (+ monta dashboard)
 │   ├── auditoria/          # AuditoriaCambio
-│   └── reportes/           # Excel + dashboard (KPIs/Chart.js)
+│   ├── reportes/           # Excel + dashboard (KPIs/Chart.js)
+│   ├── notifications/      # EmailLog, EmailToken, tasks, webhook Resend
+│   └── integrations/       # Resend adapter/client/mock (paquete Python)
 ├── templates/
 ├── static/
 ├── Dockerfile              # Imagen de producción (Render / compose)
-├── docker-compose.yml      # Prueba local web + Postgres
-├── render.yaml             # Blueprint Render (DB + web)
+├── docker-compose.yml      # web + Postgres + Redis + worker Celery
+├── render.yaml             # Blueprint: DB + Redis + web + worker
 ├── contexto/               # Documentación (este archivo = entrada)
 └── manage.py
 ```
@@ -79,6 +83,8 @@ python manage.py runserver
 | `panel` | CRUD interno (personas, usuarios, roles, organización); URLs del dashboard |
 | `auditoria` | Traza de cambios sensibles y exportaciones |
 | `reportes` | Exportaciones `.xlsx` + dashboard admin (agregados, filtros HTMX, Chart.js) |
+| `notifications` | Cola de correos (`EmailLog`), tokens (`EmailToken`), webhook Svix, tasks Celery |
+| `integrations.resend` | Cliente/adapter Resend (mock en local); no es app Django |
 
 ---
 
@@ -345,13 +351,15 @@ Si el vínculo exige `dominio_correo_requerido` (hoy `@ucundinamarca.edu.co`), e
 Si el vínculo es **Gestor Administrativo**, el formulario **no** pide área ni programa (el área la asigna después un admin con `personas.administrar`, siempre de la **misma sede** de la persona); para el resto de comunidad, programa es opcional (filtrado por sede) y no se asigna área.  
 Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → también crea la primera `VisitaExterno`. Dependencia tipo área: solo áreas de la sede destino. Documento ya registrado como externo → hint de login + «Registrar nueva visita».
 
+Tras el commit exitoso se encola correo **welcome** (no bloquea el acceso: la cuenta queda usable al instante; confirmación de email es fase 2, ver doc 17).
+
 ### 9.1b Vigilante (alta interna)
 
 `/panel/personas/vigilante/nuevo/` (`personas.administrar`): Persona + Usuario + rol vigilante, una sede, correo libre (username = correo completo). No aparece en `/registro/`. Al crearse recibe `AlcanceUsuario(nivel=sede)` de su sede.
 
 ### 9.2 Login + MFA
 
-`/accounts/login/` → Axes + rate limit. Identificador: **username**, **correo** o **número de documento** (cédula) vía `DocumentoOUsuarioBackend`. Si es `admin_sistema`: configurar o verificar TOTP antes de abrir sesión. Redirect post-login:
+`/accounts/login/` → Axes + rate limit. Identificador: **username**, **correo** o **número de documento** (cédula) vía `DocumentoOUsuarioBackend`. Enlace **«¿Olvidó su contraseña?»** → `/accounts/password-reset/` (throttle + mensaje anti-enumeración). Si es `admin_sistema`: configurar o verificar TOTP antes de abrir sesión. Redirect post-login:
 
 1. `control.escanear` → kiosco  
 2. `equipos.ver_propios` → Mis equipos  
@@ -416,6 +424,18 @@ Colores de resultado alineados al design system: OK `#007B3E`, alerta `#C62828`,
 
 Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` para configurar y `reportes.exportar` para descargar; cada descarga queda en `auditoria_cambio`. El reporte de alertas filtra y columna por `motivo_alerta`. Export síncrono (límites en doc [`12`](12-modulo-reportes-excel.md)). **Todas las queries pasan por `acotar_por_alcance`** (mismo alcance que el panel). Complementa el dashboard de §9.6.
 
+### 9.8 Correos transaccionales (Resend)
+
+El **front nunca llama a Resend**. Flujo: vista → `EmailService` → `EmailLog(queued)` → task Celery cola `emails` → `ResendAdapter` → API. Webhook `POST /webhooks/resend/` (Svix) actualiza delivered/bounced/complained.
+
+| Evento | Correo `email_type` |
+|--------|---------------------|
+| Registro OK | `welcome` |
+| Olvidé / restablecer contraseña | `password_reset` (token HMAC, ~2 h) |
+| Admin desbloquea Axes | `account_unlocked` |
+
+Local: `RESEND_MOCK_MODE=True` (default con `DEBUG`) + `CELERY_TASK_ALWAYS_EAGER`. Producción: mock off, Redis + worker, API key y webhook secret. Detalle: [`17-integracion-resend.md`](17-integracion-resend.md).
+
 ---
 
 ## 10. URLs principales
@@ -429,6 +449,9 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | `/legal/politica-datos/` | Política de datos personales |
 | `{ADMIN_URL}` | Django admin (default `admin/`) |
 | `/accounts/` | login, logout, registro, perfil, MFA |
+| `/accounts/password-reset/` | Solicitar restablecimiento de contraseña |
+| `/accounts/password-reset/confirmar/` | Confirmar token + nueva contraseña (`?token=`) |
+| `/webhooks/resend/` | Webhook Svix Resend (csrf_exempt; firma requerida en prod) |
 | `/equipos/` | listado, mis-equipos, registrar, QR |
 | `/acceso/` | kiosco + verificar-qr + histórico |
 | `/panel/` | administración interna (redirect a dashboard si `reportes.ver`) |
@@ -459,7 +482,8 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 |---------|---------|
 | Contraseñas | Argon2 primero en `PASSWORD_HASHERS` |
 | Bloqueo login | Axes: 5 fallos, cooloff 1 h (username+IP); plantilla `accounts/lockout.html` indica cuándo reintentar; admin con `usuarios.desbloquear` puede liberar desde panel |
-| Rate limit | Login 5/m; escaneo 60/m |
+| Rate limit | Login 5/m; forgot password 5/m; confirm reset 10/m; escaneo 60/m |
+| Correo | Secrets `RESEND_*` / `EMAIL_TOKEN_SECRET`; no loguear API keys; mock solo local |
 | MFA | TOTP obligatorio para `admin_sistema` |
 | CSP | Middleware propio; `frame-ancestors 'none'` |
 | QR | Token de exhibición firmado + TTL |
@@ -544,6 +568,7 @@ Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `Alc
 | Asignación equipos institucionales | [`14-asignacion-equipos-institucionales.md`](14-asignacion-equipos-institucionales.md) |
 | Vigencia asignaciones institucionales | [`15-vigencia-asignacion-equipos-institucionales.md`](15-vigencia-asignacion-equipos-institucionales.md) |
 | Personal externo y vigilante | [`16-personal-externo-y-vigilante.md`](16-personal-externo-y-vigilante.md) |
+| Correos Resend + Celery | [`17-integracion-resend.md`](17-integracion-resend.md) — ejecución [`planes/integracion-resend.md`](planes/integracion-resend.md) |
 | Área → sede (ejecución) | [`planes/area-pertenece-sede.md`](planes/area-pertenece-sede.md) |
 | Alcance jerárquico (ejecución) | [`planes/alcance-jerarquico-usuarios.md`](planes/alcance-jerarquico-usuarios.md) |
 | Login cédula / username institucional | [`planes/login-cedula-username-institucional.md`](planes/login-cedula-username-institucional.md) |
@@ -563,7 +588,8 @@ Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `Alc
 | Login (cédula / correo / usuario) | `apps/accounts/backends.py`, `apps/accounts/auth_utils.py` |
 | Alcance jerárquico | `apps/accounts/alcance.py`, `apps/organizacion/models.py` (`AlcanceUsuario`); UI `templates/panel/usuario_detail.html` |
 | Área ↔ sede | `apps/organizacion/models.py` (`Area`); migración `0007_area_sede.py`; panel `views_organizacion.py` |
-| Login / MFA / registro | `apps/accounts/views.py` |
+| Login / MFA / registro / reset password | `apps/accounts/views.py` |
+| Correos / Celery / webhook | `apps/notifications/`, `apps/integrations/resend/`, `config/celery.py` |
 | QR firmado | `apps/equipos/models.py` |
 | Asignación / inventario institucional | `apps/equipos/services.py`, `apps/equipos/models.py`, `apps/panel/views_equipos.py`; command `cerrar_asignaciones_vencidas` |
 | Visitas externo | `apps/personas/services.py`, `apps/personas/models.py` (`VisitaExterno`) |

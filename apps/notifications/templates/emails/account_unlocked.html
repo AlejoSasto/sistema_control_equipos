@@ -1,0 +1,13 @@
+{% extends "emails/base.html" %}
+{% block title %}Cuenta desbloqueada{% endblock %}
+{% block content %}
+  <h1 style="margin:0 0 12px;font-size:20px;color:#1a1a1a;">Cuenta desbloqueada</h1>
+  <p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#333;">
+    Hola, {{ user_name }}. Un administrador ha desbloqueado su cuenta tras el bloqueo por intentos fallidos de inicio de sesión.
+  </p>
+  <p style="margin:0;">
+    <a href="{{ login_url }}" style="display:inline-block;background:#007B3E;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600;font-size:14px;">
+      Iniciar sesión
+    </a>
+  </p>
+{% endblock %}

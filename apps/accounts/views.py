@@ -292,6 +292,14 @@ def registro_externo_view(request):
                 messages.error(request, str(exc))
             return render(request, "accounts/registro.html", _contexto_registro(request.POST))
 
+        try:
+            from notifications.services.email_service import EmailService
+
+            EmailService.send_welcome(usuario)
+        except Exception:
+            # El registro no debe fallar si el correo no se encola
+            pass
+
         if tipo_vinculo and tipo_vinculo.dominio_correo_requerido:
             messages.success(
                 request,
@@ -502,4 +510,91 @@ def mfa_setup_view(request):
             "device": device,
             "qr_data_uri": qr_data_uri,
         },
+    )
+
+
+@ratelimit(key="ip", rate="5/m", method="POST", block=True)
+def password_reset_request_view(request):
+    """Solicitud de restablecimiento de contraseña (envía enlace por correo)."""
+    if request.user.is_authenticated:
+        return redirect("accounts:mi_perfil")
+
+    if request.method == "POST":
+        identificador = request.POST.get("identificador", "").strip()
+        # Respuesta genérica anti-enumeración
+        msg_ok = (
+            "Si existe una cuenta asociada, enviamos un enlace para restablecer "
+            "la contraseña. Revise su correo (y carpeta de spam)."
+        )
+        if identificador:
+            from accounts.auth_utils import resolver_usuario_por_identificador
+            from notifications.models import EmailToken
+            from notifications.services.email_service import EmailService
+            from notifications.services.token_service import create_email_token
+
+            usuario = resolver_usuario_por_identificador(identificador)
+            if usuario and usuario.email and usuario.is_active:
+                _, raw = create_email_token(
+                    usuario, EmailToken.Purpose.PASSWORD_RESET, hours=2
+                )
+                try:
+                    EmailService.send_password_reset(usuario, raw)
+                except Exception:
+                    pass
+        messages.success(request, msg_ok)
+        return redirect("accounts:login")
+
+    return render(request, "accounts/password_reset_request.html")
+
+
+@ratelimit(key="ip", rate="10/m", method="POST", block=True)
+def password_reset_confirm_view(request):
+    """Confirma el token y permite definir nueva contraseña."""
+    from notifications.models import EmailToken
+    from notifications.services.token_service import consume_email_token
+
+    token = request.GET.get("token") or request.POST.get("token", "")
+    if request.method == "POST":
+        password = request.POST.get("password", "")
+        password_confirm = request.POST.get("password_confirm", "")
+        errors = []
+        if not token:
+            errors.append("Falta el enlace de restablecimiento.")
+        if not password or password != password_confirm:
+            errors.append("Las contraseñas no coinciden.")
+        elif password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                errors.extend(exc.messages)
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return render(
+                request,
+                "accounts/password_reset_confirm.html",
+                {"token": token},
+            )
+
+        email_token = consume_email_token(token, EmailToken.Purpose.PASSWORD_RESET)
+        if not email_token:
+            messages.error(
+                request,
+                "El enlace no es válido o ha expirado. Solicite uno nuevo.",
+            )
+            return redirect("accounts:password_reset")
+
+        usuario = email_token.user
+        usuario.set_password(password)
+        usuario.save(update_fields=["password"])
+        messages.success(
+            request,
+            "Contraseña actualizada. Ya puede iniciar sesión.",
+        )
+        return redirect("accounts:login")
+
+    return render(
+        request,
+        "accounts/password_reset_confirm.html",
+        {"token": token},
     )

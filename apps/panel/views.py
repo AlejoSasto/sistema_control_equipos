@@ -618,6 +618,13 @@ def usuario_desbloquear(request, pk):
 
     usuario = get_object_or_404(usuarios_visibles(request.user), pk=pk)
     reset(username=usuario.username)
+    if usuario.email:
+        try:
+            from notifications.services.email_service import EmailService
+
+            EmailService.send_account_unlocked(usuario)
+        except Exception:
+            pass
     registrar_cambio(
         request.user,
         f"Desbloqueó el login (Axes) del usuario '{usuario.username}'.",

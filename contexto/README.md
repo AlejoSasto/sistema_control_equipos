@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-22 (documentación detallada Área→Sede + seed × sede + índices)
+**Última actualización:** 2026-09-22 (plan 17 Resend completado)
 
 ---
 
@@ -13,6 +13,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 | Documento | Uso |
 |-----------|-----|
 | **[`contexto-completo-sistema.md`](contexto-completo-sistema.md)** | Síntesis vigente autocontenida (onboarding e IA). **Gana** si hay conflicto con docs antiguos. |
+| [`brief-manual-usuario-claude.md`](brief-manual-usuario-claude.md) | Prompt maestro para generar el **manual de usuario** (Word) con Claude |
 
 Los `00`–`13` son detalle/histórico; no sustituyen al contexto completo.
 
@@ -53,6 +54,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [14-asignacion-equipos-institucionales.md](14-asignacion-equipos-institucionales.md) | Asignación de equipos institucionales por dependencia | **Implementado** — ejecución en [`planes/asignacion-equipos-institucionales.md`](planes/asignacion-equipos-institucionales.md) |
 | [15-vigencia-asignacion-equipos-institucionales.md](15-vigencia-asignacion-equipos-institucionales.md) | Inventario y vigencia de equipos institucionales | **Implementado** — ejecución en [`planes/vigencia-asignacion-equipos-institucionales.md`](planes/vigencia-asignacion-equipos-institucionales.md) |
 | [16-personal-externo-y-vigilante.md](16-personal-externo-y-vigilante.md) | Personal externo (VisitaExterno) y vigilante | **Implementado** — ejecución en [`planes/personal-externo-y-vigilante.md`](planes/personal-externo-y-vigilante.md) |
+| [17-integracion-resend.md](17-integracion-resend.md) | Correos transaccionales Resend + Celery | **Implementado** — ejecución en [`planes/integracion-resend.md`](planes/integracion-resend.md) |
 | [walkthrough.md](walkthrough.md) | Walkthrough de implementación | Completado |
 
 ---
@@ -83,6 +85,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/alcance-jerarquico-usuarios.md](planes/alcance-jerarquico-usuarios.md) | **Completado** | Alcance GLOBAL/SEDE/FACULTAD/PROGRAMA/ÁREA + filtrado central |
 | [planes/login-cedula-username-institucional.md](planes/login-cedula-username-institucional.md) | **Completado** | Login por cédula + username = parte local del correo institucional |
 | [planes/area-pertenece-sede.md](planes/area-pertenece-sede.md) | **Completado** | Área FK a Sede; unicidad (sede, codigo); seed × sede; hotfix deploy |
+| [planes/integracion-resend.md](planes/integracion-resend.md) | **Completado** | Resend + Celery/Redis; welcome, reset password, webhook |
 
 ---
 
@@ -102,6 +105,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 
 - Django 5.1 + templates + HTMX
 - PostgreSQL
+- Celery + Redis + Resend (correos)
 - CSS propio (`static/css/custom.css`) — design system v2
 - Seed: `python manage.py seed_data`
 
