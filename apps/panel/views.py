@@ -624,7 +624,12 @@ def usuario_desbloquear(request, pk):
 
             EmailService.send_account_unlocked(usuario)
         except Exception:
-            pass
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "Fallo al encolar/enviar account_unlocked user_id=%s",
+                usuario.pk,
+            )
     registrar_cambio(
         request.user,
         f"Desbloqueó el login (Axes) del usuario '{usuario.username}'.",

@@ -297,8 +297,12 @@ def registro_externo_view(request):
 
             EmailService.send_welcome(usuario)
         except Exception:
-            # El registro no debe fallar si el correo no se encola
-            pass
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "Fallo al encolar/enviar correo welcome user_id=%s",
+                getattr(usuario, "pk", None),
+            )
 
         if tipo_vinculo and tipo_vinculo.dominio_correo_requerido:
             messages.success(
@@ -540,7 +544,12 @@ def password_reset_request_view(request):
                 try:
                     EmailService.send_password_reset(usuario, raw)
                 except Exception:
-                    pass
+                    import logging
+
+                    logging.getLogger(__name__).exception(
+                        "Fallo al encolar/enviar password_reset user_id=%s",
+                        getattr(usuario, "pk", None),
+                    )
         messages.success(request, msg_ok)
         return redirect("accounts:login")
 

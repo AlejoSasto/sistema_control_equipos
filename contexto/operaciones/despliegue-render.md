@@ -181,40 +181,30 @@ Migraciones de alcance (`organizacion.0005`–`0006`, `accounts.0011`) son aditi
 
 Migración `organizacion.0007_area_sede`: hace obligatoria la sede en `Area`, clona códigos por sede y remapea FKs. Idempotente una vez aplicada; el seed posterior upserta por `(sede, codigo)`.
 
-### Blueprint Blueprint (`render.yaml`) — Redis + worker + Resend
+### Blueprint (`render.yaml`) — MVP web + Resend sync
 
-El blueprint incluye, además del web y Postgres:
+El blueprint MVP incluye **Postgres + web Docker**. Los correos se envían **en el mismo request** (`EMAIL_USE_CELERY=False`). **No** se crea Redis ni worker Celery en este modo.
 
-| Servicio | Tipo | Plan mínimo | Rol |
-|----------|------|-------------|-----|
-| `sistema-control-redis` | Key Value | **starter** (no free estable) | Broker Celery |
-| `sistema-control-web` | Web Docker | **starter** recomendado | Gunicorn + webhook |
-| `sistema-control-worker` | Worker Docker | **starter** | `celery -A config worker -Q emails,celery` |
-
-**Variables Resend / correo** (web y worker; marcar Sensitive en el dashboard):
+**Variables de correo** (servicio web; Sensitive donde aplique):
 
 | Variable | Valor |
 |----------|--------|
-| `RESEND_MOCK_MODE` | `False` en producción |
-| `RESEND_API_KEY` | API key de Resend |
-| `RESEND_FROM_EMAIL` | Remitente verificado (dominio en Resend) |
+| `RESEND_MOCK_MODE` | `False` |
+| `EMAIL_USE_CELERY` | `False` |
+| `CELERY_TASK_ALWAYS_EAGER` | `True` |
+| `RESEND_API_KEY` | API key `re_...` |
+| `RESEND_FROM_EMAIL` | Remitente con dominio verificado |
 | `RESEND_FROM_NAME` | p. ej. `Control de Equipos UCundinamarca` |
-| `RESEND_WEBHOOK_SECRET` | Signing secret del endpoint Svix |
-| `PUBLIC_BASE_URL` | URL canónica HTTPS del servicio (sin barra final) |
-| `CELERY_TASK_ALWAYS_EAGER` | `False` |
-| `REDIS_URL` / `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` | Desde el Key Value (`connectionString`) |
+| `RESEND_WEBHOOK_SECRET` | `whsec_...` (opcional pero recomendado) |
+| `PUBLIC_BASE_URL` | `https://sistema-control-web.onrender.com` (sin `/` final) |
 
-En local con Docker Compose hay servicios `redis` + `worker`; con `DEBUG=True` y sin Redis, `CELERY_TASK_ALWAYS_EAGER` + `RESEND_MOCK_MODE` permiten enviar sin cola real.
+**Fase 2 (opcional):** Key Value + worker Celery + `EMAIL_USE_CELERY=True` + `CELERY_TASK_ALWAYS_EAGER=False`. Ver [17-integracion-resend.md](../17-integracion-resend.md).
 
-**Webhook post-deploy (Resend → app):**
+**Webhook post-deploy (opcional; no bloquea el envío):**
 
-1. En [Resend](https://resend.com) → Webhooks → Add endpoint.
-2. URL: `https://<tu-servicio>.onrender.com/webhooks/resend/`
-3. Eventos: `email.delivered`, `email.bounced`, `email.complained` (y opcionales `email.sent` / `email.delivery_delayed`).
-4. Copiar el signing secret a `RESEND_WEBHOOK_SECRET` en web **y** worker (o solo web si el worker no verifica webhooks).
-5. Probar registro o “Olvidé mi contraseña” y verificar `EmailLog` / logs del worker.
-
-Detalle de arquitectura: [17-integracion-resend.md](../17-integracion-resend.md).
+1. Resend → Webhooks → URL `https://<servicio>.onrender.com/webhooks/resend/`
+2. Eventos: `email.delivered`, `email.bounced`, `email.complained`
+3. Copiar signing secret a `RESEND_WEBHOOK_SECRET`
 
 ---
 
@@ -231,10 +221,9 @@ Detalle de arquitectura: [17-integracion-resend.md](../17-integracion-resend.md)
 - [ ] Panel Organización → Áreas: columna Sede; mismo código puede repetirse en sedes distintas
 - [ ] Backups: ver [checklist-backup-restauracion.md](checklist-backup-restauracion.md)
 - [ ] Incidentes: ver [procedimiento-incidentes-seguridad.md](procedimiento-incidentes-seguridad.md)
-- [ ] Redis (Key Value) healthy; worker Celery en marcha (`emails` queue)
-- [ ] Env Resend configurado (`RESEND_MOCK_MODE=False`, API key, from, webhook secret, `PUBLIC_BASE_URL`)
-- [ ] Webhook Resend apunta a `/webhooks/resend/` y responde 200
+- [ ] Env correo: `EMAIL_USE_CELERY=False`, `CELERY_TASK_ALWAYS_EAGER=True`, Resend real, `PUBLIC_BASE_URL`
 - [ ] Prueba: registro envía bienvenida; “Olvidé mi contraseña” entrega enlace usable
+- [ ] (Opcional) Webhook Resend → `/webhooks/resend/` responde 200
 
 ---
 
@@ -251,14 +240,14 @@ docker compose up --build
 
 3. Abre [http://localhost:8000](http://localhost:8000).
 4. Postgres local queda en el puerto `5432` (usuario/clave `postgres` / `postgres` según `docker-compose.yml`).
-5. Redis en `6379`; el servicio `worker` consume la cola `emails` (mock Resend por defecto).
-5. El seed ya corre en el `entrypoint` al subir el contenedor. Si quieres repetirlo:
+5. Con `EMAIL_USE_CELERY=False` los correos salen en el proceso web (mock si `RESEND_MOCK_MODE=True`). Redis/worker del compose son opcionales (fase 2).
+6. El seed ya corre en el `entrypoint` al subir el contenedor. Si quieres repetirlo:
 
 ```bash
 docker compose exec web python manage.py seed_data
 ```
 
-6. Detener: `Ctrl+C` y luego `docker compose down` (añade `-v` solo si quieres borrar el volumen de la DB).
+7. Detener: `Ctrl+C` y luego `docker compose down` (añade `-v` solo si quieres borrar el volumen de la DB).
 
 > En compose local `DEBUG=True` para evitar redirección HTTPS forzada. En Render `DEBUG=False`.
 

@@ -3,7 +3,7 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-22 (Resend + Celery; recuperación de contraseña §9.2b; Área→sede; alcance + login cédula)  
+**Fecha:** 2026-09-22 (Resend sync en web MVP; recuperación §9.2b; Área→sede; alcance + login cédula)  
 
 > **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`17` siguen como detalle; ver sección 14.
 
@@ -33,13 +33,13 @@ No hay control de ingreso. Cada escaneo genera un `Movimiento` (auditoría), inc
 | Reportes | `xlsxwriter` (Excel) + Chart.js (dashboard en pantalla) |
 | Auth extra | django-axes, Argon2, django-otp (MFA), django-ratelimit |
 | Correo | Resend (API) + adapter/mock; plantillas en `notifications` |
-| Cola | Celery + Redis (cola `emails`); en DEBUG, eager + mock |
+| Cola | **MVP:** envío síncrono en el web (`EMAIL_USE_CELERY=False`). **Fase 2:** Celery + Redis |
 | Caché | LocMemCache (agregados del dashboard) |
-| Despliegue | Render (Docker web + worker + Redis Key Value + PostgreSQL); ver `contexto/operaciones/despliegue-render.md` |
+| Despliegue | Render (Docker web + PostgreSQL); Redis/worker opcionales (fase 2); ver `contexto/operaciones/despliegue-render.md` |
 
 ```
 sistema de control/
-├── config/                 # settings, urls, middleware, wsgi, celery
+├── config/                 # settings, urls, middleware, wsgi, celery (fase 2)
 ├── apps/
 │   ├── accounts/           # Usuario, Rol, Permiso, login, registro, MFA, reset password
 │   ├── organizacion/       # Sede, Facultad, Programa, Área→Sede, AlcanceUsuario
@@ -53,10 +53,10 @@ sistema de control/
 │   └── integrations/       # Resend adapter/client/mock (paquete Python)
 ├── templates/
 ├── static/
-├── Dockerfile              # Imagen de producción (Render / compose)
-├── docker-compose.yml      # web + Postgres + Redis + worker Celery
-├── render.yaml             # Blueprint: DB + Redis + web + worker
-├── contexto/               # Documentación (este archivo = entrada)
+├── Dockerfile
+├── docker-compose.yml      # Local: web + Postgres (+ redis/worker opcionales)
+├── render.yaml             # Blueprint MVP: DB + web (sync email)
+├── contexto/
 └── manage.py
 ```
 
@@ -83,7 +83,7 @@ python manage.py runserver
 | `panel` | CRUD interno (personas, usuarios, roles, organización); URLs del dashboard |
 | `auditoria` | Traza de cambios sensibles y exportaciones |
 | `reportes` | Exportaciones `.xlsx` + dashboard admin (agregados, filtros HTMX, Chart.js) |
-| `notifications` | Cola de correos (`EmailLog`), tokens (`EmailToken`), webhook Svix, tasks Celery |
+| `notifications` | Correos (`EmailLog`, `EmailToken`), webhook Svix; envío sync MVP / tasks Celery fase 2 |
 | `integrations.resend` | Cliente/adapter Resend (mock en local); no es app Django |
 
 ---
@@ -446,7 +446,13 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 
 ### 9.8 Correos transaccionales (Resend)
 
-El **front nunca llama a Resend**. Flujo: vista → `EmailService` → `EmailLog(queued)` → task Celery cola `emails` → `ResendAdapter` → API. Webhook `POST /webhooks/resend/` (Svix) actualiza delivered/bounced/complained.
+El **front nunca llama a Resend**.  
+
+**Modo productivo vigente (MVP en Render):** vista → `EmailService` → `EmailLog` → envío **síncrono** en el mismo request Gunicorn (`EMAIL_USE_CELERY=False`, `CELERY_TASK_ALWAYS_EAGER=True`) → `ResendAdapter` → API. **No** hace falta Redis ni worker Celery.
+
+**Fase 2 (opcional):** `EMAIL_USE_CELERY=True` + Redis + worker cola `emails`.
+
+Webhook opcional `POST /webhooks/resend/` (Svix) actualiza delivered/bounced/complained.
 
 | Evento | Correo `email_type` | Notas UX |
 |--------|---------------------|----------|
@@ -454,11 +460,10 @@ El **front nunca llama a Resend**. Flujo: vista → `EmailService` → `EmailLog
 | Olvidé / restablecer (§9.2b) | `password_reset` | Token HMAC ~2 h; enlace usa `PUBLIC_BASE_URL` |
 | Admin desbloquea Axes | `account_unlocked` | Aviso; no cambia la contraseña |
 
-Plantillas HTML+TXT: `apps/notifications/templates/emails/` (marca verde `#007B3E`).  
-Local: `RESEND_MOCK_MODE=True` (default con `DEBUG`) + `CELERY_TASK_ALWAYS_EAGER`.  
-Producción: mock off, Redis + worker, `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (dominio verificado), `RESEND_WEBHOOK_SECRET`, `PUBLIC_BASE_URL` HTTPS.  
-Webhook productivo (ejemplo): `https://<servicio>.onrender.com/webhooks/resend/`.  
-Detalle y checklist: [`17-integracion-resend.md`](17-integracion-resend.md).
+Plantillas: `apps/notifications/templates/emails/`.  
+Local: `RESEND_MOCK_MODE=True` (default con `DEBUG`).  
+Prod: `RESEND_MOCK_MODE=False` + API key + from verificado + `PUBLIC_BASE_URL` HTTPS.  
+Detalle: [`17-integracion-resend.md`](17-integracion-resend.md).
 
 ---
 
@@ -592,7 +597,7 @@ Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `Alc
 | Asignación equipos institucionales | [`14-asignacion-equipos-institucionales.md`](14-asignacion-equipos-institucionales.md) |
 | Vigencia asignaciones institucionales | [`15-vigencia-asignacion-equipos-institucionales.md`](15-vigencia-asignacion-equipos-institucionales.md) |
 | Personal externo y vigilante | [`16-personal-externo-y-vigilante.md`](16-personal-externo-y-vigilante.md) |
-| Correos Resend + Celery | [`17-integracion-resend.md`](17-integracion-resend.md) — ejecución [`planes/integracion-resend.md`](planes/integracion-resend.md) |
+| Correos Resend (sync MVP) | [`17-integracion-resend.md`](17-integracion-resend.md) — ejecución [`planes/integracion-resend.md`](planes/integracion-resend.md) |
 | Área → sede (ejecución) | [`planes/area-pertenece-sede.md`](planes/area-pertenece-sede.md) |
 | Alcance jerárquico (ejecución) | [`planes/alcance-jerarquico-usuarios.md`](planes/alcance-jerarquico-usuarios.md) |
 | Login cédula / username institucional | [`planes/login-cedula-username-institucional.md`](planes/login-cedula-username-institucional.md) |
@@ -613,7 +618,7 @@ Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `Alc
 | Alcance jerárquico | `apps/accounts/alcance.py`, `apps/organizacion/models.py` (`AlcanceUsuario`); UI `templates/panel/usuario_detail.html` |
 | Área ↔ sede | `apps/organizacion/models.py` (`Area`); migración `0007_area_sede.py`; panel `views_organizacion.py` |
 | Login / MFA / registro / reset password | `apps/accounts/views.py`; UI `templates/accounts/password_reset_*.html` |
-| Correos / Celery / webhook | `apps/notifications/`, `apps/integrations/resend/`, `config/celery.py` |
+| Correos / sync Resend / webhook | `apps/notifications/`, `apps/integrations/resend/`; Celery en `config/celery.py` (fase 2) |
 | QR firmado | `apps/equipos/models.py` |
 | Asignación / inventario institucional | `apps/equipos/services.py`, `apps/equipos/models.py`, `apps/panel/views_equipos.py`; command `cerrar_asignaciones_vencidas` |
 | Visitas externo | `apps/personas/services.py`, `apps/personas/models.py` (`VisitaExterno`) |

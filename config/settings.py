@@ -260,6 +260,11 @@ PUBLIC_BASE_URL = os.environ.get(
     "PUBLIC_BASE_URL", "http://localhost:8000"
 ).rstrip("/")
 
+# MVP Render: False = envío síncrono en el web (sin Redis/worker).
+# True = cola Celery (requiere broker + worker) — fase 2.
+_email_use_celery = os.environ.get("EMAIL_USE_CELERY", "false").strip().lower()
+EMAIL_USE_CELERY = _email_use_celery in ("true", "1", "yes", "t")
+
 # --- Celery ---
 _redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0").strip()
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", _redis_url)
@@ -274,8 +279,10 @@ CELERY_TIMEZONE = TIME_ZONE
 _celery_eager = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "").strip().lower()
 if _celery_eager:
     CELERY_TASK_ALWAYS_EAGER = _celery_eager in ("true", "1", "yes", "t")
+elif not EMAIL_USE_CELERY:
+    # Sin cola: ejecutar tasks en el mismo proceso
+    CELERY_TASK_ALWAYS_EAGER = True
 else:
-    # Sin worker local: ejecutar en proceso (tests y runserver)
     CELERY_TASK_ALWAYS_EAGER = DEBUG
 CELERY_TASK_EAGER_PROPAGATES = True
 

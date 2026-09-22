@@ -1,29 +1,36 @@
 # 17 — Integración Resend (correos transaccionales)
 
-**Estado:** Implementado  
+**Estado:** Implementado (MVP sync en web)  
 **Fecha:** 2026-09-22  
 **Ejecución:** [`planes/integracion-resend.md`](planes/integracion-resend.md)
 
 ## 1. Objetivo
 
-Enviar correos transaccionales (bienvenida, recuperación de contraseña, aviso de desbloqueo) vía **Resend**, con cola **Celery** + **Redis**, registro en `EmailLog` y webhooks Svix (delivered / bounced / complained).
+Enviar correos transaccionales (bienvenida, recuperación de contraseña, aviso de desbloqueo) vía **Resend**, con registro en `EmailLog` y webhook Svix opcional (delivered / bounced / complained).
 
 El frontend **nunca** llama a Resend; solo vistas Django.
 
-## 2. Arquitectura
+## 2. Arquitectura vigente (MVP)
+
+**Producción Render actual:** envío **síncrono** en el proceso web (Gunicorn). **No** requiere Redis ni worker Celery.
 
 ```
-Vista de negocio (registro, reset, desbloqueo)
+Vista (registro / reset / desbloqueo)
         │
         ▼
-EmailService → EmailLog (queued) → Celery cola "emails"
+EmailService → EmailLog (queued) → envío inline (mismo request)
         │
         ▼
-ResendAdapter → API Resend → EmailLog (sent)
+ResendAdapter → API Resend → EmailLog (sent | failed)
         │
         ▼
-Webhook POST /webhooks/resend/ → EmailLog (delivered|bounced|complained)
+Webhook POST /webhooks/resend/ (opcional) → delivered | bounced | complained
 ```
+
+| Modo | `EMAIL_USE_CELERY` | Requisitos |
+|------|--------------------|------------|
+| **MVP (vigente)** | `False` | Solo web + vars Resend |
+| Fase 2 | `True` | Redis + worker Celery cola `emails` |
 
 ## 3. Apps y rutas de código
 
@@ -31,25 +38,38 @@ Webhook POST /webhooks/resend/ → EmailLog (delivered|bounced|complained)
 |-------|-----------|
 | Cliente Resend | `apps/integrations/resend/` |
 | Dominio notificaciones | `apps/notifications/` |
-| Celery | `config/celery.py` |
-| Webhook | `/webhooks/resend/` (`notifications.views_webhooks`) |
+| Envío sync/async | `EmailService` + `notifications.tasks.send_email_task` |
+| Celery (fase 2) | `config/celery.py` |
+| Webhook | `/webhooks/resend/` |
 | UI reset password | `templates/accounts/password_reset_*.html` |
-| Vistas reset | `accounts.views.password_reset_*` |
 
 ## 4. Variables de entorno
 
+### Mínimas en Render (web) — canónicas MVP
+
+```
+DEBUG=False
+ALLOWED_HOSTS=sistema-control-web.onrender.com
+CSRF_TRUSTED_ORIGINS=https://sistema-control-web.onrender.com
+PUBLIC_BASE_URL=https://sistema-control-web.onrender.com
+RESEND_MOCK_MODE=False
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=noreply@dominio-verificado.com
+RESEND_FROM_NAME=Control de Equipos UCundinamarca
+RESEND_WEBHOOK_SECRET=whsec_...
+EMAIL_USE_CELERY=False
+CELERY_TASK_ALWAYS_EAGER=True
+EMAIL_TOKEN_SECRET=   # opcional; vacío → SECRET_KEY
+```
+
 | Variable | Uso |
 |----------|-----|
-| `RESEND_API_KEY` | API key `re_...` |
-| `RESEND_FROM_EMAIL` | Remitente (dominio verificado en prod) |
-| `RESEND_FROM_NAME` | Nombre visible (ej. Control de Equipos UCundinamarca) |
-| `RESEND_MOCK_MODE` | `True` local/tests; `False` producción |
-| `RESEND_WEBHOOK_SECRET` | `whsec_...` Svix (al crear el endpoint en Resend) |
-| `PUBLIC_BASE_URL` | Base de links en correos (sin `/` final), ej. `https://sistema-control-web.onrender.com` |
-| `EMAIL_TOKEN_SECRET` | Hash HMAC de tokens reset; **vacío** → usa `SECRET_KEY` |
-| `REDIS_URL` / `CELERY_BROKER_URL` | Broker Celery |
+| `EMAIL_USE_CELERY` | `False` = sync en web (MVP). `True` = cola Celery (fase 2) |
+| `CELERY_TASK_ALWAYS_EAGER` | Con MVP debe ser `True` (o se fuerza si `EMAIL_USE_CELERY=False`) |
+| `RESEND_*` / `PUBLIC_BASE_URL` | Ver tabla anterior |
+| `REDIS_URL` / `CELERY_BROKER_URL` | Solo fase 2 |
 
-Plantilla local: [`.env.example`](../.env.example). Operación Render: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).
+Plantilla: [`.env.example`](../.env.example). Operación: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).
 
 ## 5. Correos MVP
 
@@ -59,7 +79,7 @@ Plantilla local: [`.env.example`](../.env.example). Operación Render: [`operaci
 | `password_reset` | Olvidé mi contraseña (§6) | N/A |
 | `account_unlocked` | Admin desbloquea Axes | No |
 
-**Fase 2 (no MVP):** confirmación de correo bloqueante (`email_confirmation`).
+**Fase 2 producto (no MVP):** confirmación de correo bloqueante (`email_confirmation`).
 
 ## 6. Flujo de recuperación de contraseña
 
@@ -73,59 +93,43 @@ Login → «¿Olvidó su contraseña?»
 
 | Aspecto | Valor |
 |---------|--------|
-| Identificador aceptado | Username, correo o documento |
-| Anti-enumeración | Mensaje de éxito genérico siempre |
+| Identificador | Username, correo o documento |
+| Anti-enumeración | Mensaje genérico siempre |
 | Vigencia token | ~2 horas; un solo uso |
 | Rate limit | Solicitud 5/m; confirmación 10/m |
-| Hash | HMAC-SHA256 con `EMAIL_TOKEN_SECRET` o `SECRET_KEY` |
-| Plantillas UI | `password_reset_request.html`, `password_reset_confirm.html` |
-| Plantillas email | `emails/password_reset.html` + `.txt` |
 
-**Distinciones:**
+## 7. Webhook Resend (opcional para el envío)
 
-- Bloqueo Axes ≠ olvidé contraseña (el desbloqueo no cambia la clave; puede enviar `account_unlocked`).
-- Reset admin en panel ≠ self-service por correo.
+No bloquea el envío. Sirve para actualizar `EmailLog` a delivered/bounced/complained.
 
-## 7. Webhook Resend
-
-1. Desplegar código con ruta `/webhooks/resend/`.
-2. En Resend → Webhooks → Add endpoint:
-   - URL: `https://<host-publico>/webhooks/resend/`
-   - Eventos: `email.delivered`, `email.bounced`, `email.complained`
-3. Copiar signing secret → `RESEND_WEBHOOK_SECRET` en Render (web).
-4. Con `RESEND_MOCK_MODE=False`, firma inválida → HTTP 401.
-
-La vista es `csrf_exempt`, valida Svix, persiste `ResendWebhookEvent` (idempotente por `svix_id`) y encola `process_resend_webhook_event`.
+1. URL: `https://<host>/webhooks/resend/`
+2. Eventos: `email.delivered`, `email.bounced`, `email.complained`
+3. Secret → `RESEND_WEBHOOK_SECRET`
 
 ## 8. Modelos
 
-- `EmailLog` — ciclo queued → sent → delivered | bounced | complained | failed
-- `ResendWebhookEvent` — idempotencia por `svix_id`
-- `EmailToken` — reset (y purpose listo para confirmación futura)
-
-Migración: `notifications.0001_initial`.
+- `EmailLog` — queued → sent | failed → (webhook) delivered | bounced | complained  
+- `ResendWebhookEvent` — idempotencia `svix_id`  
+- `EmailToken` — password_reset (+ purpose listo para fase 2)
 
 ## 9. Docker / Render
 
-- Compose: servicios `redis` + `worker` (además de `db` + `web`).
-- Render: Key Value (Redis) + worker Docker + env Resend.
-- Plan free del web **no** basta para Redis/worker estables → usar **starter** (o superior) en producción.
-- `entrypoint.sh`: si el CMD es `celery …`, arranca worker (sin migrate/gunicorn).
+- **Render MVP:** servicio web + Postgres (`render.yaml`). Sin Redis/worker.
+- **Local compose:** puede incluir redis/worker para probar fase 2; con `EMAIL_USE_CELERY=False` no hacen falta.
+- **Fase 2:** Key Value (`noeviction`) + worker `celery -A config worker -Q emails,celery` + `EMAIL_USE_CELERY=True` + `CELERY_TASK_ALWAYS_EAGER=False`.
 
-## 10. Checklist producción
+## 10. Checklist producción MVP
 
-- [ ] Dominio verificado en Resend (SPF/DKIM) **o** remitente de prueba documentado
+- [ ] Dominio verificado en Resend (o remitente de prueba documentado)
 - [ ] `RESEND_MOCK_MODE=False`
-- [ ] Secrets: API key + webhook secret
-- [ ] Worker con cola `emails`
-- [ ] Redis `noeviction`
-- [ ] Webhook HTTPS + firma válida
-- [ ] `PUBLIC_BASE_URL` correcto (enlaces de reset)
-- [ ] Throttle en forgot-password (ya en código)
+- [ ] `EMAIL_USE_CELERY=False` y `CELERY_TASK_ALWAYS_EAGER=True`
+- [ ] API key + `RESEND_FROM_EMAIL` + `PUBLIC_BASE_URL`
+- [ ] Webhook opcional configurado
 - [ ] Prueba: registro → welcome; olvidé contraseña → enlace usable
+- [ ] `EmailLog` con `status=sent` y `resend_id`
 
 ## 11. Relación
 
-Síntesis operativa: [`contexto-completo-sistema.md`](contexto-completo-sistema.md) (§9.2b, §9.8).  
-Manual de usuario (prompt): [`brief-manual-usuario-claude.md`](brief-manual-usuario-claude.md).  
+Síntesis: [`contexto-completo-sistema.md`](contexto-completo-sistema.md) (§9.2b, §9.8).  
+Brief manual: [`brief-manual-usuario-claude.md`](brief-manual-usuario-claude.md).  
 Deploy: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).

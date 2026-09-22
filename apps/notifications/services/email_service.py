@@ -1,12 +1,19 @@
+import logging
+
 from django.conf import settings
 from django.template.loader import render_to_string
 
 from notifications.models import EmailLog
 
+logger = logging.getLogger(__name__)
+
 
 class EmailService:
     @classmethod
     def _enqueue(cls, *, email_type, recipient, subject, template_name, context):
+        if not recipient:
+            logger.warning("Email skip type=%s: empty recipient", email_type)
+            return None
         html = render_to_string(template_name, context)
         text = render_to_string(template_name.replace(".html", ".txt"), context)
         log = EmailLog.objects.create(
@@ -16,7 +23,20 @@ class EmailService:
         )
         from notifications.tasks import send_email_task
 
-        send_email_task.delay(str(log.id), recipient, subject, html, text)
+        args = (str(log.id), recipient, subject, html, text)
+        # MVP / Render sin worker: envío síncrono en el request web.
+        if not settings.EMAIL_USE_CELERY or settings.CELERY_TASK_ALWAYS_EAGER:
+            send_email_task.apply(args=args)
+            return log
+        try:
+            send_email_task.apply_async(args=args, queue="emails")
+        except Exception:
+            logger.exception(
+                "Celery enqueue failed type=%s log_id=%s; sending inline",
+                email_type,
+                log.id,
+            )
+            send_email_task.apply(args=args)
         return log
 
     @classmethod

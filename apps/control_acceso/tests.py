@@ -21,16 +21,20 @@ class ControlSalidaTestCase(TestCase):
             codigo="egresado", defaults={"nombre": "Egresado"}
         )
 
-        # Permisos y Rol Celador
-        self.perm_escanear = Permiso.objects.create(
-            codigo="control.escanear", descripcion="Acceder a la pantalla de control de salida"
+        # Permisos y Rol Celador (pueden existir por migraciones de catálogo)
+        self.perm_escanear, _ = Permiso.objects.get_or_create(
+            codigo="control.escanear",
+            defaults={"descripcion": "Acceder a la pantalla de control de salida"},
         )
-        self.perm_alertas = Permiso.objects.create(
-            codigo="control.ver_alertas", descripcion="Ver histórico de alertas"
+        self.perm_alertas, _ = Permiso.objects.get_or_create(
+            codigo="control.ver_alertas",
+            defaults={"descripcion": "Ver histórico de alertas"},
         )
-        self.rol_celador = Rol.objects.create(nombre="celador", descripcion="Celador de Portería")
-        RolPermiso.objects.create(rol=self.rol_celador, permiso=self.perm_escanear)
-        RolPermiso.objects.create(rol=self.rol_celador, permiso=self.perm_alertas)
+        self.rol_celador, _ = Rol.objects.get_or_create(
+            nombre="celador", defaults={"descripcion": "Celador de Portería"}
+        )
+        RolPermiso.objects.get_or_create(rol=self.rol_celador, permiso=self.perm_escanear)
+        RolPermiso.objects.get_or_create(rol=self.rol_celador, permiso=self.perm_alertas)
 
         # Usuario Celador
         self.celador = Usuario.objects.create_user(

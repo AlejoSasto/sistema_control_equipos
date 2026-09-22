@@ -5,16 +5,13 @@ databases:
     user: sistema_control
 
 services:
-  - type: keyvalue
-    name: sistema-control-redis
-    plan: starter
-    maxmemoryPolicy: noeviction
-    ipAllowList: []
-
+  # MVP: solo web. Correos síncronos (EMAIL_USE_CELERY=False).
+  # Fase 2: añadir Key Value + worker Celery y EMAIL_USE_CELERY=True
+  # (ver contexto/17-integracion-resend.md).
   - type: web
     name: sistema-control-web
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /accounts/login/
@@ -22,21 +19,6 @@ services:
       - key: DATABASE_URL
         fromDatabase:
           name: sistema-control-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: sistema-control-redis
-          type: keyvalue
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          name: sistema-control-redis
-          type: keyvalue
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          name: sistema-control-redis
-          type: keyvalue
           property: connectionString
       - key: DEBUG
         value: "False"
@@ -54,56 +36,10 @@ services:
         value: protecciondatos@ucundinamarca.edu.co
       - key: RESEND_MOCK_MODE
         value: "False"
-      - key: CELERY_TASK_ALWAYS_EAGER
-        value: "False"
-      - key: RESEND_API_KEY
-        sync: false
-      - key: RESEND_FROM_EMAIL
-        sync: false
-      - key: RESEND_FROM_NAME
-        value: Control de Equipos UCundinamarca
-      - key: RESEND_WEBHOOK_SECRET
-        sync: false
-
-  - type: worker
-    name: sistema-control-worker
-    runtime: docker
-    plan: starter
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    dockerCommand: celery -A config worker -l warning -Q emails,celery --concurrency=2
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: sistema-control-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: sistema-control-redis
-          type: keyvalue
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          name: sistema-control-redis
-          type: keyvalue
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          name: sistema-control-redis
-          type: keyvalue
-          property: connectionString
-      - key: DEBUG
-        value: "False"
-      - key: SECRET_KEY
-        generateValue: true
-      - key: ALLOWED_HOSTS
-        value: ".onrender.com"
-      - key: RESEND_MOCK_MODE
+      - key: EMAIL_USE_CELERY
         value: "False"
       - key: CELERY_TASK_ALWAYS_EAGER
-        value: "False"
-      - key: PUBLIC_BASE_URL
-        sync: false
+        value: "True"
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL

@@ -1,38 +1,37 @@
 # Plan: Integración Resend (plan 17)
 
-**Estado:** Completado  
+**Estado:** Completado (MVP sync; Celery = fase 2)  
 **Fecha:** 2026-09-22  
 **Documento rector:** [`../17-integracion-resend.md`](../17-integracion-resend.md)
 
 ## Objetivo
 
-Infra Resend + Celery/Redis + webhooks; correos `welcome`, `password_reset` y `account_unlocked`; flujo UI de recuperación de contraseña; docs y deploy.
+Correos `welcome`, `password_reset` y `account_unlocked` vía Resend.  
+**Producción vigente:** envío **síncrono** en el web (`EMAIL_USE_CELERY=False`), sin Redis ni worker.  
+Celery + Redis documentados como fase 2.
 
 ## Entregables
 
 | Área | Resultado |
 |------|-----------|
-| Docs | `17-integracion-resend.md`, índices, `contexto-completo` §9.2b/§9.8, brief manual 1.1+, operaciones Render |
-| Infra | `apps/integrations/resend`, `apps/notifications`, Celery, webhook Svix, deps |
-| Auth UX | Bienvenida post-registro; forgot/confirm password; aviso desbloqueo Axes |
-| Deploy | `docker-compose` redis/worker; `render.yaml` Key Value + worker; entrypoint Celery |
-| Calidad | Tests mock / webhook / tokens reset |
+| Docs | `17`, índices, `contexto-completo` §9.2b/§9.8, operaciones Render (modo sync) |
+| Infra | `integrations/resend`, `notifications`, webhook; Celery opcional |
+| Auth UX | Bienvenida, forgot/confirm password, unlock |
+| Deploy MVP | `render.yaml` web+DB; `EMAIL_USE_CELERY=False` |
+| Calidad | Tests mock / webhook / tokens |
 
 ## Checklist
 
-- [x] Documento rector `17-integracion-resend.md` + índices README / planes
-- [x] `apps/integrations/resend` + `apps/notifications` + Celery + webhook
-- [x] Correo bienvenida tras registro (`EmailService.send_welcome`)
-- [x] Flujo olvidé contraseña: `/accounts/password-reset/` + `/confirmar/` + plantillas UI/email + throttle
-- [x] Correo `account_unlocked` al desbloquear Axes en panel
-- [x] docker-compose redis/worker + render.yaml + `operaciones/despliegue-render.md`
-- [x] `.env.example` con vars Resend / `PUBLIC_BASE_URL` / `EMAIL_TOKEN_SECRET`
-- [x] Tests mock, webhook (401 + idempotencia), token válido/inválido/expirado
-- [x] `contexto-completo-sistema.md` (§9.2b recuperación + §9.8 correos)
-- [x] `brief-manual-usuario-claude.md` con flujo recuperación y correos (lenguaje usuario)
+- [x] Documento rector + índices
+- [x] Paquete Resend + notifications + webhook
+- [x] Bienvenida, reset password, unlock + plantillas
+- [x] Modo sync oficial (`EMAIL_USE_CELERY=False` + eager)
+- [x] `render.yaml` MVP sin Redis/worker obligatorios
+- [x] Tests + contexto-completo + operaciones
+- [x] Ajuste post-deploy: documentar env Render sin Celery
 
-## Post-deploy (operativo, fuera del código)
+## Post-deploy (operativo)
 
-- [ ] Env Render: `RESEND_*`, `PUBLIC_BASE_URL`, mock off
-- [ ] Webhook Resend → `https://<host>/webhooks/resend/`
-- [ ] Redis + worker starter si se requiere envío asíncrono real
+- [ ] En Render Environment: `EMAIL_USE_CELERY=False`, `CELERY_TASK_ALWAYS_EAGER=True`, Resend real
+- [ ] Redeploy y probar welcome / password-reset
+- [ ] (Opcional) Webhook → `/webhooks/resend/`
