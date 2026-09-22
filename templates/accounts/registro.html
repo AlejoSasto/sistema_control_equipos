@@ -245,7 +245,7 @@
     {% for f in facultades %}{id: "{{ f.id }}", nombre: "{{ f.nombre|escapejs }}"},{% endfor %}
   ];
   const PROGRAMAS = [
-    {% for p in programas %}{id: "{{ p.id }}", nombre: "{{ p.nombre|escapejs }}", sede: "{{ p.sede_id }}"},{% endfor %}
+    {% for p in programas %}{id: "{{ p.id }}", nombre: "{{ p.nombre|escapejs }} ({{ p.sede.codigo|escapejs }})", sede: "{{ p.sede_id }}"},{% endfor %}
   ];
   const AREAS = [
     {% for a in areas %}{id: "{{ a.id }}", nombre: "{{ a.codigo }} — {{ a.nombre|escapejs }}", sede: "{{ a.sede_id }}"},{% endfor %}
@@ -285,6 +285,9 @@
       if (UNIDAD_PRESEL && String(it.id) === String(UNIDAD_PRESEL)) opt.selected = true;
       sel.appendChild(opt);
     });
+    if (typeof window.refreshSearchableSelect === 'function') {
+      window.refreshSearchableSelect(sel);
+    }
   }
   function actualizarCamposPorVinculo() {
     const select = document.getElementById('id_tipo_vinculo');
@@ -315,11 +318,26 @@
     const programa = document.getElementById('id_programa');
     if (!sede || !programa) return;
     const sedeId = sede.value;
-    Array.from(programa.options).forEach(opt => {
-      if (!opt.value) return;
-      opt.hidden = sedeId && opt.dataset.sede !== sedeId;
+    const selected = programa.value;
+    // Reconstruir opciones: Tom Select no respeta option.hidden
+    const placeholder = programa.querySelector('option[value=""]');
+    const phText = placeholder ? placeholder.textContent : '-- Opcional (N/A) --';
+    programa.innerHTML = '';
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = phText;
+    programa.appendChild(empty);
+    PROGRAMAS.filter(p => !sedeId || p.sede === sedeId).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nombre;
+      opt.dataset.sede = p.sede;
+      if (String(selected) === String(p.id)) opt.selected = true;
+      programa.appendChild(opt);
     });
-    if (programa.selectedOptions[0]?.hidden) programa.value = '';
+    if (typeof window.refreshSearchableSelect === 'function') {
+      window.refreshSearchableSelect(programa);
+    }
     actualizarUnidadesExternas();
   }
   document.getElementById('id_sede')?.addEventListener('change', filtrarProgramasPorSede);

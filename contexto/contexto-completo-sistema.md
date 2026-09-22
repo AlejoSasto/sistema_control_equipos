@@ -54,8 +54,9 @@ sistema de control/
 ├── templates/
 ├── static/
 ├── Dockerfile
-├── docker-compose.yml      # Local: web + Postgres (+ redis/worker opcionales)
-├── render.yaml             # Blueprint MVP: DB + web (sync email)
+├── docker-compose.yml      # Prod / web (Resend real, sync, sin Redis)
+├── docker-compose.prod.yml # Local / desarrollo (mock correo por defecto)
+├── render.yaml             # Blueprint MVP Render: DB + web (sync email)
 ├── contexto/
 └── manage.py
 ```
@@ -66,7 +67,8 @@ Comandos habituales:
 python manage.py migrate
 python manage.py seed_data
 python manage.py runserver
-# Producción local (Docker): docker compose up --build
+# Local Docker: docker compose -f docker-compose.prod.yml up --build
+# Prod Docker:  docker compose --env-file .env.prod up -d --build
 ```
 
 ---

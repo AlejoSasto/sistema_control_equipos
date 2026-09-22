@@ -139,7 +139,22 @@
     root.querySelectorAll("select").forEach(initSearchableSelect);
   }
 
+  /**
+   * Tras mutar <option> con innerHTML/DOM, Tom Select queda desfasado.
+   * Destruye e reinicializa para sincronizar (registro externo, filtros por sede, etc.).
+   */
+  function refreshSearchableSelect(el) {
+    if (!el || el.tagName !== "SELECT") return;
+    if (el.tomselect) {
+      var keep = el.value;
+      el.tomselect.destroy();
+      if (keep) el.value = keep;
+    }
+    initSearchableSelect(el);
+  }
+
   window.initSearchableSelects = initSearchableSelects;
+  window.refreshSearchableSelect = refreshSearchableSelect;
   initSearchableSelects(document);
 
   document.body.addEventListener("htmx:beforeSwap", function (evt) {

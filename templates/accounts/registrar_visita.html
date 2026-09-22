@@ -87,6 +87,9 @@
       if (PRE && String(it.id) === String(PRE)) o.selected = true;
       sel.appendChild(o);
     });
+    if (typeof window.refreshSearchableSelect === 'function') {
+      window.refreshSearchableSelect(sel);
+    }
   }
   document.getElementById('id_sede')?.addEventListener('change', actualizarUnidades);
   document.getElementById('id_unidad_tipo')?.addEventListener('change', actualizarUnidades);

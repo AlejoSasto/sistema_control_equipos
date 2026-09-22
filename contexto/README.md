@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-22 (correos Resend MVP sync en web; sin Celery/worker obligatorios)
+**Última actualización:** 2026-09-22 (`docker-compose.yml` = prod/web; `docker-compose.prod.yml` = local)
 
 ---
 

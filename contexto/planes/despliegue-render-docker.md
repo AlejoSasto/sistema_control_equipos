@@ -25,7 +25,8 @@ Dejar el monolito listo para desplegar en Render (Blueprint + Docker) con instru
 | Pieza | Ubicación |
 |-------|-----------|
 | Imagen | `Dockerfile`, `entrypoint.sh` |
-| Local | `docker-compose.yml` |
-| Blueprint | `render.yaml` |
+| Local | `docker-compose.prod.yml` |
+| Prod / web (canónico) | `docker-compose.yml` + `.env.prod.example` |
+| Blueprint Render | `render.yaml` |
 | Settings | `config/settings.py` |
 | Instructivo | `contexto/operaciones/despliegue-render.md` |

@@ -36,7 +36,8 @@ Archivos del repo que hacen posible el deploy (ya deben estar en `main`):
 | `Dockerfile` | Imagen de producción |
 | `entrypoint.sh` | Migraciones, estáticos y Gunicorn |
 | `render.yaml` | Blueprint: DB + Web |
-| `docker-compose.yml` | Prueba local opcional |
+| `docker-compose.yml` | **Prod / web** (canónico servidor; Resend real, sync) |
+| `docker-compose.prod.yml` | **Local** (mock correo por defecto, Redis + worker) |
 | `config/settings.py` | `DATABASE_URL`, HTTPS, CSRF, WhiteNoise |
 
 ---
@@ -227,29 +228,32 @@ El blueprint MVP incluye **Postgres + web Docker**. Los correos se envían **en 
 
 ---
 
-## Opcional — Probar el mismo stack en local con Docker
+## Opcional — Docker local vs prod self-hosted
 
-Útil antes de subir a la nube o para depurar el Dockerfile.
+| Archivo | Uso |
+|---------|-----|
+| `docker-compose.yml` | **Prod / web**: `DEBUG=False`, Resend real, sync (sin Redis/worker) |
+| `docker-compose.prod.yml` | **Local**: `DEBUG=True`, mock correo por defecto, Redis + worker |
+| `render.yaml` | **Prod Render** (canónico en la nube) |
 
-1. Instala y arranca **Docker Desktop**.
-2. En la raíz del proyecto:
-
-```bash
-docker compose up --build
-```
-
-3. Abre [http://localhost:8000](http://localhost:8000).
-4. Postgres local queda en el puerto `5432` (usuario/clave `postgres` / `postgres` según `docker-compose.yml`).
-5. Con `EMAIL_USE_CELERY=False` los correos salen en el proceso web (mock si `RESEND_MOCK_MODE=True`). Redis/worker del compose son opcionales (fase 2).
-6. El seed ya corre en el `entrypoint` al subir el contenedor. Si quieres repetirlo:
+### Local
 
 ```bash
-docker compose exec web python manage.py seed_data
+docker compose -f docker-compose.prod.yml up --build
+# http://localhost:8000 — Postgres :5432 (postgres/postgres)
+# Correos: RESEND_MOCK_MODE=True por defecto. Real: False en .env + recreate web/worker
+docker compose -f docker-compose.prod.yml exec web python manage.py seed_data   # si hace falta
+docker compose -f docker-compose.prod.yml down   # + -v borra el volumen de DB
 ```
 
-7. Detener: `Ctrl+C` y luego `docker compose down` (añade `-v` solo si quieres borrar el volumen de la DB).
+### Prod self-hosted (no Render)
 
-> En compose local `DEBUG=True` para evitar redirección HTTPS forzada. En Render `DEBUG=False`.
+```bash
+cp .env.prod.example .env.prod   # completar secretos
+docker compose --env-file .env.prod up -d --build
+```
+
+> Si Resend marca `last_event=delivered` y el usuario no ve el correo: spam o **cuarentena del dominio institucional** (p. ej. Microsoft 365), no fallo de la app.
 
 ---
 

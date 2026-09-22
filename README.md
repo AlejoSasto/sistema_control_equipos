@@ -122,7 +122,8 @@ sistema de control/
 ├── static/               # CSS / JS fuente
 ├── contexto/             # Documentación y planes del proyecto
 ├── Dockerfile            # Imagen de producción
-├── docker-compose.yml    # Local: web + Postgres + Redis + worker Celery
+├── docker-compose.yml    # Prod / web (canónico servidor; sync Resend)
+├── docker-compose.prod.yml  # Local: web + Postgres + Redis + worker
 ├── render.yaml           # Blueprint Render (DB + Redis + web + worker)
 ├── manage.py
 ├── requirements.txt

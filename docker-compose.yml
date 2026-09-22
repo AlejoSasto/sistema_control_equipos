@@ -1,73 +1,70 @@
+# =============================================================================
+# docker-compose.yml — PRODUCCIÓN / WEB (VPS o self-hosted)
+# =============================================================================
+# Este es el compose canónico de producción. Debe usarse en el servidor.
+#
+# En Render el despliegue oficial sigue siendo render.yaml (Dockerfile + Postgres).
+# Este archivo replica el MVP de prod: web + Postgres, correos síncronos Resend.
+#
+# Uso en el servidor:
+#   1. Copia .env.prod.example → .env.prod y completa secretos
+#   2. docker compose --env-file .env.prod up -d --build
+#   3. docker compose --env-file .env.prod down
+#
+# Desarrollo local → docker-compose.prod.yml
+#   docker compose -f docker-compose.prod.yml up --build
+#
+# Requisitos en .env.prod (mínimos):
+#   SECRET_KEY=...
+#   ALLOWED_HOSTS=tu-dominio.com
+#   CSRF_TRUSTED_ORIGINS=https://tu-dominio.com
+#   PUBLIC_BASE_URL=https://tu-dominio.com
+#   RESEND_API_KEY=re_...
+#   RESEND_FROM_EMAIL=noreply@dominio-verificado.com
+#   RESEND_MOCK_MODE=False
+#   POSTGRES_PASSWORD=...   (fuerte; no uses "postgres")
+# =============================================================================
+
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: sistema_control
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-sistema_control}
+      POSTGRES_USER: ${POSTGRES_USER:-sistema_control}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en .env.prod}
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - pgdata_prod:/var/lib/postgresql/data
+    # Sin publicar 5432 al host en prod
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sistema_control"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
   web:
     build: .
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env.prod
     environment:
-      DEBUG: "True"
-      SECRET_KEY: local-docker-compose-secret-key-change-me
-      ALLOWED_HOSTS: localhost,127.0.0.1
-      CSRF_TRUSTED_ORIGINS: http://localhost:8000,http://127.0.0.1:8000
-      DATABASE_URL: postgres://postgres:postgres@db:5432/sistema_control
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      CELERY_TASK_ALWAYS_EAGER: "False"
-      RESEND_MOCK_MODE: "True"
-      PUBLIC_BASE_URL: http://localhost:8000
+      DEBUG: "False"
+      DATABASE_URL: postgres://${POSTGRES_USER:-sistema_control}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-sistema_control}
+      # MVP: envío síncrono en el web (sin Redis/worker)
+      EMAIL_USE_CELERY: "False"
+      CELERY_TASK_ALWAYS_EAGER: "True"
+      RESEND_MOCK_MODE: "False"
       PORT: "8000"
-      WEB_CONCURRENCY: "2"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
     depends_on:
       db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  worker:
-    build: .
-    entrypoint: ["celery", "-A", "config", "worker", "-l", "info", "-Q", "emails,celery"]
-    environment:
-      DEBUG: "True"
-      SECRET_KEY: local-docker-compose-secret-key-change-me
-      ALLOWED_HOSTS: localhost,127.0.0.1
-      DATABASE_URL: postgres://postgres:postgres@db:5432/sistema_control
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      CELERY_TASK_ALWAYS_EAGER: "False"
-      RESEND_MOCK_MODE: "True"
-      PUBLIC_BASE_URL: http://localhost:8000
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
 volumes:
-  pgdata:
+  pgdata_prod:
