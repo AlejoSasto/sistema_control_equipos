@@ -3,7 +3,7 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-21  
+**Fecha:** 2026-09-21 (alcance jerárquico + listo para deploy Render)  
 
 > **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`15` siguen como detalle; ver sección 14.
 
@@ -71,8 +71,8 @@ python manage.py runserver
 
 | App | Responsabilidad |
 |-----|-----------------|
-| `accounts` | Auth, roles/permisos dinámicos, registro externo, MFA TOTP, mi perfil |
-| `organizacion` | Catálogos multi-sede: Sede, Facultad, Programa, Área |
+| `accounts` | Auth, roles/permisos dinámicos, **alcance jerárquico** (`alcance.py`), registro externo, MFA TOTP, mi perfil |
+| `organizacion` | Catálogos multi-sede: Sede, Facultad, Programa, Área; `ResponsableDependencia`; `AlcanceUsuario` |
 | `personas` | Ficha de comunidad académica + TipoVinculo |
 | `equipos` | Inventario, generación/exhibición de QR |
 | `control_acceso` | Kiosco de portería + historial de movimientos |
@@ -90,6 +90,7 @@ El sistema separa dos conceptos:
 |----------|----------|-----------|
 | **Identidad institucional** | ¿Quién es en la universidad? | `Persona` + `TipoVinculo` |
 | **Acceso al sistema** | ¿Qué puede hacer en la app? | `Usuario` + `Rol` + `Permiso` |
+| **Alcance de filas** | ¿Sobre qué sedes/unidades ve datos? | `AlcanceUsuario` (ortogonal a permisos) |
 
 ```mermaid
 flowchart LR
@@ -102,7 +103,9 @@ flowchart LR
     U[Usuario]
     R[Rol]
     Perm[Permiso]
+    Alc[AlcanceUsuario]
     U --> R --> Perm
+    U --> Alc
   end
   P --- U
   P --> E[Equipo]
@@ -113,6 +116,7 @@ flowchart LR
 - `Persona` no inicia sesión por sí sola; se vincula 1:1 opcional a `Usuario`.
 - Un admin/operador puede ser `Usuario` sin `Persona`.
 - Autorización: `usuario.tiene_permiso("codigo")` consulta roles activos → permisos.
+- Visibilidad de filas: `aplicar_alcance(user, qs)` / helpers en `apps/accounts/alcance.py`. FUSA = usuario con nivel `global` (sin hardcode de sede).
 
 ---
 
@@ -149,15 +153,29 @@ Fuente canónica: `apps/accounts/management/commands/seed_data.py`.
 
 | Rol (BD) | Activo | Permisos |
 |----------|--------|----------|
-| `admin_sistema` | Sí | Todos (16) |
+| `admin_sistema` | Sí | Todos (18) |
 | `miembro_comunidad` | Sí | `equipos.registrar`, `equipos.ver_propios`, `perfil.ver_propio` |
 | `responsable_dependencia` | Sí | `equipos.inventario_institucional`, `equipos.asignar_institucional` |
 | `vigilante` | Sí | `control.escanear`, `control.ver_alertas` |
 | `celador` | **No** (legado) | mismos que vigilante |
 
-El rol **vigilante** opera el kiosco; se crea por alta interna (Persona + Usuario, una sede, correo libre). `admin_sistema` también tiene `control.escanear`. El responsable de dependencia inventaría y asigna equipos institucionales solo en las unidades donde tiene filas en `responsable_dependencia` (o alcance global si es `admin_sistema`).
+El rol **vigilante** opera el kiosco; se crea por alta interna (Persona + Usuario, una sede, correo libre). Al crearse recibe alcance `SEDE` de su persona. `admin_sistema` también tiene `control.escanear`. El responsable de dependencia inventaría y asigna equipos institucionales en las unidades de su alcance y/o filas en `responsable_dependencia`.
 
-### Permisos (16)
+### Alcance jerárquico (ortogonal a permisos)
+
+Los **permisos** definen *qué puede hacer*; el **alcance** define *sobre qué filas* ve y edita. Modelo `AlcanceUsuario` (`organizacion.alcance_usuario`): un usuario puede tener varias filas (unión); `GLOBAL` gana sobre el resto.
+
+| Nivel | Ve |
+|-------|-----|
+| `global` | Todo (caso FUSA — no hardcodeado) |
+| `sede` | Solo su sede |
+| `facultad` | Personas/programas/equipos de esa facultad |
+| `programa` | Solo ese programa |
+| `area` | Solo esa dependencia |
+
+Filtrado central: `apps/accounts/alcance.py` (`aplicar_alcance`, helpers `personas_visibles`, `equipos_visibles`, etc.). Reportes: `acotar_por_alcance` en `reportes/filtros.py`. Permiso `usuarios.gestionar_alcance` para asignar alcance a otros (no ampliar el propio ni otorgar nivel superior al del actor).
+
+### Permisos (18)
 
 | Código | Uso |
 |--------|-----|
@@ -171,7 +189,9 @@ El rol **vigilante** opera el kiosco; se crea por alta interna (Persona + Usuari
 | `control.ver_alertas` | Historial / alertas |
 | `catalogos.administrar` | Sedes, facultades, programas, áreas, vínculos |
 | `personas.administrar` | CRUD personas |
-| `usuarios.administrar` | Usuarios / reset password |
+| `usuarios.administrar` | Usuarios / reset password / inactivar |
+| `usuarios.desbloquear` | Desbloquear login bloqueado por Axes (intentos fallidos) |
+| `usuarios.gestionar_alcance` | Asignar alcance jerárquico a otros usuarios |
 | `roles.administrar` | Roles + matriz |
 | `permisos.ver` | Catálogo de permisos (solo lectura) |
 | `perfil.ver_propio` | Mi perfil |
@@ -245,9 +265,19 @@ Separación cuenta vs visita para `personal_externo` (simetría con equipo vs as
 
 Primera visita en `/registro/`; siguientes en `/accounts/registrar-visita/`. Al vencer: cierre en escaneo o `cerrar_visitas_vencidas` — **no** se inactiva la Persona.
 
+### AlcanceUsuario
+
+Tabla `alcance_usuario`: `usuario`, `nivel` (`global` / `sede` / `facultad` / `programa` / `area`), `objeto_id` (null solo si global), `activo`.
+
+- Migración `organizacion.0005`: copia `ResponsableDependencia` → alcance equivalente; asigna `GLOBAL` a usuarios con rol `admin_sistema`; vigilantes con sede → alcance `sede`.
+- Permiso `usuarios.gestionar_alcance` (migración `accounts.0011` + seed): UI en ficha de usuario del panel (alta/baja auditada). Un actor no puede ampliar su propio alcance ni otorgar uno superior al suyo.
+- Badge del alcance propio en la topbar (`accounts.context_processors.alcance_usuario`).
+- Reportes y dashboard delegan en `acotar_por_alcance` → `aplicar_alcance`.
+- `es_admin_global()` en `equipos.services` = permiso/rol admin **y** alcance GLOBAL.
+
 ### ResponsableDependencia
 
-Tabla que vincula un `Usuario` con una unidad (`facultad` / `programa` / `area`) para inventariar/asignar. `admin_sistema` no necesita filas (alcance global).
+Tabla que vincula un `Usuario` con una unidad (`facultad` / `programa` / `area`) para inventariar/asignar equipos institucionales. Complementa (no reemplaza) `AlcanceUsuario` para permisos de unidad.
 
 ### Movimiento
 
@@ -271,6 +301,8 @@ Cada escaneo crea un registro:
 4. Borrado lógico (`activo` / `de_baja`), no físico.
 5. MFA obligatorio para usuarios con rol activo `admin_sistema`.
 6. Vigilante pertenece a una sola sede; persona de otra sede → `ok` + badge «Otra sede».
+7. Listados del panel, reportes, inventario e histórico de movimientos se filtran por `AlcanceUsuario` (sin alcance → queryset vacío salvo superusuario).
+8. Catálogos: crear sedes/facultades/programas/áreas nuevas requiere alcance `global`; editar/listar solo lo visible.
 
 ---
 
@@ -284,7 +316,7 @@ Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → tambié
 
 ### 9.1b Vigilante (alta interna)
 
-`/panel/personas/vigilante/nuevo/` (`personas.administrar`): Persona + Usuario + rol vigilante, una sede, correo libre. No aparece en `/registro/`.
+`/panel/personas/vigilante/nuevo/` (`personas.administrar`): Persona + Usuario + rol vigilante, una sede, correo libre. No aparece en `/registro/`. Al crearse recibe `AlcanceUsuario(nivel=sede)` de su sede.
 
 ### 9.2 Login + MFA
 
@@ -297,7 +329,7 @@ Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → tambié
 
 ### 9.3 Miembro: equipos y QR
 
-Login → Mis equipos → registrar equipo **personal** → al salir mostrar QR. Exhibición: `TimestampSigner` (`salt=equipo-qr-exhibicion`). Escaneo acepta token firmado, UUID legado o serial. Los institucionales aparecen en Mis equipos solo para mostrar QR (sin editar/baja).
+Login → Mis equipos → registrar equipo **personal** → al salir mostrar QR. Exhibición: `TimestampSigner` (`salt=equipo-qr-exhibicion`). Escaneo acepta token firmado, UUID legado o serial. Los institucionales aparecen en Mis equipos solo para mostrar QR (sin editar/baja). Un personal **dado de baja** (`activo=false`) no es válido en kiosco; el dueño puede **dar de alta** de nuevo (mismo serial/QR) desde Mis equipos. Institucionales no se reactivan por esta vía.
 
 ### 9.3b Inventario y asignación institucional (docs 14 + 15)
 
@@ -327,9 +359,9 @@ Otra sede (cualquier vínculo): si `persona.sede` ≠ sede del vigilante → `ok
 
 ### 9.5 Panel interno (`/panel/`)
 
-Administración universitaria (no Django Admin). Personas, usuarios, roles, organización. Django Admin (`ADMIN_URL`) solo soporte técnico.
+Administración universitaria (no Django Admin). Personas, usuarios (roles + **alcance**), roles, organización, equipos institucionales. Django Admin (`ADMIN_URL`) solo soporte técnico.
 
-Con `reportes.ver`, `/panel/` redirige primero al **dashboard** (`panel:dashboard`).
+Con `reportes.ver`, `/panel/` redirige primero al **dashboard** (`panel:dashboard`). Los listados y selects de sede/programa/área usan helpers de alcance; detalle fuera de alcance → 404.
 
 ### 9.6 Dashboard administrador (`/panel/dashboard/`)
 
@@ -351,7 +383,7 @@ Colores de resultado alineados al design system: OK `#007B3E`, alerta `#C62828`,
 
 ### 9.7 Reportes Excel (`/reportes/`)
 
-Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` para configurar y `reportes.exportar` para descargar; cada descarga queda en `auditoria_cambio`. El reporte de alertas filtra y columna por `motivo_alerta`. Export síncrono (límites en doc [`12`](12-modulo-reportes-excel.md)). Complementa el dashboard de §9.6.
+Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `reportes.ver` para configurar y `reportes.exportar` para descargar; cada descarga queda en `auditoria_cambio`. El reporte de alertas filtra y columna por `motivo_alerta`. Export síncrono (límites en doc [`12`](12-modulo-reportes-excel.md)). **Todas las queries pasan por `acotar_por_alcance`** (mismo alcance que el panel). Complementa el dashboard de §9.6.
 
 ---
 
@@ -378,7 +410,10 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | `/panel/equipos/<id>/renovar/` | Renovar fechas (misma persona) |
 | `/panel/equipos/<id>/reasignar/` | Reasignar titular |
 | `/panel/equipos/<id>/devolver/` | Devolver al inventario (disponible) |
-| `/panel/equipos/<id>/dar-de-baja/` | Baja lógica |
+| `/panel/equipos/<id>/dar-de-baja/` | Baja lógica (personal: `activo=false`; institucional: inventario) |
+| `/panel/equipos/<id>/dar-de-alta/` | Reactivar personal de baja (`activo=true`); solo personales |
+| `/panel/usuarios/<id>/` | Ficha: roles, reset password, desbloqueo Axes, **gestión de alcance** |
+| `/panel/usuarios/<id>/desbloquear/` | Desbloquear login Axes (`usuarios.desbloquear`) |
 | `/panel/responsables-dependencia/` | CRUD responsables de unidad |
 | `/reportes/` | índice / configurar / exportar Excel |
 | `/personas/` | personas + tipos de vínculo |
@@ -390,7 +425,7 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | Control | Detalle |
 |---------|---------|
 | Contraseñas | Argon2 primero en `PASSWORD_HASHERS` |
-| Bloqueo login | Axes: 5 fallos, cooloff 1 h (username+IP) |
+| Bloqueo login | Axes: 5 fallos, cooloff 1 h (username+IP); plantilla `accounts/lockout.html` indica cuándo reintentar; admin con `usuarios.desbloquear` puede liberar desde panel |
 | Rate limit | Login 5/m; escaneo 60/m |
 | MFA | TOTP obligatorio para `admin_sistema` |
 | CSP | Middleware propio; `frame-ancestors 'none'` |
@@ -400,6 +435,7 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | Prod | `DEBUG=False`, HTTPS, HSTS, secretos obligatorios |
 | Auditoría | `auditoria_cambio` (+ logs de rol en panel) |
 | Mínimo privilegio reportes | Dashboard = `reportes.ver` (agregados); Excel crudo = `reportes.exportar` |
+| Alcance de filas | `AlcanceUsuario` + `aplicar_alcance`; anti-IDOR en detalles; no auto-ampliar alcance |
 
 Detalle: [`11-plan-seguridad-iso27001-owasp.md`](11-plan-seguridad-iso27001-owasp.md).  
 Operación: [`operaciones/`](operaciones/) (incidentes, backups).
@@ -432,9 +468,9 @@ En Docker/Render el `entrypoint.sh` ejecuta `migrate` → **`seed_data`** → `c
 
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
-| Administrador | `admin` | `Udec2026!Admin` | Dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
+| Administrador | `admin` | `Udec2026!Admin` | Alcance **GLOBAL**; dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
 
-Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
+Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **18 permisos**, **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `AlcanceUsuario(nivel=global)`. Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
 
 > Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales. Guía deploy: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).
 
@@ -469,11 +505,13 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 áreas**, **6 tipos 
 | URLs raíz | `config/urls.py` |
 | Settings / seguridad | `config/settings.py`, `config/middleware.py` |
 | Seed | `apps/accounts/management/commands/seed_data.py` |
+| Alcance jerárquico | `apps/accounts/alcance.py`, `apps/organizacion/models.py` (`AlcanceUsuario`); UI `templates/panel/usuario_detail.html` |
 | Login / MFA / registro | `apps/accounts/views.py` |
 | QR firmado | `apps/equipos/models.py` |
 | Asignación / inventario institucional | `apps/equipos/services.py`, `apps/equipos/models.py`, `apps/panel/views_equipos.py`; command `cerrar_asignaciones_vencidas` |
 | ResponsableDependencia | `apps/organizacion/models.py` |
 | Kiosco | `apps/control_acceso/views.py`, `templates/control_acceso/scanner.html` |
-| Reportes Excel | `apps/reportes/` (generadores, filtros, views) |
+| Reportes Excel | `apps/reportes/` (generadores, filtros con `acotar_por_alcance`, views) |
 | Dashboard | `apps/reportes/dashboard.py`, `views_dashboard.py`; templates `reportes/dashboard*.html`; `static/js/dashboard.js` |
 | Montaje URLs dashboard | `apps/panel/urls.py` |
+| Plan de ejecución | [`planes/alcance-jerarquico-usuarios.md`](planes/alcance-jerarquico-usuarios.md) |

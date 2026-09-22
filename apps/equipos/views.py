@@ -6,8 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse, Http404
 from django.db.models import Q
+from accounts.alcance import areas_visibles, equipos_visibles, personas_visibles, puede_ver_objeto
 from accounts.decorators import requiere_permiso
-from organizacion.models import Area
 from config.pagination import paginate_queryset
 from .models import Equipo
 from .services import asignacion_activa, nombre_unidad, vigencia_asignacion
@@ -30,8 +30,14 @@ def mis_equipos(request):
             "Su usuario no tiene vinculada una ficha de persona de la comunidad académica."
         )
         equipos = Equipo.objects.none()
+        equipos_baja = Equipo.objects.none()
     else:
         equipos = Equipo.objects.filter(persona=persona, activo=True)
+        equipos_baja = Equipo.objects.filter(
+            persona=persona,
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+            activo=False,
+        ).order_by("-updated_at")
 
     equipos_ctx = []
     for e in equipos:
@@ -59,6 +65,7 @@ def mis_equipos(request):
         "persona": persona,
         "equipos": equipos,
         "equipos_ctx": equipos_ctx,
+        "equipos_baja": equipos_baja,
     }
     return render(request, "equipos/mis_equipos.html", context)
 
@@ -74,7 +81,9 @@ def equipo_list(request):
 
     dependencia_filtro = request.GET.get("dependencia", "")
 
-    equipos = Equipo.objects.select_related("persona", "persona__sede", "dependencia").all()
+    equipos = equipos_visibles(request.user).select_related(
+        "persona", "persona__sede", "dependencia"
+    )
 
     if query:
         equipos = equipos.filter(
@@ -110,7 +119,7 @@ def equipo_list(request):
         "activo_filtro": activo_filtro,
         "tipos_equipo": Equipo.OPCIONES_TIPO,
         "propiedades": Equipo.OPCIONES_PROPIEDAD,
-        "areas": Area.objects.filter(activo=True).order_by("nombre"),
+        "areas": areas_visibles(request.user).order_by("nombre"),
     }
     return render(request, "equipos/equipo_list.html", context)
 
@@ -119,14 +128,18 @@ def equipo_list(request):
 def equipo_detail(request, pk):
     """Detalle de un equipo y vista para mostrar su pase QR."""
     equipo = get_object_or_404(
-        Equipo.objects.select_related("persona", "persona__sede", "persona__programa", "dependencia"),
+        equipos_visibles(request.user).select_related(
+            "persona", "persona__sede", "persona__programa", "dependencia"
+        ),
         pk=pk,
     )
-    # Validar que el usuario sea el dueño o tenga permiso administrativo
     if not request.user.tiene_permiso("equipos.ver_todos"):
         if not getattr(request.user, "persona", None) or equipo.persona != request.user.persona:
             messages.error(request, "No tiene permiso para ver este equipo.")
             return redirect("equipos:mis_equipos")
+    elif not puede_ver_objeto(request.user, equipo):
+        messages.error(request, "No tiene permiso para ver este equipo.")
+        return redirect("equipos:equipos_list")
 
     movimientos = equipo.movimientos.select_related("usuario_control").all()[:10]
 
@@ -166,7 +179,7 @@ def equipo_create(request):
 
         if es_admin_inventario:
             persona_id = request.POST.get("persona")
-            persona = get_object_or_404(Persona, id=persona_id)
+            persona = get_object_or_404(personas_visibles(request.user), id=persona_id)
         else:
             if not persona_usuario:
                 messages.error(request, "No tiene un perfil de persona asociado para registrar equipos.")
@@ -203,7 +216,7 @@ def equipo_create(request):
                 return redirect("equipos:equipo_detail", pk=equipo.pk)
 
     personas = (
-        Persona.objects.filter(activo=True).select_related("sede")
+        personas_visibles(request.user).filter(activo=True).select_related("sede")
         if es_admin_inventario
         else []
     )

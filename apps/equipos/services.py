@@ -50,10 +50,15 @@ class UnidadRef:
 
 
 def es_admin_global(usuario) -> bool:
+    """Admin con alcance GLOBAL (FUSA = usuario global, no hardcodeado)."""
     if not usuario or not getattr(usuario, "is_authenticated", False):
         return False
     if getattr(usuario, "is_superuser", False):
         return True
+    from accounts.alcance import alcance_es_global
+
+    if not alcance_es_global(usuario):
+        return False
     return usuario.tiene_permiso("equipos.gestionar_responsables") or usuario.roles.filter(
         activo=True, nombre="admin_sistema"
     ).exists()
@@ -95,6 +100,9 @@ def _tiene_permiso_unidad(usuario) -> bool:
 
 
 def unidades_de(usuario) -> list[UnidadRef]:
+    from accounts.alcance import alcance_de
+    from organizacion.models import AlcanceUsuario
+
     if es_admin_global(usuario):
         unidades: list[UnidadRef] = []
         for f in Decanatura.objects.filter(activo=True).order_by("nombre"):
@@ -109,10 +117,36 @@ def unidades_de(usuario) -> list[UnidadRef]:
         return []
 
     refs: list[UnidadRef] = []
+    vistos: set[str] = set()
+    alcance = alcance_de(usuario)
+    if not alcance.es_global:
+        for fid in alcance.facultades:
+            ref = _resolver_unidad(UNIDAD_FACULTAD, fid)
+            if ref and ref.clave not in vistos:
+                refs.append(ref)
+                vistos.add(ref.clave)
+        for pid in alcance.programas:
+            ref = _resolver_unidad(UNIDAD_PROGRAMA, pid)
+            if ref and ref.clave not in vistos:
+                refs.append(ref)
+                vistos.add(ref.clave)
+        for aid in alcance.areas:
+            ref = _resolver_unidad(UNIDAD_AREA, aid)
+            if ref and ref.clave not in vistos:
+                refs.append(ref)
+                vistos.add(ref.clave)
+        if alcance.sedes:
+            for p in Programa.objects.filter(sede_id__in=alcance.sedes, activo=True).order_by("nombre"):
+                ref = UnidadRef(UNIDAD_PROGRAMA, p.pk, p.nombre, p.codigo)
+                if ref.clave not in vistos:
+                    refs.append(ref)
+                    vistos.add(ref.clave)
+
     for fila in ResponsableDependencia.objects.filter(usuario=usuario, activo=True):
         ref = _resolver_unidad(fila.unidad_tipo, fila.unidad_id)
-        if ref:
+        if ref and ref.clave not in vistos:
             refs.append(ref)
+            vistos.add(ref.clave)
     return refs
 
 
@@ -165,12 +199,26 @@ def puede_gestionar_unidad(usuario, unidad_tipo: str, unidad_id: int) -> bool:
         return True
     if not _tiene_permiso_unidad(usuario):
         return False
-    return ResponsableDependencia.objects.filter(
+    if ResponsableDependencia.objects.filter(
         usuario=usuario,
         unidad_tipo=unidad_tipo,
         unidad_id=unidad_id,
         activo=True,
-    ).exists()
+    ).exists():
+        return True
+    from accounts.alcance import alcance_de
+    from organizacion.models import AlcanceUsuario
+
+    alcance = alcance_de(usuario)
+    if alcance.es_global:
+        return True
+    if unidad_tipo == UNIDAD_FACULTAD:
+        return unidad_id in alcance.facultades
+    if unidad_tipo == UNIDAD_PROGRAMA:
+        return unidad_id in alcance.programas
+    if unidad_tipo == UNIDAD_AREA:
+        return unidad_id in alcance.areas
+    return False
 
 
 def asignacion_activa(equipo):
@@ -201,7 +249,7 @@ def puede_gestionar_equipo_institucional(usuario, equipo) -> bool:
 
 
 def filtro_equipos_institucionales_alcance(usuario) -> Q:
-    if es_admin_global(usuario) or usuario.tiene_permiso("equipos.ver_todos"):
+    if es_admin_global(usuario):
         return Q(propiedad="institucional")
     unidades = unidades_de(usuario)
     if not unidades:

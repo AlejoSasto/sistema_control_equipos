@@ -32,6 +32,33 @@
       {% else %}
       <div style="color: var(--color-text-secondary);">Sin persona asociada (usuario standalone)</div>
       {% endif %}
+      {% if puede_desbloquear %}
+      <div style="border-top: 1px solid var(--color-border); padding-top: var(--space-2); margin-top: var(--space-2);">
+        <span style="color: var(--color-text-secondary); font-size: 0.75rem; font-weight: 600;">BLOQUEO DE LOGIN (AXES):</span>
+        <div style="margin-top: var(--space-1);">
+          {% if login_bloqueado %}
+          <span class="badge badge-danger">Login bloqueado</span>
+          <p style="font-size: 0.8125rem; color: var(--color-text-secondary); margin: var(--space-1) 0 0;">
+            Demasiados intentos fallidos. El usuario puede esperar 1 hora o usted puede desbloquear ahora.
+          </p>
+          {% else %}
+          <span class="badge badge-success">Sin bloqueo activo</span>
+          {% endif %}
+        </div>
+        {% if login_bloqueado %}
+        <form method="post" action="{% url 'panel:usuario_desbloquear' usuario_obj.pk %}" id="form-usuario-desbloquear" style="margin-top: var(--space-2);">
+          {% csrf_token %}
+          <button type="button" class="btn btn-primary btn-sm"
+                  data-bs-toggle="modal" data-bs-target="#modalConfirmacion"
+                  data-confirm-title="Desbloquear login"
+                  data-confirm-body="¿Desbloquear el inicio de sesión de este usuario? Podrá intentar entrar de inmediato."
+                  data-confirm-form="form-usuario-desbloquear">
+            Desbloquear login
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
     <form method="post" action="{% url 'panel:usuario_toggle' usuario_obj.pk %}" id="form-usuario-toggle" style="margin-top: var(--space-3);">
       {% csrf_token %}
@@ -68,6 +95,95 @@
     </form>
   </div>
 </div>
+
+{% if puede_gestionar_alcance %}
+<div class="card card-white" style="margin-top: var(--space-4);">
+  <div class="card-header"><h3 class="card-title">Alcance jerárquico</h3></div>
+  <p style="font-size: 0.8125rem; color: var(--color-text-secondary); margin-bottom: var(--space-3);">
+    Define qué sedes, facultades, programas o áreas puede ver este usuario en el panel y reportes.
+  </p>
+  {% if alcances %}
+  <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3);">
+    {% for item in alcances %}
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+      <div>
+        <span style="font-weight: 600;">{{ item.descripcion }}</span>
+        {% if item.fila.activo %}
+        <span class="badge badge-success" style="margin-left: var(--space-1);">Activo</span>
+        {% else %}
+        <span class="badge badge-danger" style="margin-left: var(--space-1);">Inactivo</span>
+        {% endif %}
+      </div>
+      {% if usuario_obj.pk != user.pk %}
+      <form method="post" style="margin: 0;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="toggle_alcance">
+        <input type="hidden" name="alcance_id" value="{{ item.fila.pk }}">
+        <button type="submit" class="btn btn-secondary btn-sm">
+          {% if item.fila.activo %}Desactivar{% else %}Activar{% endif %}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color: var(--color-text-secondary); font-size: 0.875rem;">Sin alcance definido (no verá datos en el panel).</p>
+  {% endif %}
+
+  {% if usuario_obj.pk != user.pk %}
+  <form method="post" id="form-add-alcance">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_alcance">
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label class="form-label" for="nivel_alcance">Nivel</label>
+        <select name="nivel_alcance" id="nivel_alcance" class="form-control" required>
+          <option value="">— Seleccione —</option>
+          {% for val, label in niveles_alcance %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="objeto_alcance">Objeto</label>
+        <select name="objeto_alcance" id="objeto_alcance" class="form-control">
+          <option value="">— Global / no aplica —</option>
+          <optgroup label="Sedes">
+            {% for s in sedes_alcance %}<option value="{{ s.pk }}" data-nivel="sede">{{ s.nombre }}</option>{% endfor %}
+          </optgroup>
+          <optgroup label="Facultades">
+            {% for f in facultades_alcance %}<option value="{{ f.pk }}" data-nivel="facultad">{{ f.nombre }}</option>{% endfor %}
+          </optgroup>
+          <optgroup label="Programas">
+            {% for p in programas_alcance %}<option value="{{ p.pk }}" data-nivel="programa">{{ p.nombre }}</option>{% endfor %}
+          </optgroup>
+          <optgroup label="Áreas">
+            {% for a in areas_alcance %}<option value="{{ a.pk }}" data-nivel="area">{{ a.codigo }} — {{ a.nombre }}</option>{% endfor %}
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm" style="margin-top: var(--space-2);">Agregar alcance</button>
+  </form>
+  <script>
+    (function () {
+      var nivel = document.getElementById('nivel_alcance');
+      var objeto = document.getElementById('objeto_alcance');
+      if (!nivel || !objeto) return;
+      function sync() {
+        var esGlobal = nivel.value === 'global';
+        objeto.disabled = esGlobal;
+        if (esGlobal) objeto.value = '';
+        objeto.required = !esGlobal;
+      }
+      nivel.addEventListener('change', sync);
+      sync();
+    })();
+  </script>
+  {% endif %}
+</div>
+{% endif %}
 
 <!-- Resetear contraseña -->
 <div class="card card-white" style="margin-top: var(--space-4); max-width: 520px;">

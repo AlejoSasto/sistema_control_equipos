@@ -4,6 +4,13 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from accounts.alcance import (
+    alcance_es_global,
+    areas_visibles,
+    facultades_visibles,
+    programas_visibles,
+    sedes_visibles,
+)
 from accounts.decorators import requiere_permiso
 from organizacion.models import Area, Decanatura, Programa, Sede
 
@@ -11,17 +18,24 @@ from organizacion.models import Area, Decanatura, Programa, Sede
 @requiere_permiso("catalogos.administrar")
 def organizacion_list(request):
     context = {
-        "sedes": Sede.objects.order_by("nombre"),
-        "facultades": Decanatura.objects.order_by("nombre"),
-        "programas": Programa.objects.select_related("sede", "facultad").order_by("nombre"),
-        "areas": Area.objects.order_by("nombre"),
+        "sedes": sedes_visibles(request.user).order_by("nombre"),
+        "facultades": facultades_visibles(request.user).order_by("nombre"),
+        "programas": programas_visibles(request.user).order_by("nombre"),
+        "areas": areas_visibles(request.user).order_by("nombre"),
+        "alcance_global": alcance_es_global(request.user),
     }
     return render(request, "panel/organizacion_list.html", context)
 
 
 @requiere_permiso("catalogos.administrar")
 def sede_form(request, pk=None):
-    sede = get_object_or_404(Sede, pk=pk) if pk else None
+    if pk:
+        sede = get_object_or_404(sedes_visibles(request.user), pk=pk)
+    else:
+        if not alcance_es_global(request.user):
+            messages.error(request, "Solo usuarios con alcance global pueden crear sedes.")
+            return redirect("panel:organizacion_list")
+        sede = None
     data = {
         "codigo": sede.codigo if sede else "",
         "nombre": sede.nombre if sede else "",
@@ -53,7 +67,7 @@ def sede_form(request, pk=None):
 @require_POST
 @requiere_permiso("catalogos.administrar")
 def sede_toggle(request, pk):
-    sede = get_object_or_404(Sede, pk=pk)
+    sede = get_object_or_404(sedes_visibles(request.user), pk=pk)
     sede.activo = not sede.activo
     sede.save()
     estado = "activada" if sede.activo else "inactivada"
@@ -63,7 +77,13 @@ def sede_toggle(request, pk):
 
 @requiere_permiso("catalogos.administrar")
 def decanatura_form(request, pk=None):
-    facultad = get_object_or_404(Decanatura, pk=pk) if pk else None
+    if pk:
+        facultad = get_object_or_404(facultades_visibles(request.user), pk=pk)
+    else:
+        if not alcance_es_global(request.user):
+            messages.error(request, "Solo usuarios con alcance global pueden crear facultades.")
+            return redirect("panel:organizacion_list")
+        facultad = None
     data = {
         "codigo": facultad.codigo if facultad else "",
         "nombre": facultad.nombre if facultad else "",
@@ -97,7 +117,7 @@ def decanatura_form(request, pk=None):
 @require_POST
 @requiere_permiso("catalogos.administrar")
 def decanatura_toggle(request, pk):
-    dec = get_object_or_404(Decanatura, pk=pk)
+    dec = get_object_or_404(facultades_visibles(request.user), pk=pk)
     dec.activo = not dec.activo
     dec.save()
     estado = "activada" if dec.activo else "inactivada"
@@ -107,7 +127,15 @@ def decanatura_toggle(request, pk):
 
 @requiere_permiso("catalogos.administrar")
 def programa_form(request, pk=None):
-    programa = get_object_or_404(Programa.objects.select_related("sede", "facultad"), pk=pk) if pk else None
+    if pk:
+        programa = get_object_or_404(
+            programas_visibles(request.user).select_related("sede", "facultad"), pk=pk
+        )
+    else:
+        if not alcance_es_global(request.user):
+            messages.error(request, "Solo usuarios con alcance global pueden crear programas.")
+            return redirect("panel:organizacion_list")
+        programa = None
     data = {
         "codigo": programa.codigo if programa else "",
         "nombre": programa.nombre if programa else "",
@@ -136,8 +164,8 @@ def programa_form(request, pk=None):
         elif Programa.objects.filter(codigo=codigo).exclude(pk=pk).exists():
             messages.error(request, f"Ya existe un programa con el código '{codigo}'.")
         else:
-            sede = get_object_or_404(Sede, id=sede_id)
-            facultad = get_object_or_404(Decanatura, id=fac_id)
+            sede = get_object_or_404(sedes_visibles(request.user), id=sede_id)
+            facultad = get_object_or_404(facultades_visibles(request.user), id=fac_id)
             if programa:
                 programa.codigo = codigo
                 programa.nombre = nombre
@@ -164,8 +192,8 @@ def programa_form(request, pk=None):
         {
             "programa": programa,
             "data": data,
-            "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
-            "facultades": Decanatura.objects.filter(activo=True).order_by("nombre"),
+            "sedes": sedes_visibles(request.user).order_by("nombre"),
+            "facultades": facultades_visibles(request.user).order_by("nombre"),
             "niveles": Programa.OPCIONES_NIVEL,
         },
     )
@@ -174,7 +202,7 @@ def programa_form(request, pk=None):
 @require_POST
 @requiere_permiso("catalogos.administrar")
 def programa_toggle(request, pk):
-    prog = get_object_or_404(Programa, pk=pk)
+    prog = get_object_or_404(programas_visibles(request.user), pk=pk)
     prog.activo = not prog.activo
     prog.save()
     estado = "activado" if prog.activo else "inactivado"
@@ -184,7 +212,13 @@ def programa_toggle(request, pk):
 
 @requiere_permiso("catalogos.administrar")
 def area_form(request, pk=None):
-    area = get_object_or_404(Area, pk=pk) if pk else None
+    if pk:
+        area = get_object_or_404(areas_visibles(request.user), pk=pk)
+    else:
+        if not alcance_es_global(request.user):
+            messages.error(request, "Solo usuarios con alcance global pueden crear áreas.")
+            return redirect("panel:organizacion_list")
+        area = None
     data = {
         "codigo": area.codigo if area else "",
         "nombre": area.nombre if area else "",
@@ -214,7 +248,7 @@ def area_form(request, pk=None):
 @require_POST
 @requiere_permiso("catalogos.administrar")
 def area_toggle(request, pk):
-    area = get_object_or_404(Area, pk=pk)
+    area = get_object_or_404(areas_visibles(request.user), pk=pk)
     area.activo = not area.activo
     area.save()
     estado = "activada" if area.activo else "inactivada"

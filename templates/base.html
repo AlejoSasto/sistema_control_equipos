@@ -261,6 +261,11 @@
           <h1 class="topbar-title">{% block page_title %}Sistema de Control de Equipos{% endblock %}</h1>
         </div>
         <div class="topbar-actions">
+          {% if alcance_etiqueta %}
+          <span class="badge badge-secondary" style="font-size: 0.75rem; font-weight: 600;" title="{{ alcance_etiqueta }}">
+            {{ alcance_etiqueta }}
+          </span>
+          {% endif %}
           <div class="sede-indicator">
             <span class="sede-dot"></span>
             <span>

@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-21 (seed automático en Render)
+**Última actualización:** 2026-09-21 (alcance jerárquico listo para deploy)
 
 ---
 
@@ -78,6 +78,9 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/area-post-registro-gestor.md](planes/area-post-registro-gestor.md) | **Completado** | Gestor se registra sin área; admin la asigna en panel |
 | [planes/despliegue-render-docker.md](planes/despliegue-render-docker.md) | **Completado** | Dockerfile, compose, render.yaml, gunicorn, instructivo Render |
 | [planes/seed-automatico-render.md](planes/seed-automatico-render.md) | **Completado** | Seed en entrypoint; desactiva vínculos MVP legado |
+| [planes/reactivar-equipo-personal-baja.md](planes/reactivar-equipo-personal-baja.md) | **Completado** | Alta de equipo personal tras baja (QR inválido mientras baja) |
+| [planes/desbloqueo-login-axes.md](planes/desbloqueo-login-axes.md) | **Completado** | Feedback lockout + permiso `usuarios.desbloquear` en panel |
+| [planes/alcance-jerarquico-usuarios.md](planes/alcance-jerarquico-usuarios.md) | **Completado** | Alcance GLOBAL/SEDE/FACULTAD/PROGRAMA/ÁREA + filtrado central |
 
 ---
 

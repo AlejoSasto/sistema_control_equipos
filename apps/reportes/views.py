@@ -6,27 +6,30 @@ from django.contrib import messages
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 
+from accounts.alcance import (
+    areas_visibles,
+    facultades_visibles,
+    programas_visibles,
+    sedes_visibles,
+    usuarios_visibles,
+)
 from accounts.decorators import requiere_permiso
-from accounts.models import Usuario
 from auditoria.models import AuditoriaCambio
 from auditoria.services import registrar_cambio
 from control_acceso.models import Movimiento
 from equipos.models import Equipo
-from organizacion.models import Area, Decanatura, Programa, Sede
 from personas.models import TipoVinculo
 from reportes.filtros import FiltroError, defaults_fecha_rango
 from reportes.generadores import GENERADORES, TIPOS_REPORTE
 from reportes.generadores.base import UmbralExcedido
 
 
-def _catalogos_contexto():
+def _catalogos_contexto(user):
     return {
-        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
-        "facultades": Decanatura.objects.filter(activo=True).order_by("nombre"),
-        "programas": Programa.objects.filter(activo=True)
-        .select_related("sede", "facultad")
-        .order_by("nombre"),
-        "areas": Area.objects.filter(activo=True).order_by("nombre"),
+        "sedes": sedes_visibles(user).order_by("nombre"),
+        "facultades": facultades_visibles(user).order_by("nombre"),
+        "programas": programas_visibles(user).order_by("nombre"),
+        "areas": areas_visibles(user).order_by("nombre"),
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
         "opciones_resultado": Movimiento.OPCIONES_RESULTADO,
         "opciones_tipo_equipo": Equipo.OPCIONES_TIPO,
@@ -36,7 +39,8 @@ def _catalogos_contexto():
             (Movimiento.RESULTADO_NO_ENCONTRADO, "No encontrado"),
         ],
         "opciones_motivo_alerta": Movimiento.OPCIONES_MOTIVO_ALERTA,
-        "celadores": Usuario.objects.filter(
+        "celadores": usuarios_visibles(user)
+        .filter(
             roles__permisos__codigo="control.escanear",
             is_active=True,
             activo=True,
@@ -72,7 +76,7 @@ def configurar(request, tipo: str):
         "fecha_inicio": request.GET.get("fecha_inicio", fecha_inicio),
         "fecha_fin": request.GET.get("fecha_fin", fecha_fin),
         "puede_exportar": request.user.puede_exportar_reportes,
-        **_catalogos_contexto(),
+        **_catalogos_contexto(request.user),
     }
     return render(request, f"reportes/form_{tipo}.html", ctx)
 

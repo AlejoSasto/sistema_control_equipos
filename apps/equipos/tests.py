@@ -29,9 +29,13 @@ class EquiposModelTestCase(TestCase):
             sede=self.sede,
             programa=self.programa,
         )
-        self.perm_ver = Permiso.objects.create(codigo="equipos.ver_propios", descripcion="Ver propios")
-        self.rol_miembro = Rol.objects.create(nombre="miembro_comunidad", descripcion="Miembro")
-        RolPermiso.objects.create(rol=self.rol_miembro, permiso=self.perm_ver)
+        self.perm_ver, _ = Permiso.objects.get_or_create(
+            codigo="equipos.ver_propios", defaults={"descripcion": "Ver propios"}
+        )
+        self.rol_miembro, _ = Rol.objects.get_or_create(
+            nombre="miembro_comunidad", defaults={"descripcion": "Miembro", "activo": True}
+        )
+        RolPermiso.objects.get_or_create(rol=self.rol_miembro, permiso=self.perm_ver)
         self.dueno = Usuario.objects.create_user(
             username="dueno_eq", password="testpass123!", email="dueno@test.com", persona=self.persona
         )
@@ -161,8 +165,10 @@ class EquiposModelTestCase(TestCase):
         self.assertEqual(equipo.dependencia_id, self.area.pk)
         self.assertEqual(equipo.estado_inventario, Equipo.ESTADO_ASIGNADO)
     def test_autoregistro_rechaza_institucional(self):
-        perm_reg = Permiso.objects.create(codigo="equipos.registrar", descripcion="Registrar")
-        RolPermiso.objects.create(rol=self.rol_miembro, permiso=perm_reg)
+        perm_reg, _ = Permiso.objects.get_or_create(
+            codigo="equipos.registrar", defaults={"descripcion": "Registrar"}
+        )
+        RolPermiso.objects.get_or_create(rol=self.rol_miembro, permiso=perm_reg)
         self.client.login(username="dueno_eq", password="testpass123!")
         response = self.client.post(
             reverse("equipos:equipo_create"),
@@ -177,3 +183,67 @@ class EquiposModelTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Equipo.objects.filter(serial="HACK-INST-01").exists())
+
+    def test_dar_de_baja_y_alta_personal(self):
+        equipo = Equipo.objects.create(
+            persona=self.persona,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="Lenovo",
+            modelo="Yoga",
+            serial="PERS-BAJA-ALTA-01",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+            activo=True,
+        )
+        self.client.login(username="dueno_eq", password="testpass123!")
+        response = self.client.post(reverse("panel:equipo_dar_de_baja", kwargs={"pk": equipo.pk}))
+        self.assertEqual(response.status_code, 302)
+        equipo.refresh_from_db()
+        self.assertFalse(equipo.activo)
+
+        response = self.client.get(reverse("equipos:mis_equipos"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "De baja")
+        self.assertContains(response, "Dar de alta")
+
+        response = self.client.post(reverse("panel:equipo_dar_de_alta", kwargs={"pk": equipo.pk}))
+        self.assertEqual(response.status_code, 302)
+        equipo.refresh_from_db()
+        self.assertTrue(equipo.activo)
+
+    def test_dar_de_alta_rechaza_ajeno_e_institucional(self):
+        personal = Equipo.objects.create(
+            persona=self.persona,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="HP",
+            modelo="Elite",
+            serial="PERS-AJENO-01",
+            propiedad=Equipo.PROPIEDAD_PERSONAL,
+            activo=False,
+        )
+        institucional = Equipo.objects.create(
+            persona=None,
+            tipo=Equipo.TIPO_PORTATIL,
+            marca="Dell",
+            modelo="Opti",
+            serial="INST-NO-ALTA-01",
+            propiedad=Equipo.PROPIEDAD_INSTITUCIONAL,
+            unidad_tipo="area",
+            unidad_id=self.area.pk,
+            estado_inventario=Equipo.ESTADO_DE_BAJA,
+            activo=False,
+            dependencia=self.area,
+        )
+
+        self.client.login(username="ajeno_eq", password="testpass123!")
+        response = self.client.post(reverse("panel:equipo_dar_de_alta", kwargs={"pk": personal.pk}))
+        self.assertEqual(response.status_code, 302)
+        personal.refresh_from_db()
+        self.assertFalse(personal.activo)
+
+        self.client.login(username="dueno_eq", password="testpass123!")
+        response = self.client.post(
+            reverse("panel:equipo_dar_de_alta", kwargs={"pk": institucional.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+        institucional.refresh_from_db()
+        self.assertFalse(institucional.activo)

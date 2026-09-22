@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from accounts.models import Rol, Permiso, Usuario, RolPermiso, UsuarioRol
-from organizacion.models import Area, Decanatura, Programa, Sede
+from organizacion.models import AlcanceUsuario, Area, Decanatura, Programa, Sede
 from personas.models import TipoVinculo, Persona
 from equipos.models import Equipo
 from control_acceso.models import Movimiento
@@ -92,6 +92,14 @@ class Command(BaseCommand):
             ("catalogos.administrar", "Administrar sedes, facultades, programas, áreas y tipos de vínculo"),
             ("personas.administrar", "Administrar personas de la comunidad académica"),
             ("usuarios.administrar", "Administrar usuarios y restablecer contraseñas"),
+            (
+                "usuarios.desbloquear",
+                "Desbloquear cuentas bloqueadas por intentos fallidos de login",
+            ),
+            (
+                "usuarios.gestionar_alcance",
+                "Asignar y administrar el alcance jerárquico de otros usuarios",
+            ),
             ("roles.administrar", "Administrar roles y asignar permisos"),
             ("permisos.ver", "Consultar el catálogo de permisos (solo lectura)"),
             ("perfil.ver_propio", "Ver el perfil personal, equipos y métricas propias"),
@@ -365,3 +373,9 @@ class Command(BaseCommand):
 
         UsuarioRol.objects.filter(usuario=admin).exclude(rol=roles_objs["admin_sistema"]).delete()
         UsuarioRol.objects.get_or_create(usuario=admin, rol=roles_objs["admin_sistema"])
+        AlcanceUsuario.objects.get_or_create(
+            usuario=admin,
+            nivel=AlcanceUsuario.NIVEL_GLOBAL,
+            objeto_id=None,
+            defaults={"activo": True},
+        )

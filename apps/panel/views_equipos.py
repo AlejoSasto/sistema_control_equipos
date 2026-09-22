@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from accounts.alcance import equipos_visibles, personas_visibles
 from accounts.decorators import requiere_permiso
 from accounts.models import Usuario
 from config.pagination import paginate_queryset
@@ -186,9 +187,9 @@ def equipos_asignar_institucional(request):
             fecha_inicio = _parse_fecha(request.POST.get("fecha_inicio")) or hoy
             fecha_fin = _parse_fecha(request.POST.get("fecha_fin"))
 
-            persona = Persona.objects.filter(pk=persona_id, activo=True).select_related(
-                "programa", "area", "tipo_vinculo"
-            ).first()
+            persona = personas_visibles(request.user).filter(
+                pk=persona_id, activo=True
+            ).select_related("programa", "area", "tipo_vinculo").first()
             equipo = disponibles.filter(pk=equipo_id).first()
 
             if not (persona and equipo and fecha_fin):
@@ -246,9 +247,9 @@ def equipos_asignar_institucional(request):
 @login_required
 @requiere_permiso("equipos.asignar_institucional")
 def sugerir_fecha_fin_persona(request):
-    persona = Persona.objects.filter(pk=request.GET.get("persona")).select_related(
-        "tipo_vinculo"
-    ).first()
+    persona = personas_visibles(request.user).filter(
+        pk=request.GET.get("persona")
+    ).select_related("tipo_vinculo").first()
     inicio = _parse_fecha(request.GET.get("fecha_inicio")) or timezone.localdate()
     if not persona:
         return JsonResponse({"fecha_fin": inicio.isoformat()})
@@ -269,7 +270,7 @@ def equipos_institucionales_list(request):
     query = request.GET.get("q", "").strip()
     filtro_vigencia = request.GET.get("vigencia", "").strip()
     filtro_estado = request.GET.get("estado", "").strip()
-    equipos = Equipo.objects.filter(
+    equipos = equipos_visibles(request.user).filter(
         filtro_equipos_institucionales_alcance(request.user)
     ).select_related("persona", "persona__sede", "dependencia")
 
@@ -363,7 +364,11 @@ def _contexto_form_fechas(equipo, persona, request):
 @login_required
 @requiere_permiso("equipos.asignar_institucional")
 def equipo_reasignar(request, pk):
-    equipo = get_object_or_404(Equipo, pk=pk, propiedad=Equipo.PROPIEDAD_INSTITUCIONAL)
+    equipo = get_object_or_404(
+        equipos_visibles(request.user),
+        pk=pk,
+        propiedad=Equipo.PROPIEDAD_INSTITUCIONAL,
+    )
     if not puede_gestionar_equipo_institucional(request.user, equipo):
         messages.error(request, "No puede reasignar un equipo fuera de su unidad.")
         return redirect("panel:equipos_institucionales")
@@ -373,11 +378,15 @@ def equipo_reasignar(request, pk):
         messages.error(request, "El equipo no tiene unidad propietaria.")
         return redirect("panel:equipos_institucionales")
 
-    personas = list(personas_de_unidad(ut, uid).order_by("apellidos", "nombres")[:500])
+    personas = list(
+        personas_visibles(request.user)
+        .filter(pk__in=personas_de_unidad(ut, uid).values_list("pk", flat=True))
+        .order_by("apellidos", "nombres")[:500]
+    )
 
     if request.method == "POST":
         persona = get_object_or_404(
-            Persona.objects.select_related("tipo_vinculo"),
+            personas_visibles(request.user).select_related("tipo_vinculo"),
             pk=request.POST.get("persona"),
             activo=True,
         )
@@ -413,7 +422,11 @@ def equipo_reasignar(request, pk):
 @login_required
 @requiere_permiso("equipos.asignar_institucional")
 def equipo_renovar(request, pk):
-    equipo = get_object_or_404(Equipo, pk=pk, propiedad=Equipo.PROPIEDAD_INSTITUCIONAL)
+    equipo = get_object_or_404(
+        equipos_visibles(request.user),
+        pk=pk,
+        propiedad=Equipo.PROPIEDAD_INSTITUCIONAL,
+    )
     if not puede_gestionar_equipo_institucional(request.user, equipo):
         messages.error(request, "No puede renovar un equipo fuera de su unidad.")
         return redirect("panel:equipos_institucionales")
@@ -458,7 +471,11 @@ def equipo_renovar(request, pk):
 @requiere_permiso("equipos.asignar_institucional")
 @require_POST
 def equipo_devolver_inventario(request, pk):
-    equipo = get_object_or_404(Equipo, pk=pk, propiedad=Equipo.PROPIEDAD_INSTITUCIONAL)
+    equipo = get_object_or_404(
+        equipos_visibles(request.user),
+        pk=pk,
+        propiedad=Equipo.PROPIEDAD_INSTITUCIONAL,
+    )
     if not puede_gestionar_equipo_institucional(request.user, equipo):
         messages.error(request, "No puede devolver un equipo fuera de su unidad.")
         return redirect("panel:equipos_institucionales")
@@ -512,6 +529,41 @@ def equipo_dar_de_baja(request, pk):
 
     if equipo.propiedad == Equipo.PROPIEDAD_INSTITUCIONAL:
         return redirect("panel:equipos_institucionales")
+    return redirect("equipos:mis_equipos")
+
+
+@login_required
+@require_POST
+def equipo_dar_de_alta(request, pk):
+    """Reactiva un equipo personal dado de baja (activo=True). No aplica a institucionales."""
+    equipo = get_object_or_404(Equipo, pk=pk)
+    user = request.user
+
+    if equipo.propiedad != Equipo.PROPIEDAD_PERSONAL:
+        messages.error(
+            request,
+            "Solo se puede dar de alta un equipo personal. Los institucionales se gestionan en inventario.",
+        )
+        return redirect("equipos:mis_equipos")
+
+    persona = getattr(user, "persona", None)
+    permitido = bool(
+        (persona and equipo.persona_id == persona.id)
+        or user.tiene_permiso("equipos.ver_todos")
+        or es_admin_global(user)
+    )
+    if not permitido:
+        messages.error(request, "No tiene permiso para dar de alta este equipo.")
+        return redirect("equipos:mis_equipos")
+
+    if equipo.activo:
+        messages.info(request, "El equipo ya estaba activo.")
+    else:
+        Equipo.objects.filter(pk=equipo.pk).update(activo=True)
+        messages.success(
+            request,
+            f"Equipo {equipo.serial} dado de alta. El QR vuelve a ser válido en portería.",
+        )
     return redirect("equipos:mis_equipos")
 
 

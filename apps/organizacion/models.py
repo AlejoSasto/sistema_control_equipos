@@ -147,3 +147,64 @@ class ResponsableDependencia(models.Model):
 
     def __str__(self):
         return f"{self.usuario_id} → {self.unidad_tipo}:{self.unidad_id}"
+
+
+class AlcanceUsuario(models.Model):
+    """Alcance jerárquico de visibilidad (ortogonal a permisos)."""
+
+    NIVEL_GLOBAL = "global"
+    NIVEL_SEDE = "sede"
+    NIVEL_FACULTAD = "facultad"
+    NIVEL_PROGRAMA = "programa"
+    NIVEL_DEPENDENCIA = "area"
+
+    OPCIONES_NIVEL = [
+        (NIVEL_GLOBAL, "Global (todas las sedes)"),
+        (NIVEL_SEDE, "Sede / seccional"),
+        (NIVEL_FACULTAD, "Facultad"),
+        (NIVEL_PROGRAMA, "Programa académico"),
+        (NIVEL_DEPENDENCIA, "Dependencia / área"),
+    ]
+
+    usuario = models.ForeignKey(
+        "accounts.Usuario",
+        on_delete=models.CASCADE,
+        related_name="alcances",
+    )
+    nivel = models.CharField(max_length=20, choices=OPCIONES_NIVEL)
+    objeto_id = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Null solo cuando nivel=global",
+    )
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "alcance_usuario"
+        verbose_name = "Alcance de usuario"
+        verbose_name_plural = "Alcances de usuario"
+        ordering = ["usuario_id", "nivel"]
+        indexes = [
+            models.Index(fields=["usuario", "activo"]),
+            models.Index(fields=["nivel", "objeto_id"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usuario", "nivel", "objeto_id"],
+                name="uniq_alcance_usuario_nivel_objeto",
+            ),
+        ]
+
+    def __str__(self):
+        if self.nivel == self.NIVEL_GLOBAL:
+            return f"{self.usuario_id} → GLOBAL"
+        return f"{self.usuario_id} → {self.nivel}:{self.objeto_id}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.nivel == self.NIVEL_GLOBAL and self.objeto_id is not None:
+            raise ValidationError({"objeto_id": "Global no lleva objeto_id."})
+        if self.nivel != self.NIVEL_GLOBAL and not self.objeto_id:
+            raise ValidationError({"objeto_id": "Este nivel requiere objeto_id."})

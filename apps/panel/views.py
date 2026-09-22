@@ -7,11 +7,23 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from accounts.alcance import (
+    areas_visibles,
+    descripcion_fila_alcance,
+    facultades_visibles,
+    invalidar_cache_alcance,
+    personas_visibles,
+    puede_asignar_alcance,
+    puede_ver_objeto,
+    programas_visibles,
+    sedes_visibles,
+    usuarios_visibles,
+)
 from accounts.decorators import requiere_permiso
 from accounts.models import Permiso, Rol, RolPermiso, Usuario, UsuarioRol
 from auditoria.models import AuditoriaCambio
 from config.pagination import paginate_queryset
-from organizacion.models import Area, Programa, Sede
+from organizacion.models import AlcanceUsuario, Area, Programa, Sede
 from personas.models import CODIGO_VINCULO_ADMINISTRATIVO, CODIGO_VINCULO_VIGILANTE, Persona, TipoVinculo
 from personas.validators import validar_y_procesar_foto
 
@@ -23,6 +35,18 @@ from .services import (
     validate_self_admin_removal,
     validate_user_deactivation,
 )
+
+
+def _login_bloqueado_por_axes(username: str) -> bool:
+    """True si hay intentos Axes que alcanzan el límite de fallos para el username."""
+    from django.conf import settings
+    from axes.models import AccessAttempt
+
+    limite = getattr(settings, "AXES_FAILURE_LIMIT", 5)
+    return AccessAttempt.objects.filter(
+        username=username,
+        failures_since_start__gte=limite,
+    ).exists()
 
 
 @login_required
@@ -57,9 +81,9 @@ def personas_list(request):
     programa_filtro = request.GET.get("programa", "").strip()
     sin_area_filtro = request.GET.get("sin_area", "").strip()
 
-    personas = Persona.objects.select_related("sede", "programa", "area", "tipo_vinculo").annotate(
-        equipos_count=Count("equipos")
-    )
+    personas = personas_visibles(request.user).select_related(
+        "sede", "programa", "area", "tipo_vinculo"
+    ).annotate(equipos_count=Count("equipos"))
 
     if query:
         personas = personas.filter(
@@ -95,21 +119,21 @@ def personas_list(request):
         "programa_filtro": programa_filtro,
         "sin_area_filtro": sin_area_filtro,
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
-        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
-        "programas": Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre"),
-        "areas": Area.objects.filter(activo=True).order_by("nombre"),
+        "sedes": sedes_visibles(request.user).order_by("nombre"),
+        "programas": programas_visibles(request.user).order_by("nombre"),
+        "areas": areas_visibles(request.user).order_by("nombre"),
     }
     return render(request, "panel/personas_list.html", context)
 
 
-def _persona_form_context(persona=None, data=None):
+def _persona_form_context(user, persona=None, data=None):
     return {
         "persona": persona,
         "data": data or {},
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
-        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
-        "programas": Programa.objects.filter(activo=True).select_related("sede", "facultad").order_by("nombre"),
-        "areas": Area.objects.filter(activo=True).order_by("nombre"),
+        "sedes": sedes_visibles(user).order_by("nombre"),
+        "programas": programas_visibles(user).order_by("nombre"),
+        "areas": areas_visibles(user).order_by("nombre"),
         "codigo_vinculo_admin": CODIGO_VINCULO_ADMINISTRATIVO,
     }
 
@@ -128,20 +152,35 @@ def _persona_data_from_post(request, persona=None):
     }
 
 
-def _apply_persona_fields(persona, data):
+def _apply_persona_fields(user, persona, data):
     tipo_vinculo = get_object_or_404(TipoVinculo, id=data["tipo_vinculo"])
+    sede = get_object_or_404(Sede, id=data["sede"])
+    if not puede_ver_objeto(user, sede):
+        raise ValidationError("La sede seleccionada está fuera de su alcance.")
     persona.tipo_documento = data["tipo_documento"]
     persona.numero_documento = data["numero_documento"]
     persona.nombres = data["nombres"]
     persona.apellidos = data["apellidos"]
     persona.tipo_vinculo = tipo_vinculo
-    persona.sede = get_object_or_404(Sede, id=data["sede"])
+    persona.sede = sede
     if tipo_vinculo.codigo == CODIGO_VINCULO_ADMINISTRATIVO:
         persona.programa = None
-        persona.area = get_object_or_404(Area, id=data["area"]) if data["area"] else None
+        if data["area"]:
+            area = get_object_or_404(Area, id=data["area"])
+            if not puede_ver_objeto(user, area):
+                raise ValidationError("El área seleccionada está fuera de su alcance.")
+            persona.area = area
+        else:
+            persona.area = None
     else:
         persona.area = None
-        persona.programa = get_object_or_404(Programa, id=data["programa"]) if data["programa"] else None
+        if data["programa"]:
+            programa = get_object_or_404(Programa, id=data["programa"])
+            if not puede_ver_objeto(user, programa):
+                raise ValidationError("El programa seleccionado está fuera de su alcance.")
+            persona.programa = programa
+        else:
+            persona.programa = None
     persona.activo = data["activo"]
 
 
@@ -156,54 +195,8 @@ def persona_create(request):
             messages.error(request, f"Ya existe una persona con el documento {num_doc}.")
         else:
             persona = Persona(activo=data["activo"])
-            _apply_persona_fields(persona, data)
             try:
-                foto = validar_y_procesar_foto(request.FILES.get("foto"))
-                if foto:
-                    persona.foto = foto
-                persona.save()
-            except ValidationError as exc:
-                if hasattr(exc, "message_dict"):
-                    for field, errs in exc.message_dict.items():
-                        for err in errs:
-                            messages.error(request, err)
-                else:
-                    for err in exc.messages:
-                        messages.error(request, err)
-                return render(request, "panel/persona_form.html", _persona_form_context(data=data))
-            registrar_cambio(
-                request.user,
-                f"Creó persona '{persona.nombre_completo}'.",
-                request=request,
-                entidad="persona",
-                entidad_id=persona.pk,
-                accion=AuditoriaCambio.ACCION_CREAR,
-            )
-            messages.success(request, f"Persona {persona.nombre_completo} registrada exitosamente.")
-            return redirect("panel:persona_edit", pk=persona.pk)
-        return render(request, "panel/persona_form.html", _persona_form_context(data=data))
-
-    return render(request, "panel/persona_form.html", _persona_form_context())
-
-
-@requiere_permiso("personas.administrar")
-def persona_edit(request, pk):
-    persona = get_object_or_404(
-        Persona.objects.select_related("sede", "programa", "area", "tipo_vinculo"),
-        pk=pk,
-    )
-    equipos = persona.equipos.filter(activo=True)
-
-    if request.method == "POST":
-        data = _persona_data_from_post(request, persona)
-        num_doc = data["numero_documento"]
-        if not all([num_doc, data["nombres"], data["apellidos"], data["tipo_vinculo"], data["sede"]]):
-            messages.error(request, "Por favor complete todos los campos obligatorios.")
-        elif Persona.objects.filter(numero_documento=num_doc).exclude(pk=pk).exists():
-            messages.error(request, f"Ya existe otra persona con el documento {num_doc}.")
-        else:
-            _apply_persona_fields(persona, data)
-            try:
+                _apply_persona_fields(request.user, persona, data)
                 foto = validar_y_procesar_foto(request.FILES.get("foto"))
                 if foto:
                     persona.foto = foto
@@ -219,7 +212,64 @@ def persona_edit(request, pk):
                 return render(
                     request,
                     "panel/persona_form.html",
-                    {**_persona_form_context(persona=persona, data=data), "equipos": equipos},
+                    _persona_form_context(request.user, data=data),
+                )
+            registrar_cambio(
+                request.user,
+                f"Creó persona '{persona.nombre_completo}'.",
+                request=request,
+                entidad="persona",
+                entidad_id=persona.pk,
+                accion=AuditoriaCambio.ACCION_CREAR,
+            )
+            messages.success(request, f"Persona {persona.nombre_completo} registrada exitosamente.")
+            return redirect("panel:persona_edit", pk=persona.pk)
+        return render(
+            request,
+            "panel/persona_form.html",
+            _persona_form_context(request.user, data=data),
+        )
+
+    return render(request, "panel/persona_form.html", _persona_form_context(request.user))
+
+
+@requiere_permiso("personas.administrar")
+def persona_edit(request, pk):
+    persona = get_object_or_404(
+        personas_visibles(request.user).select_related("sede", "programa", "area", "tipo_vinculo"),
+        pk=pk,
+    )
+    equipos = persona.equipos.filter(activo=True)
+
+    if request.method == "POST":
+        data = _persona_data_from_post(request, persona)
+        num_doc = data["numero_documento"]
+        if not all([num_doc, data["nombres"], data["apellidos"], data["tipo_vinculo"], data["sede"]]):
+            messages.error(request, "Por favor complete todos los campos obligatorios.")
+        elif Persona.objects.filter(numero_documento=num_doc).exclude(pk=pk).exists():
+            messages.error(request, f"Ya existe otra persona con el documento {num_doc}.")
+        else:
+            try:
+                _apply_persona_fields(request.user, persona, data)
+                foto = validar_y_procesar_foto(request.FILES.get("foto"))
+                if foto:
+                    persona.foto = foto
+                persona.save()
+            except ValidationError as exc:
+                if hasattr(exc, "message_dict"):
+                    for field, errs in exc.message_dict.items():
+                        for err in errs:
+                            messages.error(request, err)
+                else:
+                    for err in exc.messages:
+                        messages.error(request, err)
+                return render(
+                    request,
+                    "panel/persona_form.html",
+                    {
+                        **_persona_form_context(request.user, persona=persona, data=data),
+                        "equipos": equipos,
+                    },
                 )
             registrar_cambio(
                 request.user,
@@ -233,21 +283,27 @@ def persona_edit(request, pk):
         return render(
             request,
             "panel/persona_form.html",
-            {**_persona_form_context(persona=persona, data=data), "equipos": equipos},
+            {
+                **_persona_form_context(request.user, persona=persona, data=data),
+                "equipos": equipos,
+            },
         )
 
     data = _persona_data_from_post(request, persona)
     return render(
         request,
         "panel/persona_form.html",
-        {**_persona_form_context(persona=persona, data=data), "equipos": equipos},
+        {
+            **_persona_form_context(request.user, persona=persona, data=data),
+            "equipos": equipos,
+        },
     )
 
 
 @require_POST
 @requiere_permiso("personas.administrar")
 def persona_toggle(request, pk):
-    persona = get_object_or_404(Persona, pk=pk)
+    persona = get_object_or_404(personas_visibles(request.user), pk=pk)
     persona.activo = not persona.activo
     persona.save()
     estado = "activada" if persona.activo else "inactivada"
@@ -266,9 +322,9 @@ def usuarios_list(request):
     estado_filtro = request.GET.get("estado", "").strip()
     persona_filtro = request.GET.get("persona", "").strip()
 
-    usuarios = Usuario.objects.select_related("persona").prefetch_related("roles").annotate(
-        roles_count=Count("roles", distinct=True),
-    )
+    usuarios = usuarios_visibles(request.user).select_related("persona").prefetch_related(
+        "roles"
+    ).annotate(roles_count=Count("roles", distinct=True))
 
     if query:
         usuarios = usuarios.filter(
@@ -303,12 +359,14 @@ def usuarios_list(request):
     return render(request, "panel/usuarios_list.html", context)
 
 
-def _usuario_form_context(data=None, personas_disponibles=None):
+def _usuario_form_context(user, data=None, personas_disponibles=None):
     return {
         "data": data or {},
         "roles": Rol.objects.filter(activo=True).order_by("nombre"),
         "personas_disponibles": personas_disponibles
-        or Persona.objects.filter(activo=True, usuario__isnull=True).order_by("apellidos", "nombres"),
+        or personas_visibles(user)
+        .filter(activo=True, usuario__isnull=True)
+        .order_by("apellidos", "nombres"),
     }
 
 
@@ -355,9 +413,9 @@ def usuario_create(request):
             if not persona_id:
                 errors.append("Debe seleccionar una persona o marcar 'Usuario sin persona asociada'.")
             else:
-                persona = Persona.objects.filter(id=persona_id, activo=True).first()
+                persona = personas_visibles(request.user).filter(id=persona_id, activo=True).first()
                 if not persona:
-                    errors.append("La persona seleccionada no es válida.")
+                    errors.append("La persona seleccionada no es válida o está fuera de su alcance.")
                 elif hasattr(persona, "usuario") and persona.usuario:
                     errors.append("La persona seleccionada ya tiene una cuenta de usuario asociada.")
 
@@ -366,7 +424,11 @@ def usuario_create(request):
         if errors:
             for e in errors:
                 messages.error(request, e)
-            return render(request, "panel/usuario_form.html", _usuario_form_context(data=data))
+            return render(
+                request,
+                "panel/usuario_form.html",
+                _usuario_form_context(request.user, data=data),
+            )
 
         with transaction.atomic():
             usuario = Usuario.objects.create_user(
@@ -394,13 +456,23 @@ def usuario_create(request):
         messages.success(request, f"Usuario '{usuario.username}' creado exitosamente.")
         return redirect("panel:usuario_detail", pk=usuario.pk)
 
-    return render(request, "panel/usuario_form.html", _usuario_form_context())
+    return render(request, "panel/usuario_form.html", _usuario_form_context(request.user))
+
+
+def _alcance_form_context(actor):
+    return {
+        "sedes_alcance": sedes_visibles(actor).order_by("nombre"),
+        "facultades_alcance": facultades_visibles(actor).order_by("nombre"),
+        "programas_alcance": programas_visibles(actor).order_by("nombre"),
+        "areas_alcance": areas_visibles(actor).order_by("nombre"),
+        "niveles_alcance": AlcanceUsuario.OPCIONES_NIVEL,
+    }
 
 
 @requiere_permiso("usuarios.administrar")
 def usuario_detail(request, pk):
     usuario = get_object_or_404(
-        Usuario.objects.select_related("persona").prefetch_related("roles"),
+        usuarios_visibles(request.user).select_related("persona").prefetch_related("roles"),
         pk=pk,
     )
     roles_disponibles = Rol.objects.filter(activo=True).order_by("nombre")
@@ -453,20 +525,111 @@ def usuario_detail(request, pk):
                 )
                 messages.success(request, "Roles del usuario actualizados correctamente.")
 
+        elif action == "add_alcance":
+            if not request.user.tiene_permiso("usuarios.gestionar_alcance"):
+                messages.error(request, "No tiene permiso para gestionar alcance.")
+            elif usuario.pk == request.user.pk:
+                messages.error(request, "No puede modificar su propio alcance desde aquí.")
+            else:
+                nivel = request.POST.get("nivel_alcance", "").strip()
+                objeto_raw = request.POST.get("objeto_alcance", "").strip()
+                objeto_id = int(objeto_raw) if objeto_raw else None
+                if nivel == AlcanceUsuario.NIVEL_GLOBAL:
+                    objeto_id = None
+                elif not objeto_id:
+                    messages.error(request, "Debe seleccionar el objeto del alcance.")
+                    return redirect("panel:usuario_detail", pk=usuario.pk)
+                if not puede_asignar_alcance(request.user, nivel, objeto_id):
+                    messages.error(request, "No puede asignar un alcance superior al suyo.")
+                else:
+                    fila, created = AlcanceUsuario.objects.get_or_create(
+                        usuario=usuario,
+                        nivel=nivel,
+                        objeto_id=objeto_id,
+                        defaults={"activo": True},
+                    )
+                    if not created and not fila.activo:
+                        fila.activo = True
+                        fila.save(update_fields=["activo"])
+                    invalidar_cache_alcance(usuario)
+                    registrar_cambio(
+                        request.user,
+                        f"Asignó alcance {descripcion_fila_alcance(fila)} a '{usuario.username}'.",
+                        request=request,
+                        entidad="usuario",
+                        entidad_id=usuario.pk,
+                    )
+                    messages.success(request, "Alcance agregado correctamente.")
+
+        elif action == "toggle_alcance":
+            if not request.user.tiene_permiso("usuarios.gestionar_alcance"):
+                messages.error(request, "No tiene permiso para gestionar alcance.")
+            elif usuario.pk == request.user.pk:
+                messages.error(request, "No puede modificar su propio alcance.")
+            else:
+                alcance_id = request.POST.get("alcance_id")
+                fila = AlcanceUsuario.objects.filter(usuario=usuario, pk=alcance_id).first()
+                if not fila:
+                    messages.error(request, "Alcance no encontrado.")
+                else:
+                    fila.activo = not fila.activo
+                    fila.save(update_fields=["activo"])
+                    invalidar_cache_alcance(usuario)
+                    estado = "activó" if fila.activo else "inactivó"
+                    registrar_cambio(
+                        request.user,
+                        f"{estado.capitalize()} alcance {descripcion_fila_alcance(fila)} de '{usuario.username}'.",
+                        request=request,
+                        entidad="usuario",
+                        entidad_id=usuario.pk,
+                    )
+                    messages.success(request, f"Alcance {estado} correctamente.")
+
         return redirect("panel:usuario_detail", pk=usuario.pk)
 
+    alcances = usuario.alcances.order_by("nivel", "objeto_id")
     context = {
         "usuario_obj": usuario,
         "roles_disponibles": roles_disponibles,
         "roles_asignados": set(usuario.roles.values_list("id", flat=True)),
+        "login_bloqueado": _login_bloqueado_por_axes(usuario.username),
+        "puede_desbloquear": request.user.tiene_permiso("usuarios.desbloquear"),
+        "puede_gestionar_alcance": request.user.tiene_permiso("usuarios.gestionar_alcance"),
+        "alcances": [
+            {"fila": a, "descripcion": descripcion_fila_alcance(a)} for a in alcances
+        ],
+        **_alcance_form_context(request.user),
     }
     return render(request, "panel/usuario_detail.html", context)
 
 
 @require_POST
+@requiere_permiso("usuarios.desbloquear")
+def usuario_desbloquear(request, pk):
+    """Limpia intentos fallidos de Axes para el username (desbloqueo de login)."""
+    from axes.utils import reset
+
+    usuario = get_object_or_404(usuarios_visibles(request.user), pk=pk)
+    reset(username=usuario.username)
+    registrar_cambio(
+        request.user,
+        f"Desbloqueó el login (Axes) del usuario '{usuario.username}'.",
+        request=request,
+        entidad="usuario",
+        entidad_id=usuario.pk,
+        accion=AuditoriaCambio.ACCION_EDITAR,
+    )
+    messages.success(
+        request,
+        f"Login desbloqueado para '{usuario.username}'. Ya puede intentar iniciar sesión.",
+    )
+    return redirect("panel:usuario_detail", pk=usuario.pk)
+
+
+@require_POST
 @requiere_permiso("usuarios.administrar")
 def usuario_toggle(request, pk):
-    usuario = get_object_or_404(Usuario, pk=pk)
+    usuario = get_object_or_404(usuarios_visibles(request.user), pk=pk)
     if usuario.activo and usuario.is_active:
         err = validate_user_deactivation(usuario)
         if err:
@@ -638,7 +801,7 @@ def vigilante_create(request):
         "rol_asignado"
     ).first()
     context_base = {
-        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
+        "sedes": sedes_visibles(request.user).order_by("nombre"),
         "vinculo": vinculo,
         "data": {},
     }
@@ -680,9 +843,9 @@ def vigilante_create(request):
             or Usuario.objects.filter(email__iexact=correo).exists()
         ):
             errors.append(f"Ya existe un usuario con el correo {correo}.")
-        sede = Sede.objects.filter(id=sede_id, activo=True).first() if sede_id else None
+        sede = sedes_visibles(request.user).filter(id=sede_id, activo=True).first() if sede_id else None
         if not sede:
-            errors.append("Seleccione una sede válida.")
+            errors.append("Seleccione una sede válida dentro de su alcance.")
 
         if errors:
             for err in errors:
@@ -716,6 +879,12 @@ def vigilante_create(request):
                 rol_vig = Rol.objects.filter(nombre="vigilante", activo=True).first()
                 if rol_vig:
                     UsuarioRol.objects.create(usuario=usuario, rol=rol_vig)
+            AlcanceUsuario.objects.get_or_create(
+                usuario=usuario,
+                nivel=AlcanceUsuario.NIVEL_SEDE,
+                objeto_id=sede.pk,
+                defaults={"activo": True},
+            )
 
         registrar_cambio(
             request.user,

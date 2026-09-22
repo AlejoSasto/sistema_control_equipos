@@ -175,6 +175,8 @@ Cada arranque vuelve a ejecutar `migrate`, `seed_data` y `collectstatic` (idempo
 - [ ] Login funciona (CSRF y `ALLOWED_HOSTS` correctos)
 - [ ] Estáticos (CSS) se ven bien (WhiteNoise)
 - [ ] Login `admin` / `Udec2026!Admin` OK (seed automático en entrypoint); cambiar contraseña en entorno real
+- [ ] Topbar muestra badge «Alcance: Global» para `admin`
+- [ ] Ficha de usuario: sección Alcance visible con `usuarios.gestionar_alcance`
 - [ ] Registro muestra sedes y tipos canónicos (no Estudiante/Graduado legado)
 - [ ] Backups: ver [checklist-backup-restauracion.md](checklist-backup-restauracion.md)
 - [ ] Incidentes: ver [procedimiento-incidentes-seguridad.md](procedimiento-incidentes-seguridad.md)
@@ -217,6 +219,7 @@ docker compose exec web python manage.py seed_data
 | Estáticos 404 / sin CSS | Logs de `collectstatic`; WhiteNoise activo con `DEBUG=False` |
 | Tarda mucho o “duerme” | Plan Free: el servicio puede dormir tras inactividad; la primera petición despierta (frío) |
 | Login falla / sedes vacías / tipos "Estudiante" | Redeploy con seed en entrypoint; en logs debe aparecer `Cargando catálogos institucionales` |
+| Admin no ve datos / listados vacíos | Verificar alcance GLOBAL (`migrate` 0005 + seed); en ficha de usuario o shell: `admin.alcances` |
 | Avisos CSP de `*.map` en consola | Cosmético (source maps); no bloquean login. `connect-src` ya incluye jsdelivr |
 
 ---

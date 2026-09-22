@@ -26,6 +26,11 @@ urlpatterns = [
     path("usuarios/nuevo/", views.usuario_create, name="usuario_create"),
     path("usuarios/<int:pk>/", views.usuario_detail, name="usuario_detail"),
     path("usuarios/<int:pk>/toggle/", views.usuario_toggle, name="usuario_toggle"),
+    path(
+        "usuarios/<int:pk>/desbloquear/",
+        views.usuario_desbloquear,
+        name="usuario_desbloquear",
+    ),
 
     # Roles
     path("roles/", views.roles_list, name="roles_list"),
@@ -81,6 +86,11 @@ urlpatterns = [
         "equipos/<int:pk>/dar-de-baja/",
         views_equipos.equipo_dar_de_baja,
         name="equipo_dar_de_baja",
+    ),
+    path(
+        "equipos/<int:pk>/dar-de-alta/",
+        views_equipos.equipo_dar_de_alta,
+        name="equipo_dar_de_alta",
     ),
 
     # Responsables de dependencia

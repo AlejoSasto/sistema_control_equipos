@@ -4,6 +4,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db.models import Q
 from django_ratelimit.decorators import ratelimit
+from accounts.alcance import movimientos_visibles
 from accounts.decorators import requiere_permiso
 from config.pagination import paginate_queryset
 from equipos.models import Equipo
@@ -67,6 +68,14 @@ def _contexto_otra_sede(request, persona):
     }
 
 
+def _movimientos_hoy_qs(user, hoy):
+    return (
+        movimientos_visibles(user)
+        .select_related("equipo", "equipo__persona", "usuario_control")
+        .filter(timestamp__date=hoy)
+    )
+
+
 def _alerta_render(request, *, equipo, persona, motivo_codigo, motivo_texto, hoy):
     movimiento = Movimiento.objects.create(
         equipo=equipo,
@@ -76,9 +85,7 @@ def _alerta_render(request, *, equipo, persona, motivo_codigo, motivo_texto, hoy
         motivo_alerta=motivo_codigo,
         observacion=f"Alerta: {motivo_texto}",
     )
-    movimientos = Movimiento.objects.select_related(
-        "equipo", "equipo__persona", "usuario_control"
-    ).filter(timestamp__date=hoy)[:20]
+    movimientos = _movimientos_hoy_qs(request.user, hoy)[:20]
     return render(
         request,
         "control_acceso/partials/resultado_escaneo.html",
@@ -100,15 +107,11 @@ def _alerta_render(request, *, equipo, persona, motivo_codigo, motivo_texto, hoy
 @requiere_permiso("control.escanear")
 def control_salida_view(request):
     hoy = timezone.localdate()
-    movimientos_hoy = Movimiento.objects.select_related(
-        "equipo", "equipo__persona", "usuario_control"
-    ).filter(timestamp__date=hoy)[:20]
-    total_hoy = Movimiento.objects.filter(timestamp__date=hoy).count()
-    total_ok = Movimiento.objects.filter(
-        timestamp__date=hoy, resultado=Movimiento.RESULTADO_OK
-    ).count()
-    total_alertas = Movimiento.objects.filter(
-        timestamp__date=hoy,
+    movs_hoy = _movimientos_hoy_qs(request.user, hoy)
+    movimientos_hoy = movs_hoy[:20]
+    total_hoy = movs_hoy.count()
+    total_ok = movs_hoy.filter(resultado=Movimiento.RESULTADO_OK).count()
+    total_alertas = movs_hoy.filter(
         resultado__in=[Movimiento.RESULTADO_ALERTA, Movimiento.RESULTADO_NO_ENCONTRADO],
     ).count()
     return render(
@@ -148,9 +151,7 @@ def escanear_qr_salida(request):
             resultado=Movimiento.RESULTADO_NO_ENCONTRADO,
             observacion="Código no registrado en el sistema institucional.",
         )
-        movimientos_actualizados = Movimiento.objects.select_related(
-            "equipo", "equipo__persona", "usuario_control"
-        ).filter(timestamp__date=hoy)[:20]
+        movimientos_actualizados = _movimientos_hoy_qs(request.user, hoy)[:20]
         return render(
             request,
             "control_acceso/partials/resultado_escaneo.html",
@@ -294,9 +295,7 @@ def escanear_qr_salida(request):
         otra_sede=ctx_otra["es_otra_sede"],
         observacion=observacion,
     )
-    movimientos_actualizados = Movimiento.objects.select_related(
-        "equipo", "equipo__persona", "usuario_control"
-    ).filter(timestamp__date=hoy)[:20]
+    movimientos_actualizados = _movimientos_hoy_qs(request.user, hoy)[:20]
 
     return render(
         request,
@@ -321,9 +320,9 @@ def movimientos_list(request):
     resultado_filtro = request.GET.get("resultado", "")
     fecha_filtro = request.GET.get("fecha", "")
 
-    movimientos = Movimiento.objects.select_related(
+    movimientos = movimientos_visibles(request.user).select_related(
         "equipo", "equipo__persona", "usuario_control"
-    ).all()
+    )
 
     if query:
         movimientos = movimientos.filter(

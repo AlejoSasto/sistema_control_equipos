@@ -46,11 +46,10 @@ def _ids_lista(valor) -> list[int]:
 
 
 def acotar_por_alcance(user, qs: QuerySet) -> QuerySet:
-    """
-    Punto de extensión (§7 doc 12): filtrar por facultad/programa del usuario.
-    Hoy no-op; quien tiene reportes.ver/exportar ve el alcance global.
-    """
-    return qs
+    """Filtra el queryset según el alcance jerárquico del usuario."""
+    from accounts.alcance import aplicar_alcance
+
+    return aplicar_alcance(user, qs)
 
 
 @dataclass

@@ -7,9 +7,9 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 
+from accounts.alcance import sedes_visibles
 from accounts.decorators import requiere_permiso
 from control_acceso.models import Movimiento
-from organizacion.models import Sede
 from personas.models import TipoVinculo
 from reportes.dashboard import (
     contexto_kpis,
@@ -19,9 +19,9 @@ from reportes.dashboard import (
 from reportes.filtros import FiltroError
 
 
-def _catalogos():
+def _catalogos(user):
     return {
-        "sedes": Sede.objects.filter(activo=True).order_by("nombre"),
+        "sedes": sedes_visibles(user).order_by("nombre"),
         "tipos_vinculo": TipoVinculo.objects.filter(activo=True).order_by("nombre"),
         "opciones_resultado": Movimiento.OPCIONES_RESULTADO,
         "presets": [
@@ -44,7 +44,7 @@ def dashboard(request):
 
     ctx = {
         **contexto_kpis(request.user, filtros),
-        **_catalogos(),
+        **_catalogos(request.user),
         "datos_url": reverse("panel:dashboard_datos"),
         "parcial_url": reverse("panel:dashboard_parcial"),
         "selected_sede": filtros.sede.sede_id,

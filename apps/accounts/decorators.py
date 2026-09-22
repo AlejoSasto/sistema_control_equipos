@@ -1,7 +1,9 @@
 from functools import wraps
+
 from django.contrib import messages
 from django.shortcuts import redirect
-from django.core.exceptions import PermissionDenied
+
+from accounts.alcance import alcance_de
 
 
 def requiere_permiso(codigo_permiso: str):
@@ -16,6 +18,7 @@ def requiere_permiso(codigo_permiso: str):
                 return redirect("accounts:login")
 
             if request.user.tiene_permiso(codigo_permiso):
+                request.alcance = alcance_de(request.user)
                 return view_func(request, *args, **kwargs)
 
             messages.error(

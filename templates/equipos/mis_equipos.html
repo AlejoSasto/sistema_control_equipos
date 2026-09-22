@@ -26,6 +26,7 @@
       <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">
         Al salir de la sede, pulsa <strong>"Mostrar QR al Celador"</strong> en el dispositivo que portas y preséntalo en portería.
         Los equipos institucionales solo permiten mostrar el QR (no puedes editarlos ni darlos de baja).
+        Un equipo personal de baja no es válido en portería hasta que lo des de alta de nuevo.
       </p>
     </div>
     <div class="sede-indicator page-intro-sede">
@@ -54,9 +55,7 @@
           <span class="badge badge-subtle">Aún no vigente</span>
           {% endif %}
         </div>
-        <span class="badge {% if e.activo %}badge-success{% else %}badge-danger{% endif %}">
-          {% if e.activo %}Activo{% else %}Inactivo{% endif %}
-        </span>
+        <span class="badge badge-success">Activo</span>
       </div>
 
       <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--color-text);">
@@ -84,7 +83,7 @@
       <a href="{% url 'equipos:equipo_detail' e.id %}" class="btn btn-secondary">Ficha</a>
       {% if e.propiedad == 'personal' and e.activo %}
       <form method="post" action="{% url 'panel:equipo_dar_de_baja' e.id %}"
-        onsubmit="return confirm('¿Dar de baja este equipo personal?');">
+        onsubmit="return confirm('¿Dar de baja este equipo personal? El QR dejará de ser válido en portería.');">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger">Dar de baja</button>
       </form>
@@ -93,6 +92,7 @@
   </div>
   {% endwith %}
   {% empty %}
+  {% if not equipos_baja %}
   <div class="card card-white" style="grid-column: 1 / -1; text-align: center; padding: 48px var(--space-4);">
     <h3 style="font-weight: 600; color: var(--color-text); font-size: 1.125rem;">Aún no tienes equipos registrados</h3>
     <p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-top: var(--space-1);">
@@ -104,6 +104,56 @@
       </a>
     </div>
   </div>
+  {% endif %}
   {% endfor %}
 </div>
+
+{% if equipos_baja %}
+<h2 style="font-size: 1.125rem; font-weight: 600; color: var(--color-text); margin: var(--space-6) 0 var(--space-3);">
+  Equipos personales de baja
+</h2>
+<p style="font-size: 0.875rem; color: var(--color-text-secondary); margin-bottom: var(--space-3);">
+  Estos equipos no son válidos en portería. Puedes darlos de alta de nuevo para reactivar el mismo QR y serial.
+</p>
+<div class="cards-grid">
+  {% for e in equipos_baja %}
+  <div class="card card-white" style="display: flex; flex-direction: column; justify-content: space-between; opacity: 0.95;">
+    <div>
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--space-3); gap: var(--space-2); flex-wrap: wrap;">
+        <div style="display: flex; gap: var(--space-1); flex-wrap: wrap;">
+          <span class="badge badge-subtle">{{ e.get_propiedad_display }}</span>
+          <span class="badge badge-danger">De baja</span>
+        </div>
+      </div>
+      <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--color-text);">
+        {{ e.marca }} {{ e.modelo }}
+      </h3>
+      <div style="margin-top: var(--space-3); font-size: 0.875rem; display: flex; flex-direction: column; gap: var(--space-1);">
+        <div>
+          <span style="color: var(--color-text-secondary);">Tipo:</span>
+          <strong style="color: var(--color-text);"> {{ e.get_tipo_display }}</strong>
+        </div>
+        <div>
+          <span style="color: var(--color-text-secondary);">Serial protegido:</span>
+          <code style="font-family: var(--font-mono); color: var(--color-primary); font-weight: 600; background: var(--color-surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--color-border);">
+            ****{{ e.serial|slice:"-4:" }}
+          </code>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border); display: flex; gap: var(--space-2); flex-wrap: wrap;">
+      <button type="button" class="btn btn-secondary" style="flex: 1;" disabled title="QR no válido mientras el equipo esté de baja">
+        QR no válido
+      </button>
+      <a href="{% url 'equipos:equipo_detail' e.id %}" class="btn btn-secondary">Ficha</a>
+      <form method="post" action="{% url 'panel:equipo_dar_de_alta' e.id %}"
+        onsubmit="return confirm('¿Dar de alta este equipo personal? El QR volverá a ser válido en portería.');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Dar de alta</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

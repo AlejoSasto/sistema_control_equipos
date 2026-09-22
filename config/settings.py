@@ -120,6 +120,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "accounts.context_processors.alcance_usuario",
             ],
         },
     },
@@ -223,6 +224,12 @@ AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 1  # horas
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = "accounts/lockout.html"
+AXES_COOLOFF_MESSAGE = (
+    "Demasiados intentos fallidos. Su acceso quedó bloqueado temporalmente. "
+    "Puede intentar de nuevo 1 hora después del bloqueo, o solicitar a un "
+    "administrador que desbloquee su cuenta."
+)
 
 RATELIMIT_ENABLE = True
 RATELIMIT_VIEW = "config.ratelimit.ratelimited_view"

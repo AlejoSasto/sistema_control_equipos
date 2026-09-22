@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Acceso temporalmente bloqueado{% endblock %}
+
+{% block auth_content %}
+<div style="width: 100%; max-width: 440px;">
+  <div class="card card-white" style="padding: 32px var(--space-4);">
+    <div style="text-align: center; margin-bottom: var(--space-4);">
+      <img
+        src="{% static 'img/logo-uc.png' %}"
+        alt="Escudo Universidad de Cundinamarca"
+        class="brand-logo brand-logo--auth"
+        width="128"
+        height="192"
+      >
+      <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--color-text); letter-spacing: -0.01em;">
+        Acceso temporalmente bloqueado
+      </h2>
+      <p style="font-size: 0.8125rem; color: var(--color-primary); font-weight: 600; margin-top: var(--space-1); letter-spacing: 0.04em; text-transform: uppercase;">
+        Universidad de Cundinamarca
+      </p>
+    </div>
+
+    <div class="feedback-box feedback-danger" style="margin-bottom: var(--space-4);">
+      <strong>Demasiados intentos fallidos de inicio de sesión.</strong>
+      <p style="margin-top: var(--space-2); margin-bottom: 0; font-size: 0.875rem;">
+        Por seguridad, el acceso quedó bloqueado
+        {% if failure_limit %}tras {{ failure_limit }} intentos incorrectos{% else %}tras varios intentos incorrectos{% endif %}.
+      </p>
+    </div>
+
+    <div class="feedback-box" style="margin-bottom: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border);">
+      <p style="margin: 0; font-size: 0.875rem; color: var(--color-text);">
+        Puede intentar de nuevo <strong>1 hora después del bloqueo</strong>.
+        Hasta entonces, el inicio de sesión permanecerá denegado para esta cuenta desde su red.
+      </p>
+      <p style="margin: var(--space-2) 0 0; font-size: 0.8125rem; color: var(--color-text-secondary);">
+        Si necesita acceso antes, solicite a un administrador del sistema que desbloquee su cuenta desde el panel de usuarios.
+      </p>
+    </div>
+
+    {% if username %}
+    <p style="font-size: 0.8125rem; color: var(--color-text-secondary); margin-bottom: var(--space-3);">
+      Usuario afectado: <code style="font-family: var(--font-mono);">{{ username }}</code>
+    </p>
+    {% endif %}
+
+    <a href="{% url 'accounts:login' %}" class="btn btn-primary" style="width: 100%; text-align: center;">
+      Volver al inicio de sesión
+    </a>
+  </div>
+</div>
+{% endblock %}
