@@ -141,7 +141,7 @@
 
   /**
    * Tras mutar <option> con innerHTML/DOM, Tom Select queda desfasado.
-   * Destruye e reinicializa para sincronizar (registro externo, filtros por sede, etc.).
+   * Destruir SIEMPRE antes de mutar; luego reinicializar si aplica.
    */
   function refreshSearchableSelect(el) {
     if (!el || el.tagName !== "SELECT") return;
@@ -153,8 +153,14 @@
     initSearchableSelect(el);
   }
 
+  /** Destruye Tom Select del select (si existe) para poder mutar options con seguridad. */
+  function destroySearchableSelect(el) {
+    if (el && el.tomselect) el.tomselect.destroy();
+  }
+
   window.initSearchableSelects = initSearchableSelects;
   window.refreshSearchableSelect = refreshSearchableSelect;
+  window.destroySearchableSelect = destroySearchableSelect;
   initSearchableSelects(document);
 
   document.body.addEventListener("htmx:beforeSwap", function (evt) {

@@ -54,6 +54,12 @@ def _validar_unidad(unidad_tipo: str, unidad_id: int, sede: Sede | None = None) 
     if unidad_tipo == "facultad":
         if not Decanatura.objects.filter(pk=unidad_id, activo=True).exists():
             raise ValidationError("La facultad seleccionada no es válida.")
+        if sede and not Programa.objects.filter(
+            facultad_id=unidad_id, sede_id=sede.id, activo=True
+        ).exists():
+            raise ValidationError(
+                "La facultad seleccionada no tiene programas en la sede indicada."
+            )
     elif unidad_tipo == "programa":
         programa = Programa.objects.filter(pk=unidad_id, activo=True).first()
         if not programa:
