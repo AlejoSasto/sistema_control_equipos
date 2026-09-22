@@ -1,7 +1,7 @@
 # Plan: Seed automático en Render (login)
 
 **Estado:** Completado  
-**Fecha:** 2026-09-21 (actualizado: seed seguro en producción)
+**Fecha:** 2026-09-21 (actualizado 2026-09-22: seed áreas × sede)
 
 ## Objetivo
 
@@ -17,15 +17,21 @@ Tras el primer deploy en Render solo corrían migraciones (sin admin, sin sedes,
 - [x] Limpieza demo limitada a listas fijas (`DEMO_USERNAMES` / documentos / seriales)
 - [x] CSP `connect-src` incluye `cdn.jsdelivr.net` (source maps)
 - [x] Instructivo Render alineado
+- [x] Áreas: upsert por `(sede, codigo)` × sedes activas (post `organizacion.0007`; evita `MultipleObjectsReturned`)
 
 ## Garantías en redeploy
 
 | Acción | ¿Borra datos reales? |
 |--------|----------------------|
 | Upsert permisos / roles / catálogo org | No (update_or_create) |
+| Upsert áreas | No — una fila por `(sede, codigo)` del catálogo |
 | Crear `admin` + alcance GLOBAL | Solo si no existe; password intacto si ya hay admin |
 | Limpiar demos MVP | Solo filas con IDs/seriales de demo |
 | Soft-delete masivo fuera del seed | **No** (eliminado) |
+
+## Áreas y sedes (2026-09-22)
+
+Tras `organizacion.0007_area_sede`, cada código de dependencia existe **por sede**. El seed itera sedes activas × `AREAS` (`seed_organizacion_data.py`). Ver plan [`area-pertenece-sede.md`](area-pertenece-sede.md).
 
 ## Entregables
 

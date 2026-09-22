@@ -60,3 +60,4 @@ No elimina filas de negocio existentes.
 - `ResponsableDependencia` se mantiene para inventariar/asignar institucionales.
 - Un actor no puede ampliar su propio alcance ni otorgar un nivel superior al suyo.
 - Vigilante al crearse recibe alcance `SEDE` de su persona; el badge «Otra sede» en kiosco se conserva.
+- **Áreas (2026-09-22):** `Area` pertenece a `Sede`. `_q_area` incluye `sede_id__in=alcance.sedes` además de `pk__in=alcance.areas`. Detalle: [`area-pertenece-sede.md`](area-pertenece-sede.md).

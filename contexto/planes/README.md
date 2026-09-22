@@ -20,12 +20,12 @@ Los documentos numerados `10`–`12` en la raíz de `contexto/` son la **especif
 | [personal-externo-y-vigilante.md](personal-externo-y-vigilante.md) | Completado | 2026-09-20 | [`../16-personal-externo-y-vigilante.md`](../16-personal-externo-y-vigilante.md) |
 | [area-post-registro-gestor.md](area-post-registro-gestor.md) | Completado | 2026-09-20 | — |
 | [despliegue-render-docker.md](despliegue-render-docker.md) | Completado | 2026-09-21 | Instructivo: [`../operaciones/despliegue-render.md`](../operaciones/despliegue-render.md) |
-| [seed-automatico-render.md](seed-automatico-render.md) | Completado | 2026-09-21 | Seed entrypoint; upsert seguro sin borrar datos reales |
+| [seed-automatico-render.md](seed-automatico-render.md) | Completado | 2026-09-22 | Seed entrypoint; upsert seguro; áreas × sede |
 | [reactivar-equipo-personal-baja.md](reactivar-equipo-personal-baja.md) | Completado | 2026-09-21 | Dar de alta personal tras baja |
 | [desbloqueo-login-axes.md](desbloqueo-login-axes.md) | Completado | 2026-09-21 | Lockout UX + `usuarios.desbloquear` |
 | [alcance-jerarquico-usuarios.md](alcance-jerarquico-usuarios.md) | Completado | 2026-09-21 | Alcance jerárquico + `accounts/alcance.py` |
 | [login-cedula-username-institucional.md](login-cedula-username-institucional.md) | Completado | 2026-09-21 | Login por cédula + username local institucional |
-| [area-pertenece-sede.md](area-pertenece-sede.md) | Completado | 2026-09-22 | Área FK a Sede; unicidad (sede, codigo); seed por sede |
+| [area-pertenece-sede.md](area-pertenece-sede.md) | Completado | 2026-09-22 | Área FK a Sede; unicidad (sede, codigo); migración 0007; seed × sede; UI/alcance |
 
 ## Convención
 

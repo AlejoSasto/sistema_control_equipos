@@ -4,7 +4,7 @@ Carpeta canónica de **documentación, planes y operaciones** del Sistema de Con
 
 > Mantener este índice actualizado cada vez que se agregue, complete o cambie un plan o documento rector.
 
-**Última actualización:** 2026-09-22 (Área pertenece a sede; seed por sede)
+**Última actualización:** 2026-09-22 (documentación detallada Área→Sede + seed × sede + índices)
 
 ---
 
@@ -38,7 +38,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [contexto-completo-sistema.md](contexto-completo-sistema.md) | Síntesis operativa vigente (punto de entrada) | **Vigente** |
 | [00-arquitectura-general.md](00-arquitectura-general.md) | Arquitectura general (monolito modular Django + HTMX) | Vigente |
 | [01-modelo-negocio-roles-permisos.md](01-modelo-negocio-roles-permisos.md) | Modelo de negocio, roles y permisos | Vigente |
-| [02-modelo-datos-diccionario.md](02-modelo-datos-diccionario.md) | Diccionario de datos | Vigente (org. evolucionó a Facultad + Área) |
+| [02-modelo-datos-diccionario.md](02-modelo-datos-diccionario.md) | Diccionario de datos | Vigente con salvedad: Área ahora **pertenece a Sede** (ver `contexto-completo-sistema.md` §5) |
 | [03-plan-implementacion-paso-a-paso.md](03-plan-implementacion-paso-a-paso.md) | Plan de implementación por fases | Completado (MVP) |
 | [04-diseno-ux-ui.md](04-diseno-ux-ui.md) | Diseño UX/UI inicial | Histórico / superado por `05` y `09` |
 | [05-sistema-diseno-v2.md](05-sistema-diseno-v2.md) | Sistema de diseño v2 (Inter, verde institucional) | Vigente (tokens; detalle en `09`) |
@@ -77,12 +77,12 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 | [planes/personal-externo-y-vigilante.md](planes/personal-externo-y-vigilante.md) | **Completado** | Personal externo + visitas + vigilante + badges kiosco |
 | [planes/area-post-registro-gestor.md](planes/area-post-registro-gestor.md) | **Completado** | Gestor se registra sin área; admin la asigna en panel |
 | [planes/despliegue-render-docker.md](planes/despliegue-render-docker.md) | **Completado** | Dockerfile, compose, render.yaml, gunicorn, instructivo Render |
-| [planes/seed-automatico-render.md](planes/seed-automatico-render.md) | **Completado** | Seed en entrypoint; upsert seguro (no borra datos reales) |
+| [planes/seed-automatico-render.md](planes/seed-automatico-render.md) | **Completado** | Seed en entrypoint; upsert seguro; áreas por (sede, codigo) |
 | [planes/reactivar-equipo-personal-baja.md](planes/reactivar-equipo-personal-baja.md) | **Completado** | Alta de equipo personal tras baja (QR inválido mientras baja) |
 | [planes/desbloqueo-login-axes.md](planes/desbloqueo-login-axes.md) | **Completado** | Feedback lockout + permiso `usuarios.desbloquear` en panel |
 | [planes/alcance-jerarquico-usuarios.md](planes/alcance-jerarquico-usuarios.md) | **Completado** | Alcance GLOBAL/SEDE/FACULTAD/PROGRAMA/ÁREA + filtrado central |
 | [planes/login-cedula-username-institucional.md](planes/login-cedula-username-institucional.md) | **Completado** | Login por cédula + username = parte local del correo institucional |
-| [planes/area-pertenece-sede.md](planes/area-pertenece-sede.md) | **Completado** | Área FK a Sede; unicidad (sede, codigo); seed × sede |
+| [planes/area-pertenece-sede.md](planes/area-pertenece-sede.md) | **Completado** | Área FK a Sede; unicidad (sede, codigo); seed × sede; hotfix deploy |
 
 ---
 

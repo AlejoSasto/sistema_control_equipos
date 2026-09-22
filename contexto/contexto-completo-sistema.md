@@ -3,9 +3,9 @@
 **Proyecto:** Sistema de Control de Salida de Equipos de Cómputo  
 **Institución:** Universidad de Cundinamarca  
 **Estado:** Vigente (síntesis operativa alineada al código y al seed)  
-**Fecha:** 2026-09-21 (alcance jerárquico + listo para deploy Render)  
+**Fecha:** 2026-09-22 (Área pertenece a sede; seed por sede; alcance + login cédula)  
 
-> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`15` siguen como detalle; ver sección 14.
+> **Punto de entrada canónico.** Si hay conflicto con documentos antiguos (`01`, `02`, `08`, etc.), **gana este archivo** y el código. Los `00`–`16` siguen como detalle; ver sección 14.
 
 ---
 
@@ -40,9 +40,9 @@ sistema de control/
 ├── config/                 # settings, urls, middleware, wsgi
 ├── apps/
 │   ├── accounts/           # Usuario, Rol, Permiso, login, registro, MFA
-│   ├── organizacion/       # Sede, Decanatura (Facultad), Programa, Área
-│   ├── personas/           # Persona, TipoVinculo
-│   ├── equipos/            # Equipo, QR
+│   ├── organizacion/       # Sede, Facultad, Programa, Área→Sede, AlcanceUsuario
+│   ├── personas/           # Persona, TipoVinculo, VisitaExterno
+│   ├── equipos/            # Equipo, QR, AsignacionEquipo
 │   ├── control_acceso/     # Kiosco, Movimiento
 │   ├── panel/              # Administración interna /panel/ (+ monta dashboard)
 │   ├── auditoria/          # AuditoriaCambio
@@ -72,7 +72,7 @@ python manage.py runserver
 | App | Responsabilidad |
 |-----|-----------------|
 | `accounts` | Auth, roles/permisos dinámicos, **alcance jerárquico** (`alcance.py`), registro externo, MFA TOTP, mi perfil |
-| `organizacion` | Catálogos multi-sede: Sede, Facultad, Programa, Área; `ResponsableDependencia`; `AlcanceUsuario` |
+| `organizacion` | Catálogos multi-sede: Sede, Facultad, Programa, **Área (FK sede)**, `ResponsableDependencia`, `AlcanceUsuario` |
 | `personas` | Ficha de comunidad académica + TipoVinculo |
 | `equipos` | Inventario, generación/exhibición de QR |
 | `control_acceso` | Kiosco de portería + historial de movimientos |
@@ -122,26 +122,55 @@ flowchart LR
 
 ## 5. Organización institucional
 
+### 5.1 Jerarquía vigente
+
 ```
 Sede ──────────────┬──► Programa (sede + facultad)
-                   └──► Área / Dependencia (sede + codigo único por sede)
+                   └──► Área / Dependencia (FK sede; unicidad sede+codigo)
 Facultad (indep.) ─┘
-                   ├──► Persona (sede + programa | área de la misma sede)
+                   ├──► Persona (sede obligatoria + programa | área de la misma sede)
                    ├──► Equipo personal (persona obligatoria)
-                   └──► Equipo institucional (unidad propietaria +
+                   └──► Equipo institucional (unidad propietaria facultad|programa|área +
                         estado_inventario; AsignacionEquipo opcional)
 ```
 
 | Entidad | Descripción | Ejemplo seed |
 |---------|-------------|--------------|
-| **Sede** | Ubicación física | 7 sedes/seccionales/extensiones (seed) |
-| **Facultad** (`Decanatura`) | Unidad académica transversal (no depende de sede) | 7 facultades (seed) |
-| **Programa** | Carrera en una sede bajo una facultad | 45 programas (seed) |
-| **Área** | Dependencia administrativa **de una sede**; unicidad `(sede, codigo)` | 8 códigos × 7 sedes (p. ej. CGCA en Ubaté y Fusa) |
+| **Sede** | Ubicación física (seccional / extensión / sede) | 7 códigos: CHIA, FACA, FUSA, GIR, SOACHA, UBATE, ZIPA |
+| **Facultad** (`Decanatura`) | Unidad académica **transversal** (no depende de sede) | 7 facultades (FAC-ING, FAC-ADM, …) |
+| **Programa** | Carrera ofrecida en **una** sede bajo una facultad | 45 programas (código único global, p. ej. `ISC-UBATE`) |
+| **Área** | Dependencia administrativa **de una sede** | 8 códigos × cada sede activa (p. ej. CGCA en Ubaté **y** en Fusa = 2 filas) |
 
-**Persona:** sede obligatoria; perfiles académicos pueden tener programa; `gestor_administrativo` **no** elige área al autorregistrarse (queda pendiente); un admin con `personas.administrar` la asigna después en el panel (sin programa), y el área debe pertenecer a la misma sede de la persona.
+> Nota: docs antiguos `01`/`02` describían `Sede → Decanatura → Programa` y Área independiente. El modelo vigente: Facultad independiente; **Área siempre con sede** (migración `organizacion.0007_area_sede`). Plan: [`planes/area-pertenece-sede.md`](planes/area-pertenece-sede.md).
 
-> Nota: docs antiguos `01`/`02` describían `Sede → Decanatura → Programa`. El modelo vigente trata Facultad como independiente.
+### 5.2 Modelo `Area` (detalle)
+
+| Campo / regla | Valor |
+|---------------|--------|
+| `sede` | `ForeignKey(Sede, on_delete=RESTRICT, related_name="areas")` — **obligatorio** |
+| `codigo` | Corto institucional (CGCA, ISU, …); **no** único solo |
+| Unicidad | `UniqueConstraint(sede, codigo)` → `uniq_area_sede_codigo` |
+| Índice | `(sede, activo)` → `area_sede_id_activo_idx` |
+| `__str__` | `CGCA — Biblioteca (UBATE)` |
+| Borrado | Lógico (`activo`); RESTRICT impide borrar sede con áreas |
+
+Códigos del catálogo seed (`seed_organizacion_data.AREAS`): `ADMIS`, `BIEN`, `CGCA`, `CTEI`, `DIRADM`, `INTL`, `ISU`, `TESOR`.
+
+### 5.3 Persona ↔ organización
+
+- **Sede** siempre obligatoria.
+- Perfiles académicos (`creador_oportunidades`, `gestor_conocimiento`, `egresado`): programa opcional de **esa** sede; sin área.
+- `gestor_administrativo`: **sin** área ni programa en autorregistro (área pendiente). Un admin con `personas.administrar` asigna después el área; debe cumplir `area.sede_id == persona.sede_id`.
+- `personal_externo`: no usa `Persona.area`/`programa` de forma fija; el destino va en `VisitaExterno` (sede + unidad). Si la unidad es área, esa fila de `Area` debe ser de la sede de la visita.
+- UI: selects de área/programa se **filtran por sede** (panel persona, registro externo, nueva visita).
+
+### 5.4 Alcance sobre áreas
+
+Con alcance nivel `sede`, el usuario ve **todas** las áreas de esas sedes (`_q_area`: `sede_id__in` ∪ `pk__in` por dependencia explícita). Crear áreas nuevas en catálogo exige alcance `global` (igual que sedes/programas).
+
+### 5.5 Seed de áreas
+
+`_cargar_areas` hace upsert **por cada sede activa × cada código** del catálogo. No soft-desactiva áreas ajenas. Tras 7 sedes × 8 códigos → **56** filas tipicas. Ver también [`planes/seed-automatico-render.md`](planes/seed-automatico-render.md).
 
 ---
 
@@ -168,12 +197,12 @@ Los **permisos** definen *qué puede hacer*; el **alcance** define *sobre qué f
 | Nivel | Ve |
 |-------|-----|
 | `global` | Todo (caso FUSA — no hardcodeado) |
-| `sede` | Solo su sede |
+| `sede` | Su sede + programas de esa sede + **áreas de esa sede** |
 | `facultad` | Personas/programas/equipos de esa facultad |
 | `programa` | Solo ese programa |
-| `area` | Solo esa dependencia |
+| `area` | Solo esa dependencia (fila `Area` concreta, ya ligada a una sede) |
 
-Filtrado central: `apps/accounts/alcance.py` (`aplicar_alcance`, helpers `personas_visibles`, `equipos_visibles`, etc.). Reportes: `acotar_por_alcance` en `reportes/filtros.py`. Permiso `usuarios.gestionar_alcance` para asignar alcance a otros (no ampliar el propio ni otorgar nivel superior al del actor).
+Filtrado central: `apps/accounts/alcance.py` (`aplicar_alcance`, helpers `personas_visibles`, `equipos_visibles`, `areas_visibles`, etc.). Para `organizacion.Area`, `_q_area` une `sede_id__in=alcance.sedes` y `pk__in=alcance.areas`. Reportes: `acotar_por_alcance` en `reportes/filtros.py`. Permiso `usuarios.gestionar_alcance` para asignar alcance a otros (no ampliar el propio ni otorgar nivel superior al del actor).
 
 ### Permisos (18)
 
@@ -232,7 +261,7 @@ Si `dominio_correo_requerido` es NULL, no se exige dominio institucional.
   - `estado_inventario`: `disponible` (sin persona) | `asignado` | `de_baja`.
   - `persona` **nullable**: `NULL` mientras está disponible en inventario.
   - Alta: `/panel/equipos/institucionales/nuevo/` (`equipos.inventario_institucional`) — **sin elegir persona**.
-  - Si `unidad_tipo=area`, se sincroniza `dependencia` (FK Área).
+  - Si `unidad_tipo=area`, se sincroniza `dependencia` (FK a la fila `Area` de esa sede; el mismo código en otra sede es otra fila).
 - Una persona **nunca** se autoasigna un institucional; el autoregistro personal no se mezcla con este flujo.
 - El titular ve el institucional en Mis equipos (badge + QR) solo mientras esté asignado a él.
 - Si `activo=false` / `de_baja`, el escaneo genera alerta.
@@ -259,11 +288,11 @@ Separación cuenta vs visita para `personal_externo` (simetría con equipo vs as
 | Campo | Regla |
 |-------|--------|
 | `persona` | Solo tipo `personal_externo` |
-| `sede` / `unidad_tipo` / `unidad_id` | Destino autodeclarado (sin aprobación) |
+| `sede` / `unidad_tipo` / `unidad_id` | Destino autodeclarado (sin aprobación). Si `unidad_tipo=area`, `unidad_id` debe ser un `Area` de **esa** `sede` |
 | `fecha_inicio` / `fecha_fin` | Obligatorias |
 | `estado` | `activa` \| `finalizada` \| `cancelada` — máx. una `activa` por persona |
 
-Primera visita en `/registro/`; siguientes en `/accounts/registrar-visita/`. Al vencer: cierre en escaneo o `cerrar_visitas_vencidas` — **no** se inactiva la Persona.
+Primera visita en `/registro/`; siguientes en `/accounts/registrar-visita/`. Al vencer: cierre en escaneo o `cerrar_visitas_vencidas` — **no** se inactiva la Persona. En el formulario, el JS filtra programas y áreas por la sede elegida; el backend valida coherencia sede↔unidad.
 
 ### AlcanceUsuario
 
@@ -302,7 +331,8 @@ Cada escaneo crea un registro:
 5. MFA obligatorio para usuarios con rol activo `admin_sistema`.
 6. Vigilante pertenece a una sola sede; persona de otra sede → `ok` + badge «Otra sede».
 7. Listados del panel, reportes, inventario e histórico de movimientos se filtran por `AlcanceUsuario` (sin alcance → queryset vacío salvo superusuario).
-8. Catálogos: crear sedes/facultades/programas/áreas nuevas requiere alcance `global`; editar/listar solo lo visible.
+8. Catálogos: crear sedes/facultades/programas/áreas nuevas requiere alcance `global`; editar/listar solo lo visible. Al crear/editar **área**, la sede es obligatoria y el código es único **por sede**.
+9. Coherencia sede↔área: no se asigna a una persona (ni a una visita) un área de otra sede.
 
 ---
 
@@ -312,8 +342,8 @@ Cada escaneo crea un registro:
 
 Público. Elige `TipoVinculo` con `permite_autoregistro=true` → crea atómicamente Persona + Usuario + `UsuarioRol` (nunca elige su rol).  
 Si el vínculo exige `dominio_correo_requerido` (hoy `@ucundinamarca.edu.co`), el **username** es la parte local del correo (`juan.perez` para `juan.perez@ucundinamarca.edu.co`); el `email` queda completo. Sin dominio requerido (`personal_externo`), username = correo completo.  
-Si el vínculo es **Gestor Administrativo**, el formulario **no** pide área ni programa (el área la asigna después un admin con `personas.administrar`); para el resto de comunidad, programa es opcional y no se asigna área.  
-Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → también crea la primera `VisitaExterno`. Documento ya registrado como externo → hint de login + «Registrar nueva visita».
+Si el vínculo es **Gestor Administrativo**, el formulario **no** pide área ni programa (el área la asigna después un admin con `personas.administrar`, siempre de la **misma sede** de la persona); para el resto de comunidad, programa es opcional (filtrado por sede) y no se asigna área.  
+Si es **Personal Externo**: correo libre + sede/dependencia/vigencia → también crea la primera `VisitaExterno`. Dependencia tipo área: solo áreas de la sede destino. Documento ya registrado como externo → hint de login + «Registrar nueva visita».
 
 ### 9.1b Vigilante (alta interna)
 
@@ -362,7 +392,7 @@ Otra sede (cualquier vínculo): si `persona.sede` ≠ sede del vigilante → `ok
 
 Administración universitaria (no Django Admin). Personas, usuarios (roles + **alcance**), roles, organización, equipos institucionales. Django Admin (`ADMIN_URL`) solo soporte técnico.
 
-Con `reportes.ver`, `/panel/` redirige primero al **dashboard** (`panel:dashboard`). Los listados y selects de sede/programa/área usan helpers de alcance; detalle fuera de alcance → 404.
+Con `reportes.ver`, `/panel/` redirige primero al **dashboard** (`panel:dashboard`). Los listados y selects de sede/programa/área usan helpers de alcance (`select_related("sede")` en áreas); detalle fuera de alcance → 404. Organización → Áreas muestra columna **Sede**; el formulario de área exige sede.
 
 ### 9.6 Dashboard administrador (`/panel/dashboard/`)
 
@@ -415,6 +445,8 @@ Cinco Excel: movimientos, equipos, personas, alertas, ejecutivo. Requiere `repor
 | `/panel/equipos/<id>/dar-de-alta/` | Reactivar personal de baja (`activo=true`); solo personales |
 | `/panel/usuarios/<id>/` | Ficha: roles, reset password, desbloqueo Axes, **gestión de alcance** |
 | `/panel/usuarios/<id>/desbloquear/` | Desbloquear login Axes (`usuarios.desbloquear`) |
+| `/panel/organizacion/` | Sedes, facultades, programas, **áreas (con sede)** |
+| `/panel/organizacion/areas/nueva/` | Alta área (sede + código + nombre) |
 | `/panel/responsables-dependencia/` | CRUD responsables de unidad |
 | `/reportes/` | índice / configurar / exportar Excel |
 | `/personas/` | personas + tipos de vínculo |
@@ -467,15 +499,31 @@ python manage.py seed_data
 
 En Docker/Render el `entrypoint.sh` ejecuta `migrate` → **`seed_data`** → `collectstatic` → Gunicorn en cada arranque.
 
-`seed_data` es **idempotente y no destructivo** respecto a datos reales: upsert de catálogos; no resetea password de `admin`; no desactiva sedes/programas/áreas/vínculos ajenos al seed; solo limpia demos fijos del MVP. Login admite **username**, **correo** o **documento**; perfiles con `@ucundinamarca.edu.co` usan username = parte local del correo.
+`seed_data` es **idempotente y no destructivo** respecto a datos reales: upsert de catálogos; no resetea password de `admin`; no desactiva sedes/programas/áreas/vínculos ajenos al seed; solo limpia demos fijos del MVP.  
+
+**Áreas:** upsert por `(sede, codigo)` para cada sede activa × cada entrada de `AREAS` (evita el fallo histórico `MultipleObjectsReturned` tras clonar áreas por sede en `0007`).  
+
+Login admite **username**, **correo** o **documento**; perfiles con `@ucundinamarca.edu.co` usan username = parte local del correo.
 
 | Perfil | Usuario | Contraseña | Uso |
 |--------|---------|------------|-----|
 | Administrador | `admin` | `Udec2026!Admin` | Alcance **GLOBAL**; dashboard, panel, catálogos, inventario, kiosco, reportes Excel, asignación institucional |
 
-Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 códigos de área × cada sede activa** (upsert por `(sede, codigo)`), **6 tipos de vínculo** (4 comunidad + `personal_externo` + `vigilante`), **18 permisos**, **4 roles activos** (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`). Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `AlcanceUsuario(nivel=global)`. Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
+Carga típica tras seed completo:
 
-> Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales. Guía deploy: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md).
+| Catálogo | Cantidad |
+|----------|----------|
+| Sedes | 7 |
+| Facultades | 7 |
+| Programas | 45 |
+| Áreas | **8 códigos × N sedes activas** (p. ej. 56 si N=7) |
+| Tipos de vínculo | 6 (4 comunidad + `personal_externo` + `vigilante`) |
+| Permisos | 18 |
+| Roles activos | 4 (`admin_sistema`, `miembro_comunidad`, `responsable_dependencia`, `vigilante`) |
+
+Al seedear/`migrate`, `admin` (y admins existentes vía migración) reciben `AlcanceUsuario(nivel=global)`. Limpia demos (`celador1`, `docente1`, equipos demo), desactiva vínculos legado de migraciones (`estudiante`, `graduado`, …) y deja `celador` inactivo. Si `admin` ya existe, **no** resetea su contraseña.
+
+> Credenciales solo para entorno local / presentación. En producción: cambiar y no documentar secretos reales. Guía deploy: [`operaciones/despliegue-render.md`](operaciones/despliegue-render.md). Plan seed: [`planes/seed-automatico-render.md`](planes/seed-automatico-render.md). Plan áreas: [`planes/area-pertenece-sede.md`](planes/area-pertenece-sede.md).
 
 ---
 
@@ -487,7 +535,7 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 códigos de área ×
 | Índice de toda la carpeta | [`README.md`](README.md) |
 | Arquitectura inicial | [`00-arquitectura-general.md`](00-arquitectura-general.md) |
 | Negocio / roles (histórico + reglas) | [`01-modelo-negocio-roles-permisos.md`](01-modelo-negocio-roles-permisos.md) |
-| Diccionario de campos | [`02-modelo-datos-diccionario.md`](02-modelo-datos-diccionario.md) |
+| Diccionario de campos | [`02-modelo-datos-diccionario.md`](02-modelo-datos-diccionario.md) (histórico: Área ya **no** es independiente de sede) |
 | Lógica ampliada (puede estar desfasada vs seed) | [`08-logica-completa-aplicacion.md`](08-logica-completa-aplicacion.md) |
 | Guía UX/UI completa | [`09-guia-diseno-ux-ui.md`](09-guia-diseno-ux-ui.md) |
 | Seguridad ISO/OWASP | [`11-plan-seguridad-iso27001-owasp.md`](11-plan-seguridad-iso27001-owasp.md) |
@@ -496,8 +544,12 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 códigos de área ×
 | Asignación equipos institucionales | [`14-asignacion-equipos-institucionales.md`](14-asignacion-equipos-institucionales.md) |
 | Vigencia asignaciones institucionales | [`15-vigencia-asignacion-equipos-institucionales.md`](15-vigencia-asignacion-equipos-institucionales.md) |
 | Personal externo y vigilante | [`16-personal-externo-y-vigilante.md`](16-personal-externo-y-vigilante.md) |
+| Área → sede (ejecución) | [`planes/area-pertenece-sede.md`](planes/area-pertenece-sede.md) |
+| Alcance jerárquico (ejecución) | [`planes/alcance-jerarquico-usuarios.md`](planes/alcance-jerarquico-usuarios.md) |
+| Login cédula / username institucional | [`planes/login-cedula-username-institucional.md`](planes/login-cedula-username-institucional.md) |
+| Seed Render | [`planes/seed-automatico-render.md`](planes/seed-automatico-render.md) |
 | Planes de ejecución | [`planes/`](planes/) |
-| Incidentes / backups | [`operaciones/`](operaciones/) |
+| Incidentes / backups / deploy | [`operaciones/`](operaciones/) |
 
 ---
 
@@ -507,15 +559,17 @@ Carga: **7 sedes**, **7 facultades**, **45 programas**, **8 códigos de área ×
 |------|------|
 | URLs raíz | `config/urls.py` |
 | Settings / seguridad | `config/settings.py`, `config/middleware.py` |
-| Seed | `apps/accounts/management/commands/seed_data.py` |
+| Seed | `apps/accounts/management/commands/seed_data.py` (+ `seed_organizacion_data.py`) |
 | Login (cédula / correo / usuario) | `apps/accounts/backends.py`, `apps/accounts/auth_utils.py` |
 | Alcance jerárquico | `apps/accounts/alcance.py`, `apps/organizacion/models.py` (`AlcanceUsuario`); UI `templates/panel/usuario_detail.html` |
+| Área ↔ sede | `apps/organizacion/models.py` (`Area`); migración `0007_area_sede.py`; panel `views_organizacion.py` |
 | Login / MFA / registro | `apps/accounts/views.py` |
 | QR firmado | `apps/equipos/models.py` |
 | Asignación / inventario institucional | `apps/equipos/services.py`, `apps/equipos/models.py`, `apps/panel/views_equipos.py`; command `cerrar_asignaciones_vencidas` |
+| Visitas externo | `apps/personas/services.py`, `apps/personas/models.py` (`VisitaExterno`) |
 | ResponsableDependencia | `apps/organizacion/models.py` |
 | Kiosco | `apps/control_acceso/views.py`, `templates/control_acceso/scanner.html` |
 | Reportes Excel | `apps/reportes/` (generadores, filtros con `acotar_por_alcance`, views) |
 | Dashboard | `apps/reportes/dashboard.py`, `views_dashboard.py`; templates `reportes/dashboard*.html`; `static/js/dashboard.js` |
 | Montaje URLs dashboard | `apps/panel/urls.py` |
-| Plan de ejecución | [`planes/alcance-jerarquico-usuarios.md`](planes/alcance-jerarquico-usuarios.md) |
+| Planes clave | [`planes/area-pertenece-sede.md`](planes/area-pertenece-sede.md), [`planes/alcance-jerarquico-usuarios.md`](planes/alcance-jerarquico-usuarios.md), [`planes/login-cedula-username-institucional.md`](planes/login-cedula-username-institucional.md) |

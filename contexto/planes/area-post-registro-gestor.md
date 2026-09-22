@@ -23,3 +23,7 @@ El gestor administrativo **no** diligencia área en el autorregistro. Puede usar
 | Modelo | `apps/personas/models.py` |
 | Panel asignación | `templates/panel/persona_form.html`, `personas_list.html`, `apps/panel/views.py` |
 | Tests | `apps/accounts/tests.py`, `apps/panel/tests.py` |
+
+## Nota posterior (2026-09-22)
+
+Al asignar área en el panel, el área **debe pertenecer a la misma sede** de la persona (`area.sede_id == persona.sede_id`). El select de áreas se filtra por sede en UI. Ver [`area-pertenece-sede.md`](area-pertenece-sede.md).

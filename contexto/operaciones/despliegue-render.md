@@ -130,7 +130,7 @@ Render generará `SECRET_KEY` solo. Tú debes completar:
 El `entrypoint` del contenedor ejecuta automáticamente, en cada arranque:
 
 1. `migrate`
-2. **`seed_data`** (catálogos, roles, vínculos canónicos, sedes, admin)
+2. **`seed_data`** (catálogos, roles, vínculos canónicos, sedes, **áreas por sede**, admin)
 3. `collectstatic`
 4. Gunicorn
 
@@ -143,6 +143,8 @@ No hace falta Shell para el primer login. Tras un deploy **Live**:
 3. En un entorno real, **cambia la contraseña** del administrador desde el panel.
 
 El seed desactiva tipos de vínculo legado de migraciones antiguas (`estudiante`, `graduado`, `administrativo`, `docente`) y deja solo el catálogo canónico.
+
+**Áreas:** cada código del catálogo se upserta **por sede** (`update_or_create(sede, codigo)`). Tras `organizacion.0007` hay una fila de área por sede (p. ej. CGCA en Ubaté y en Fusa). En logs debe aparecer algo como `56 áreas upsert (7 sedes × 8 códigos…)` — **no** el error `MultipleObjectsReturned`. Detalle: [`../planes/area-pertenece-sede.md`](../planes/area-pertenece-sede.md).
 
 Si necesitas forzar el seed a mano (Shell o local):
 
@@ -177,6 +179,8 @@ Cada arranque vuelve a ejecutar `migrate`, `seed_data` y `collectstatic`.
 
 Migraciones de alcance (`organizacion.0005`–`0006`, `accounts.0011`) son aditivas: crean tablas/permisos y asignan GLOBAL a admins existentes; no eliminan personas, equipos ni movimientos.
 
+Migración `organizacion.0007_area_sede`: hace obligatoria la sede en `Area`, clona códigos por sede y remapea FKs. Idempotente una vez aplicada; el seed posterior upserta por `(sede, codigo)`.
+
 ---
 
 ## Paso 7 — Checklist post-deploy
@@ -188,6 +192,8 @@ Migraciones de alcance (`organizacion.0005`–`0006`, `accounts.0011`) son aditi
 - [ ] Topbar muestra badge «Alcance: Global» para `admin`
 - [ ] Ficha de usuario: sección Alcance visible con `usuarios.gestionar_alcance`
 - [ ] Registro muestra sedes y tipos canónicos (no Estudiante/Graduado legado)
+- [ ] En logs del seed: `áreas upsert (… sedes × … códigos…)` sin `MultipleObjectsReturned`
+- [ ] Panel Organización → Áreas: columna Sede; mismo código puede repetirse en sedes distintas
 - [ ] Backups: ver [checklist-backup-restauracion.md](checklist-backup-restauracion.md)
 - [ ] Incidentes: ver [procedimiento-incidentes-seguridad.md](procedimiento-incidentes-seguridad.md)
 
@@ -229,6 +235,7 @@ docker compose exec web python manage.py seed_data
 | Estáticos 404 / sin CSS | Logs de `collectstatic`; WhiteNoise activo con `DEBUG=False` |
 | Tarda mucho o “duerme” | Plan Free: el servicio puede dormir tras inactividad; la primera petición despierta (frío) |
 | Login falla / sedes vacías / tipos "Estudiante" | Redeploy con seed en entrypoint; en logs debe aparecer `Cargando catálogos institucionales` |
+| Seed cae con `MultipleObjectsReturned` en Area | Código antiguo upsertaba solo por `codigo`; debe upsertar por `(sede, codigo)`. Ver plan área-sede |
 | Admin no ve datos / listados vacíos | Verificar alcance GLOBAL (`migrate` 0005 + seed); en ficha de usuario o shell: `admin.alcances` |
 | Avisos CSP de `*.map` en consola | Cosmético (source maps); no bloquean login. `connect-src` ya incluye jsdelivr |
 
