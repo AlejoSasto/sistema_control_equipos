@@ -128,18 +128,21 @@ def equipo_list(request):
 def equipo_detail(request, pk):
     """Detalle de un equipo y vista para mostrar su pase QR."""
     equipo = get_object_or_404(
-        equipos_visibles(request.user).select_related(
+        Equipo.objects.select_related(
             "persona", "persona__sede", "persona__programa", "dependencia"
         ),
         pk=pk,
     )
-    if not request.user.tiene_permiso("equipos.ver_todos"):
-        if not getattr(request.user, "persona", None) or equipo.persona != request.user.persona:
-            messages.error(request, "No tiene permiso para ver este equipo.")
-            return redirect("equipos:mis_equipos")
-    elif not puede_ver_objeto(request.user, equipo):
+    persona_usuario = getattr(request.user, "persona", None)
+    es_dueno = bool(persona_usuario and equipo.persona_id == persona_usuario.pk)
+    es_admin_con_alcance = request.user.tiene_permiso(
+        "equipos.ver_todos"
+    ) and puede_ver_objeto(request.user, equipo)
+    if not es_dueno and not es_admin_con_alcance:
         messages.error(request, "No tiene permiso para ver este equipo.")
-        return redirect("equipos:equipos_list")
+        if request.user.tiene_permiso("equipos.ver_todos"):
+            return redirect("equipos:equipos_list")
+        return redirect("equipos:mis_equipos")
 
     movimientos = equipo.movimientos.select_related("usuario_control").all()[:10]
 

@@ -25,7 +25,7 @@ No hay control de ingreso. Cada escaneo genera un `Movimiento` (auditoría), inc
 
 | Capa | Tecnología |
 |------|------------|
-| Backend | Python + Django 5.1 |
+| Backend | Python + Django 5.2 LTS |
 | Base de datos | PostgreSQL |
 | Frontend | Templates Django + HTMX (sin SPA) |
 | Estilos | `static/css/custom.css` + Bootstrap 5.3 (CDN) |

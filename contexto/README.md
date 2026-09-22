@@ -103,7 +103,7 @@ Al implementar algo nuevo: crear o actualizar el plan en `planes/` (kebab-case),
 
 ## Stack de referencia (resumen)
 
-- Django 5.1 + templates + HTMX
+- Django 5.2 LTS + templates + HTMX
 - PostgreSQL
 - Resend (correos sync en web; Celery opcional fase 2)
 - CSS propio (`static/css/custom.css`) — design system v2

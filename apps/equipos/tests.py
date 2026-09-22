@@ -186,6 +186,32 @@ class EquiposModelTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Equipo.objects.filter(serial="HACK-INST-01").exists())
 
+    def test_miembro_ve_ficha_tras_registrar(self):
+        """Dueño sin alcance admin debe ver /equipos/<pk>/ tras create (no 404)."""
+        perm_reg, _ = Permiso.objects.get_or_create(
+            codigo="equipos.registrar", defaults={"descripcion": "Registrar"}
+        )
+        RolPermiso.objects.get_or_create(rol=self.rol_miembro, permiso=perm_reg)
+        self.client.login(username="dueno_eq", password="testpass123!")
+        response = self.client.post(
+            reverse("equipos:equipo_create"),
+            {
+                "tipo": Equipo.TIPO_PORTATIL,
+                "marca": "Asus",
+                "modelo": "VivoBook",
+                "serial": "PERS-FICHA-01",
+                "propiedad": Equipo.PROPIEDAD_PERSONAL,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        equipo = Equipo.objects.get(serial="PERS-FICHA-01")
+        self.assertEqual(
+            response.url, reverse("equipos:equipo_detail", kwargs={"pk": equipo.pk})
+        )
+        detail = self.client.get(reverse("equipos:equipo_detail", kwargs={"pk": equipo.pk}))
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Asus")
+
     def test_dar_de_baja_y_alta_personal(self):
         equipo = Equipo.objects.create(
             persona=self.persona,
