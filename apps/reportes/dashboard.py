@@ -46,7 +46,10 @@ class DashboardFiltros:
             "vinculo": self.vinculo.como_dict(),
             "resultado": self.resultado.como_dict(),
         }
-        digest = hashlib.md5(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+        digest = hashlib.md5(
+            json.dumps(payload, sort_keys=True, default=str).encode(),
+            usedforsecurity=False,
+        ).hexdigest()
         return f"dash:{prefijo}:{digest}"
 
     def query_params(self) -> dict[str, Any]:

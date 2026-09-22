@@ -35,6 +35,13 @@ class PersonalExternoVisitaTestCase(TestCase):
             facultad=self.facultad,
             nivel="pregrado",
         )
+        self.programa2 = Programa.objects.create(
+            codigo="ISC-FUSA-T16",
+            nombre="Ingeniería de Sistemas T16 Fusa",
+            sede=self.sede2,
+            facultad=self.facultad,
+            nivel="pregrado",
+        )
         self.area = Area.objects.create(
             sede=self.sede, codigo="CGCA-T16", nombre="Control T16"
         )
